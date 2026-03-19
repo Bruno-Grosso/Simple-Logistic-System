@@ -1,0 +1,19 @@
+{
+  "name": "front",
+  "version": "0.0.1",
+  "description": "Front-end of the system",
+  "keywords": [
+    "front"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "Simple-Logistics-System"
+  },
+  "license": "BSD-3-Clause",
+  "author": "Cauã Eyer",
+  "type": "typescript",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  }
+}
