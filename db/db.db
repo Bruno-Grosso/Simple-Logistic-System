@@ -63,7 +63,11 @@ CREATE TABLE orders (
     receiver TEXT,
     time_limit TEXT,
     price REAL,
-    status TEXT  -- 'pending', 'in_transit', 'delivered'
+    status TEXT  -- 'pending', 'in_transit', 'delivered',
+    client_id TEXT,
+
+    FOREIGN KEY (cleint_id) REFERENCES user(id),
+    FOREIGN KEY (final_destination) REFERENCES user(adress)
 ); 
 -- =====================
 -- STOCK
@@ -106,3 +110,35 @@ CREATE TABLE order_route (
     FOREIGN KEY (order_id) REFERENCES orders(id),
     FOREIGN KEY (deposit_id) REFERENCES deposit(id)
 ); 
+
+-- =====================
+-- EMPLOYEE
+-- =====================
+    CREATE TABLE employee (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    is_able INTEGER, -- 0(false), 1(true)
+    deposit_id TEXT,
+    truck_id TEXT,
+    
+    FOREIGN KEY (deposit_id) REFERENCES deposit(id),
+    FOREIGN KEY (truck_id) REFERENCES truck(id),
+    
+    CHECK (
+        (deposit_id IS NULL OR truck_id IS NULL) 
+        AND 
+        (deposit_id IS NOT NULL OR truck_id IS NOT NULL)
+    )
+);
+
+-- =====================
+-- USER
+-- =====================
+
+CREATE TABLE user (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    work_position TEXT,
+    password TEXT,
+    adress TEXT
+)
