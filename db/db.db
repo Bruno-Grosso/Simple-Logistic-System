@@ -1,19 +1,17 @@
---**WORK IN PROGRESS**
+-- ======================================================
+--                  WORK IN PROGRESS
+-- ======================================================
 
--- =====================
--- DEPOSIT
--- =====================
+-- Stores physical warehouse/storage locations
 CREATE TABLE deposit (
     id TEXT PRIMARY KEY,
     location TEXT,
-    size TEXT,
+    size TEXT, -- e.g., 'Small', 'Large'
     volume_actual REAL,
     volume_max REAL
 );
 
--- =====================
--- TRUCK
--- =====================
+-- Vehicle fleet data; tracks current status and physical load
 CREATE TABLE truck (
     id TEXT PRIMARY KEY,
     model TEXT,
@@ -22,54 +20,49 @@ CREATE TABLE truck (
     volume_max REAL,
     weight_actual REAL,
     weight_max REAL,
-    estimated_time TEXT,
-    is_delivering INTEGER,
+    estimated_time TEXT, -- ETA for current trip
+    is_delivering INTEGER, -- Boolean (0/1)
     speed INTEGER,
-    is_valid INTEGER,
+    is_valid INTEGER, -- Maintenance status
     is_traveling INTEGER,
     current_location TEXT,
     origin TEXT,
     destination TEXT,
-    deposit_id TEXT,
+    deposit_id TEXT, -- Current home base or dock
 
     FOREIGN KEY (deposit_id) REFERENCES deposit(id)
 );
 
--- =====================
--- PRODUCT (TYPE)
--- =====================
+-- Catalog of products; contains static dimensions and properties
 CREATE TABLE product (
     id TEXT PRIMARY KEY,
     name TEXT,
-    is_cold INTEGER,
+    is_cold INTEGER, -- Boolean: Requires refrigeration
     is_fragile INTEGER,
-    expire_date TEXT,
+    expire_date TEXT, -- Format: YYYY-MM-DD
     price REAL,
     size TEXT,
     volume REAL,
     weight REAL
 );
 
--- =====================
--- ORDERS
--- =====================
+-- Customer orders and delivery requirements
 CREATE TABLE orders (
     id TEXT PRIMARY KEY,
-    final_destination TEXT,
+    final_destination TEXT, -- Client adress
     sender TEXT,
     receiver TEXT,
     time_limit TEXT,
     price REAL,
-    status TEXT,
+    status TEXT, -- e.g., 'Pending', 'Shipped', 'Delivered'
     client_id TEXT,
 
     FOREIGN KEY (client_id) REFERENCES user(id),
-    FOREIGN KEY (final_destination) REFERENCES user(adress)
+    FOREIGN KEY (final_destination) REFERENCES user(adress) 
 );
 
--- =====================
--- STOCK
--- =====================
+-- Inventory Tracking: Connects products to their physical location
+-- Uses a XOR constraint to ensure an item is only in ONE place
 CREATE TABLE stock (
     id TEXT PRIMARY KEY,
     product_id TEXT NOT NULL,
@@ -84,6 +77,7 @@ CREATE TABLE stock (
     FOREIGN KEY (truck_id) REFERENCES truck(id),
     FOREIGN KEY (order_id) REFERENCES orders(id),
 
+    -- Ensures inventory cannot be in a truck and deposit simultaneously
     CHECK (
         (deposit_id IS NOT NULL AND truck_id IS NULL AND order_id IS NULL)
         OR
@@ -95,12 +89,10 @@ CREATE TABLE stock (
     UNIQUE(product_id, deposit_id, truck_id, order_id)
 );
 
--- =====================
--- ORDER ROUTE
--- =====================
+-- Tracking the journey of an order through various deposits
 CREATE TABLE order_route (
     order_id TEXT,
-    step INTEGER CHECK (step > 0),
+    step INTEGER CHECK (step > 0), -- Sequence of the stop
     deposit_id TEXT,
     estimated_time TEXT,
     arrived_at TEXT,
@@ -110,19 +102,18 @@ CREATE TABLE order_route (
     FOREIGN KEY (deposit_id) REFERENCES deposit(id)
 );
 
--- =====================
--- EMPLOYEE
--- =====================
+-- Staff assignments to either a warehouse or a vehicle
 CREATE TABLE employee (
     id TEXT PRIMARY KEY,
     name TEXT,
-    is_able INTEGER,
+    is_able INTEGER, -- Certification or health status
     deposit_id TEXT,
     truck_id TEXT,
 
     FOREIGN KEY (deposit_id) REFERENCES deposit(id),
     FOREIGN KEY (truck_id) REFERENCES truck(id),
 
+    -- XOR constraint: Employee is assigned to a building OR a truck
     CHECK (
         (deposit_id IS NOT NULL AND truck_id IS NULL)
         OR
@@ -130,13 +121,11 @@ CREATE TABLE employee (
     )
 );
 
--- =====================
--- USER
--- =====================
+-- System users including clients and potentially internal staff
 CREATE TABLE user (
     id TEXT PRIMARY KEY,
     name TEXT,
     work_position TEXT,
-    password TEXT,
+    password TEXT, -- Hash should be stored here, not plain text
     adress TEXT
 );
