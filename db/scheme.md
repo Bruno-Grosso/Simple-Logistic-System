@@ -8,7 +8,7 @@ Este diagrama vetorial representa a estrutura de classes e relacionamentos do si
 
 > **Dica:** Como este é um arquivo SVG, você pode dar zoom na imagem no seu navegador para ler os detalhes sem perder qualidade.
 
-![Esquema do Banco de Dados](./database_schema.svg)
+![Esquema do Banco de Dados](https://raw.githubusercontent.com/Bruno-Grosso/Simple-Logistic-System/refs/heads/main/db/database_scheme.svg.svg)
 
 ---
 
