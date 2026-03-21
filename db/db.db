@@ -1,0 +1,108 @@
+--IN PROGRESS
+
+-- =====================
+-- DEPOSIT
+-- =====================
+CREATE TABLE deposit (
+    id TEXT PRIMARY KEY,
+
+    location TEXT,
+    size TEXT,
+    volume_actual REAL,
+    volume_max REAL,
+);
+
+-- =====================
+-- TRUCK
+-- =====================
+CREATE TABLE truck (
+    id TEXT PRIMARY KEY,
+
+    model TEXT,
+    size TEXT,
+    volume_actual REAL,
+    volume_max REAL,
+    weight_actual REAL,
+    weight_max REAL,
+    estimated_time TEXT, --time to arrive in other step
+    is_delivering INTEGER, -- 0(false), 1(true)
+    speed INTEGER,
+    is_valid INTEGER, -- 0(false), 1(true)
+    is_traveling INTEGER, -- 0(false), 1(true)
+    current_location TEXT,
+    origin TEXT, --which deposit it came from
+    destination TEXT,
+
+    FOREIGN KEY (deposit_id) REFERENCES deposit(id)
+);
+
+-- =====================
+-- PRODUCT (TYPE)
+-- =====================
+CREATE TABLE product (
+    id TEXT PRIMARY KEY,
+
+    name TEXT,
+    is_cold INTEGER, -- 0(false), 1(true)
+    is_fragile INTEGER, -- 0(false), 1(true)
+    expire_date TEXT,
+    price REAL,
+    size TEXT,
+    volume REAL,
+    weight REAL
+);
+
+-- =====================
+-- ORDERS
+-- =====================
+CREATE TABLE orders (
+    id TEXT PRIMARY KEY,
+
+    final_destination TEXT,
+    sender TEXT,
+    receiver TEXT,
+    time_limit TEXT,
+    price REAL,
+    status TEXT  -- 'pending', 'in_transit', 'delivered'
+); 
+-- =====================
+-- STOCK
+-- =====================
+CREATE TABLE stock (
+    id TEXT PRIMARY KEY,
+
+    product_id TEXT NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity >= 0),
+    deposit_id TEXT,
+    truck_id TEXT,
+    order_id TEXT,
+    arrived_at TEXT,  --when started this step
+
+    FOREIGN KEY (product_id) REFERENCES product(id),
+    FOREIGN KEY (deposit_id) REFERENCES deposit(id),
+    FOREIGN KEY (truck_id) REFERENCES truck(id),
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+
+    CHECK (
+        (deposit_id IS NOT NULL AND truck_id IS NULL)
+        OR
+        (deposit_id IS NULL AND truck_id IS NOT NULL)
+    ),
+
+    UNIQUE(product_id, deposit_id, truck_id, order_id)
+);
+
+-- =====================
+-- ORDER ROUTE
+-- =====================
+CREATE TABLE order_route (
+    order_id TEXT,
+    step INTEGER CHECK (step > 0),
+    deposit_id TEXT,
+    estimated_time TEXT,
+    arrived_at TEXT,
+
+    PRIMARY KEY (order_id, step),
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (deposit_id) REFERENCES deposit(id)
+); 
