@@ -126,6 +126,6 @@ CREATE TABLE user (
     id TEXT PRIMARY KEY,
     name TEXT,
     work_position TEXT,
-    password TEXT, -- Hash should be stored here, not plain text
+    password TEXT,
     adress TEXT
 );
