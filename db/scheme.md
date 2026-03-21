@@ -3,7 +3,7 @@
 Abaixo está a representação das classes e relacionamentos do sistema:
 
 ```mermaid
-%%{init: {'themeVariables': { 'relationFontSize': '25px'}}}%%
+%%{init: {"theme": "dark", "layout": "elk"}}%%
 classDiagram
     direction LR
     
