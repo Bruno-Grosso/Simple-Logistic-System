@@ -3,12 +3,11 @@
 //
 
 #include <iostream>
-#include <memory>
-#include <ostream>
-#include <sqlite3.h>
 #include <print>
 
-#include "QueryProcessor.h"
+#include <sqlite3.h>
+
+#include "src/QueryProcessor.h"
 
 // ! We will have to change this at some point for the docker build
 #define DB_PATH "../../db/db.db"
@@ -25,11 +24,12 @@ auto main() -> int {
     }
     std::println("Opened database at: {}\n", DB_PATH);
 
-    const auto query1 = qp.getQuery(qp.getAllUsers);
-    const auto query2 = qp.getQuery(QueryProcessor::getUser("Some ID"));
-    std::println("Query2: {}", query2);
+    const auto query1 = qp.getQuery(QueryProcessor::getAllUsers()), query2 = qp.getQuery(QueryProcessor::getUser("Some ID"));
+    std::println("Query1: {}", query1);
+    std::println("Query2: {}\n", query2);
     char* error_message{};
 
+    std::println("Query 1 result:");
     rc = sqlite3_exec(
         db,
         query1.c_str(),
@@ -49,6 +49,7 @@ auto main() -> int {
         sqlite3_free(error_message);
     }
 
+    std::println("Query 2 result:");
     rc = sqlite3_exec(
         db,
         query2.c_str(),
@@ -70,5 +71,5 @@ auto main() -> int {
 
     sqlite3_close(db);
 
-    return 0;
+    return EXIT_SUCCESS;
 }

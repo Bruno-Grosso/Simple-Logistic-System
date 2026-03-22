@@ -34,7 +34,7 @@ public:
     /**
      * @brief A query for getting all users
      */
-    GetAllUsers getAllUsers;
+    static auto getAllUsers() -> GetAllUsers {return GetAllUsers{};}
 
     /**
      * @brief A query for getting a specific user by id
