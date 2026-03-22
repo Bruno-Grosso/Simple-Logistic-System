@@ -26,10 +26,14 @@ set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
 set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(benchmark)
 
+# ── SQLite 3 ────────────────────────────────────────────────────────────────
+find_package(SQLite3 REQUIRED)
+
 # ── Main executable ─────────────────────────────────────────────────────────
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
 
 add_executable(${PROJECT_NAME} ${SOURCES})
+target_link_libraries(${PROJECT_NAME} PRIVATE SQLite::SQLite3)
 
 # ── Tests ────────────────────────────────────────────────────────────────────
 enable_testing()
