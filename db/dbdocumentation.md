@@ -126,7 +126,7 @@ Represents active and historical login sessions, allowing multi-user authenticat
 
 - **is_active**: This field indicates whether the session is currently valid and usable. Example of activity: If you want to list only active sessions or block inactive ones from making requests, filter by this field. 
   
-- # TABLE: orders
+# TABLE: orders
 
 Represents customer orders including delivery details, status, and associated clients and suppliers, serving as the central entity in logistics operations.
 
