@@ -1,6 +1,6 @@
 # Logistics System Database Documentation  
   
-This document explains the structure and usage of the database. Each field is described using full sentences and includes practical examples of how it can be used in real scenarios.  
+This document explains the structure and usage of the database. Each field is described and includes practical examples of how it can be used in real scenarios.  
   
 ---
 
