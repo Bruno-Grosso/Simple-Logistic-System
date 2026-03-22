@@ -1,0 +1,118 @@
+LOGISTICS DATABASE SCHEMA DOCUMENTATION
+
+Overview This database models a logistics and delivery system including
+warehouses (deposits), trucks, products, users, orders, inventory
+movement, routes, fuel, employees, and maintenance history.
+
+TABLE: deposit Stores warehouse locations. - id: Unique identifier of
+the warehouse. - location: location in coordinates. - size:lenght, high and width. - volume_actual:
+Current occupied volume inside the warehouse. - volume_max: Maximum
+capacity volume. - has_refrigeration: 0/1 flag indicating refrigeration
+availability.
+
+TABLE: truck Represents vehicles in the fleet. - id: Unique truck
+identifier. - model: Truck model. - size: lenght, high and width. -
+volume_actual: Current volume loaded. - volume_max: Maximum volume
+capacity. - weight_actual: Current weight loaded. - weight_max: Maximum
+weight capacity. - estimated_time: Estimated arrival or delivery time. -
+is_delivering: Whether the truck is currently delivering. - is_valid: If
+the truck is operational/active. - is_traveling: Indicates movement
+between locations. - current_deposit_id: Deposit where the truck is
+currently parked. - origin_deposit_id: Starting deposit of a trip. -
+destination_deposit_id: Target deposit of a trip. - home_deposit_id:
+Default base deposit. - has_refrigeration: Truck refrigeration
+capability. - speed: Average speed used for planning routes. -
+fuel_capacity: Maximum fuel tank capacity. - fuel_current: Current fuel
+amount. - fuel_consumption: Consumption rate. - wear_percentage: Overall
+wear level (0–100). - wear_rate: Rate of wear increase.
+
+TABLE: product Product catalog. - id: Unique product identifier. - name:
+Product name. - is_cold: Requires refrigeration. - is_fragile: Fragile
+handling required. - expire_date: Expiration date if applicable. -
+price: Unit price. - size: length, high and width. - volume:
+Physical volume per unit. - weight: Weight per unit.
+
+TABLE: users System accounts. - id: User identifier. - name: Person
+name. - work_position: Job title. - password: Authentication
+credential. - address: Address of the user. - role: Access role (admin,
+worker, client).
+
+TABLE: session User login sessions. - session_id: Unique session
+token. - user_id: Linked user. - login_time: When login happened. -
+expires_at: Expiration time. - is_active: Session state.
+
+TABLE: orders Customer orders. - id: Order identifier. -
+final_destination: Delivery destination. - sender_id: Sender user. -
+receiver_id: Receiver user. - time_limit: Delivery deadline. - price:
+Final charged price. - status: Order lifecycle state. - client_id:
+Client owner. - supplier_id: External supplier. - supplier_delivery:
+Indicates supplier handled initial delivery.
+
+TABLE: order_items Products inside orders. - order_id: Associated
+order. - product_id: Product reference. - quantity: Number of items.
+
+TABLE: stock Represents where inventory currently is. - id: Stock record
+identifier. - product_id: Product stored. - quantity: Quantity
+available. - deposit_id: Warehouse location (if stored there). -
+truck_id: Truck location (if transported). - order_id: Related order
+allocation. - arrived_at: Time when inventory arrived.
+
+TABLE: stock_history Tracks all inventory movements. - id: Movement
+record id. - stock_id: Reference to stock entry. - quantity: Quantity
+moved. - deposit_id / truck_id: New location. - order_id: Related
+order. - moved_by: User performing the action. - moved_at: Timestamp.
+
+TABLE: order_route Represents route steps for each order. - order_id:
+Related order. - step: Route step number. - deposit_id: Warehouse
+stop. - truck_id: Truck handling step. - estimated_time: Planned time. -
+arrived_at: Real arrival time.
+
+TABLE: supplier External product providers. - id: Supplier identifier. -
+name: Supplier name. - address: Supplier address. - latitude /
+longitude: Geographic coordinates.
+
+TABLE: supply_route Initial supply stage before entering system
+logistics. - order_id: Related order. - supplier_id: Origin supplier. -
+truck_id: Assigned truck. - estimated_departure: Planned departure. -
+estimated_arrival: Planned arrival. - actual_arrival: Real arrival time.
+
+TABLE: fuel_station Fuel supply points. - id: Station id. - name:
+Station name. - location: Address or description. - latitude /
+longitude: Coordinates. - is_partner: Indicates partnership agreement.
+
+TABLE: fuel_price Fuel price history. - station_id: Station reference. -
+price_per_liter: Fuel price. - recorded_at: Timestamp of record.
+
+TABLE: refuel_log Truck refueling records. - id: Refuel event id. -
+truck_id: Truck refueled. - station_id: Station used. - liters: Fuel
+added. - price_per_liter: Price at time. - refueled_at: Timestamp.
+
+TABLE: employee Internal workers. - id: Employee id. - user_id: Linked
+user account. - is_able: Availability status. - deposit_id: Assigned
+warehouse. - max_work_hours_per_day: Work limit. - hourly_cost: Cost per
+hour.
+
+TABLE: truck_driver Many-to-many relationship between drivers and
+trucks. - truck_id: Assigned truck. - employee_id: Driver. -
+assigned_at: Assignment time.
+
+TABLE: work_log Tracks employee work sessions. - id: Log identifier. -
+employee_id: Worker. - truck_id: Truck used. - start_time: Start of
+shift. - end_time: End of shift.
+
+TABLE: freight_cost Backend calculated cost breakdown. - order_id: Order
+reference. - fuel_cost: Fuel expenses. - labor_cost: Worker expenses. -
+maintenance_cost: Repairs. - total_cost: Combined cost. - calculated_at:
+Calculation timestamp.
+
+TABLE: truck_performance_history Periodic performance snapshots. - id:
+Record id. - truck_id: Truck monitored. - total_distance: Distance
+traveled. - fuel_consumed: Fuel usage. - orders_completed: Number of
+deliveries. - maintenance_count: Maintenance events. - wear_percentage:
+Wear at record time. - recorded_at: Timestamp.
+
+TABLE: truck_maintenance Maintenance events. - id: Maintenance record
+id. - truck_id: Truck serviced. - type: Maintenance category. -
+description: Work description. - cost: Cost of maintenance. -
+wear_before: Wear before service. - wear_after: Wear after service. -
+performed_at: Timestamp.
