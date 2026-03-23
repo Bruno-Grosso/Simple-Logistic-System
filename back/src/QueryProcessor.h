@@ -19,7 +19,9 @@ class QueryProcessor {
 
     struct GetUser {
         const std::string id{};
-        explicit GetUser(std::string id) : id{std::move(id)} {};
+
+        explicit GetUser(std::string id) : id{std::move(id)} {
+        };
     };
 
     static auto read_query(std::string_view path) -> std::string;
@@ -27,6 +29,7 @@ class QueryProcessor {
 public:
     // RAII
     QueryProcessor() = default;
+
     ~QueryProcessor() = default;
 
     using Query = std::variant<GetAllUsers, GetUser>;
@@ -34,12 +37,12 @@ public:
     /**
      * @brief A query for getting all users
      */
-    static auto getAllUsers() -> GetAllUsers {return GetAllUsers{};}
+    static auto getAllUsers() -> GetAllUsers { return GetAllUsers{}; }
 
     /**
      * @brief A query for getting a specific user by id
      */
-    static auto getUser(const std::string &id) -> GetUser {return GetUser(id);};
+    static auto getUser(const std::string &id) -> GetUser { return GetUser(id); };
 
     /**
      * @brief Loads an SQL query from a file.

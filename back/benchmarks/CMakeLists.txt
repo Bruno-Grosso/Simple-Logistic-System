@@ -1,3 +1,6 @@
+set(CMAKE_CXX_STANDARD 26)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # ── Google Benchmark ────────────────────────────────────────────────────────
 FetchContent_Declare(
         benchmark
