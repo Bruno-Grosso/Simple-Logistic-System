@@ -24,6 +24,21 @@ class QueryProcessor {
         };
     };
 
+    struct GetUsersByRole {
+        const std::string role{};
+
+        explicit GetUsersByRole(std::string role) : role{std::move(role)} {
+        };
+    };
+
+    struct GetUserData {
+        const std::string id{};
+        const std::string field{};
+
+        explicit GetUserData(std::string id, std::string field) : id{std::move(id)}, field {std::move(field)} {
+        };
+    };
+
     static auto read_query(std::string_view path) -> std::string;
 
 public:
@@ -32,7 +47,7 @@ public:
 
     ~QueryProcessor() = default;
 
-    using Query = std::variant<GetAllUsers, GetUser>;
+    using Query = std::variant<GetAllUsers, GetUser, GetUsersByRole, GetUserData>;
 
     /**
      * @brief A query for getting all users
@@ -43,6 +58,16 @@ public:
      * @brief A query for getting a specific user by id
      */
     static auto getUser(const std::string &id) -> GetUser { return GetUser(id); };
+
+    /**
+     * @brief A query for getting users by their role
+     */
+    static auto getUsersByRole(const std::string &role) -> GetUsersByRole { return GetUsersByRole(role); };
+
+    /**
+     * @brief A query for fetching a field of some user by their id
+     */
+    static auto getUserData(const std::string &id, const std::string &field) -> GetUserData { return GetUserData(id, field); };
 
     /**
      * @brief Loads an SQL query from a file.

@@ -38,6 +38,15 @@ auto QueryProcessor::getQuery(const Query &query) -> std::string {
             std::string base_query = read_query(base_location + "get_user.sql");
 
             return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
+        } else if constexpr (std::is_same_v<T, GetUsersByRole>) {
+            std::string base_query = read_query(base_location + "get_users_by_role.sql");
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.role + "'");
+        } else if constexpr (std::is_same_v<T, GetUserData>) {
+            std::string base_query = read_query(base_location + "get_user_data.sql");
+            base_query.replace(base_query.find('?'), 1, q.field);
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
         }
         else throw std::runtime_error("Invalid Query type");
     }, query);

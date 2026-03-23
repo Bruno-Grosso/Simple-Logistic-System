@@ -22,47 +22,7 @@ auto App::init() -> void {
 }
 
 auto App::run() -> void {
-    const auto query1 = qp.getQuery(QueryProcessor::getAllUsers()), query2 = qp.getQuery(
-        QueryProcessor::getUser("Some ID"));
-    std::println("Query1: {}", query1);
-    std::println("Query2: {}\n", query2);
-    char *error_message{};
-
-    std::println("Query 1 result:");
-    rc = sqlite3_exec(
-        db,
-        query1.c_str(),
-        [](void *, const int argc, char **argv, char **colName) -> int {
-            for (int i = 0; i < argc; i++)
-                std::println("{}: {}", colName[i], (argv[i] ? argv[i] : "NULL"));
-
-            std::println("----");
-            return 0;
-        },
-        nullptr,
-        &error_message
-    );
-
-    if (rc != SQLITE_OK)
-        throw std::runtime_error(error_message);
-
-    std::println("Query 2 result:");
-    rc = sqlite3_exec(
-        db,
-        query2.c_str(),
-        [](void *, const int argc, char **argv, char **colName) -> int {
-            for (int i = 0; i < argc; i++)
-                std::println("Found {}: {}", colName[i], (argv[i] ? argv[i] : "NULL"));
-
-            std::println("----");
-            return 0;
-        },
-        nullptr,
-        &error_message
-    );
-
-    if (rc != SQLITE_OK)
-        throw std::runtime_error(error_message);
+    // We'll leave this empty for now and TDD this
 }
 
 auto App::cleanup() -> void {
