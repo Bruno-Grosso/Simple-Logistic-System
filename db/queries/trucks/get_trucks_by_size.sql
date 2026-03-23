@@ -1,0 +1,1 @@
+SELECT * FROM truck WHERE size = ?;

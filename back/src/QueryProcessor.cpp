@@ -15,7 +15,7 @@ auto QueryProcessor::read_query(std::string_view path) -> std::string {
         // The path may be different depending on the compilation type
         try {
             file = std::ifstream("../" + std::string(path.data()));
-        } catch (const std::exception& _) {
+        } catch (const std::exception &_) {
             throw std::runtime_error("Failed to open query file: " + std::string(path));
         }
     }
@@ -31,23 +31,50 @@ auto QueryProcessor::getQuery(const Query &query) -> std::string {
     return std::visit([this]<typename T0>(const T0 &q) -> std::string {
         using T = std::decay_t<T0>;
 
+        // Yes this is massive, but what can you do when you have a massive database?
+        // TODO: reevaluate design pattern here
+        // ? User
+        // -------------------------------------------------------------------------------------------------------------
         if constexpr (std::is_same_v<T, GetAllUsers>) {
-            return read_query(base_location + "get_all_users.sql");
-        }
-        else if constexpr (std::is_same_v<T, GetUser>) {
-            std::string base_query = read_query(base_location + "get_user.sql");
+            return read_query(base_location + "/users/get_all_users.sql");
+        } else if constexpr (std::is_same_v<T, GetUser>) {
+            std::string base_query = read_query(base_location + "/users/get_user.sql");
 
             return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
         } else if constexpr (std::is_same_v<T, GetUsersByRole>) {
-            std::string base_query = read_query(base_location + "get_users_by_role.sql");
+            std::string base_query = read_query(base_location + "/users/get_users_by_role.sql");
 
             return base_query.replace(base_query.find('?'), 1, "'" + q.role + "'");
         } else if constexpr (std::is_same_v<T, GetUserData>) {
-            std::string base_query = read_query(base_location + "get_user_data.sql");
+            std::string base_query = read_query(base_location + "/users/get_user_data.sql");
             base_query.replace(base_query.find('?'), 1, q.field);
 
             return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
         }
+        // -------------------------------------------------------------------------------------------------------------
+        // ? Truck
+        // -------------------------------------------------------------------------------------------------------------
+        else if constexpr (std::is_same_v<T, GetAllTrucks>) {
+            return read_query(base_location + "/trucks/get_all_trucks.sql");
+        } else if constexpr  (std::is_same_v<T, GetTruck>) {
+            std::string base_query = read_query(base_location + "/trucks/get_truck.sql");
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
+        } else if constexpr (std::is_same_v<T, GetTrucksBySize>) {
+            std::string base_query = read_query(base_location + "/trucks/get_trucks_by_size.sql");
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.size + "'");
+        } else if constexpr (std::is_same_v<T, GetTrucksByModel>) {
+            std::string base_query = read_query(base_location + "/trucks/get_trucks_by_model.sql");
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.model + "'");
+        } else if constexpr (std::is_same_v<T, GetTruckData>) {
+            std::string base_query = read_query(base_location + "/trucks/get_truck_data.sql");
+            base_query.replace(base_query.find('?'), 1, q.field);
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
+        }
+        // -------------------------------------------------------------------------------------------------------------
         else throw std::runtime_error("Invalid Query type");
     }, query);
 }
