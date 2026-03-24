@@ -1,2 +1,1 @@
-DELETE FROM users
-WHERE id = ?;
+DELETE FROM users WHERE id = ?;
