@@ -1,5 +1,1 @@
-UPDATE users
-SET name = ?,
-    address = ?,
-    role = ?
-WHERE id = ?;
+UPDATE users SET name = ?, address = ?, role = ? WHERE id = ?;
