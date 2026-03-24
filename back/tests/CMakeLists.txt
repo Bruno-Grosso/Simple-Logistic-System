@@ -1,5 +1,8 @@
 include(FetchContent)
 
+set(CMAKE_CXX_STANDARD 26)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # ── Google Test ─────────────────────────────────────────────────────────────
 FetchContent_Declare(
         googletest
