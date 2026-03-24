@@ -1,3 +1,1 @@
-SELECT role, COUNT(*) AS total
-FROM users
-GROUP BY role;
+SELECT role, COUNT(*) AS total FROM users GROUP BY role;
