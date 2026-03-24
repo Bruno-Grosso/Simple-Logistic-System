@@ -1,7 +1,1 @@
-SELECT 
-    id,
-    name,
-    address,
-    role
-FROM users
-ORDER BY name ASC;
+SELECT id, name, address, role FROM users ORDER BY name ASC;
