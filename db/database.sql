@@ -209,6 +209,7 @@ CREATE TABLE freight_cost (
 --Indexing
 CREATE INDEX idx_orders_client ON orders(client_id);
 CREATE INDEX idx_orders_status ON orders(status);
+CREATE INDEX idx_online_users_user ON online_users(user_id);
 CREATE INDEX idx_stock_product ON warehouses_stock(product_id);
 CREATE INDEX idx_stock_warehouse ON warehouses_stock(warehouse_id);
 CREATE INDEX idx_orders_route_order ON orders_route(order_id);
