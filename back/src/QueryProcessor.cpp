@@ -13,9 +13,8 @@ auto QueryProcessor::read_query(std::string_view path) -> std::string {
 
     if (!file.is_open()) {
         // The path may be different depending on the compilation type
-        try {
-            file = std::ifstream("../" + std::string(path.data()));
-        } catch (const std::exception &_) {
+        file = std::ifstream("../" + std::string(path.data()));
+        if (!file.is_open()) {
             throw std::runtime_error("Failed to open query file: " + std::string(path));
         }
     }
@@ -56,7 +55,7 @@ auto QueryProcessor::getQuery(const Query &query) -> std::string {
         // -------------------------------------------------------------------------------------------------------------
         else if constexpr (std::is_same_v<T, GetAllTrucks>) {
             return read_query(base_location + "/trucks/get_all_trucks.sql");
-        } else if constexpr  (std::is_same_v<T, GetTruck>) {
+        } else if constexpr (std::is_same_v<T, GetTruck>) {
             std::string base_query = read_query(base_location + "/trucks/get_truck.sql");
 
             return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
@@ -70,6 +69,57 @@ auto QueryProcessor::getQuery(const Query &query) -> std::string {
             return base_query.replace(base_query.find('?'), 1, "'" + q.model + "'");
         } else if constexpr (std::is_same_v<T, GetTruckData>) {
             std::string base_query = read_query(base_location + "/trucks/get_truck_data.sql");
+            base_query.replace(base_query.find('?'), 1, q.field);
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // ? Deposit
+        // -------------------------------------------------------------------------------------------------------------
+        else if constexpr (std::is_same_v<T, GetDeposit>) {
+            std::string base_query = read_query(base_location + "/deposits/get_deposit.sql");
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
+        } else if constexpr (std::is_same_v<T, GetDepositData>) {
+            std::string base_query = read_query(base_location + "/deposits/get_deposit_data.sql");
+            base_query.replace(base_query.find('?'), 1, q.field);
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // ? Order
+        // -------------------------------------------------------------------------------------------------------------
+        else if constexpr (std::is_same_v<T, GetOrder>) {
+            std::string base_query = read_query(base_location + "/orders/get_order.sql");
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
+        } else if constexpr (std::is_same_v<T, GetOrderData>) {
+            std::string base_query = read_query(base_location + "/orders/get_order_data.sql");
+            base_query.replace(base_query.find('?'), 1, q.field);
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
+        } else if constexpr (std::is_same_v<T, GetOrdersByFinalDestination>) {
+            std::string base_query = read_query(base_location + "/orders/get_orders_by_final_destination.sql");
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.final_destination + "'");
+        } else if constexpr (std::is_same_v<T, GetOrdersByReceiver>) {
+            std::string base_query = read_query(base_location + "/orders/get_orders_by_reciver.sql");
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.receiver_id + "'");
+        } else if constexpr (std::is_same_v<T, GetOrdersBySender>) {
+            std::string base_query = read_query(base_location + "/orders/get_orders_by_sender.sql");
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.sender_id + "'");
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // ? Product
+        // -------------------------------------------------------------------------------------------------------------
+        else if constexpr (std::is_same_v<T, GetProduct>) {
+            std::string base_query = read_query(base_location + "/product/get_product.sql");
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
+        } else if constexpr (std::is_same_v<T, GetProductData>) {
+            std::string base_query = read_query(base_location + "/product/get_product_data.sql");
             base_query.replace(base_query.find('?'), 1, q.field);
 
             return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");

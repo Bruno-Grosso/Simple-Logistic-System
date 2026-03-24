@@ -19,6 +19,7 @@ class QueryProcessor {
     // ? Query structs
     // -----------------------------------------------------------------------------------------------------------------
     // ? Users
+    // -----------------------------------------------------------------------------------------------------------------
     struct GetAllUsers {
     };
 
@@ -43,8 +44,10 @@ class QueryProcessor {
         explicit GetUserData(std::string id, std::string field) : id{std::move(id)}, field{std::move(field)} {
         };
     };
+    // -----------------------------------------------------------------------------------------------------------------
 
     // ? Trucks
+    // -----------------------------------------------------------------------------------------------------------------
     struct GetAllTrucks {
     };
 
@@ -76,7 +79,82 @@ class QueryProcessor {
         explicit GetTruckData(std::string id, std::string field) : id{std::move(id)}, field{std::move(field)} {
         };
     };
+    // -----------------------------------------------------------------------------------------------------------------
 
+    // ? Deposits
+    // -----------------------------------------------------------------------------------------------------------------
+    struct GetDeposit {
+        const std::string id{};
+
+        explicit GetDeposit(std::string id) : id{std::move(id)} {
+        };
+    };
+
+    struct GetDepositData {
+        const std::string id{};
+        const std::string field{};
+
+        explicit GetDepositData(std::string id, std::string field) : id{std::move(id)}, field{std::move(field)} {
+        };
+    };
+    // -----------------------------------------------------------------------------------------------------------------
+
+    // ? Orders
+    // -----------------------------------------------------------------------------------------------------------------
+    struct GetOrder {
+        const std::string id{};
+
+        explicit GetOrder(std::string id) : id{std::move(id)} {
+        };
+    };
+
+    struct GetOrderData {
+        const std::string id{};
+        const std::string field{};
+
+        explicit GetOrderData(std::string id, std::string field) : id{std::move(id)}, field{std::move(field)} {
+        };
+    };
+
+    struct GetOrdersByFinalDestination {
+        const std::string final_destination{};
+
+        explicit GetOrdersByFinalDestination(std::string final_destination) : final_destination{std::move(final_destination)} {
+        };
+    };
+
+    struct GetOrdersByReceiver {
+        const std::string receiver_id{};
+
+        explicit GetOrdersByReceiver(std::string receiver_id) : receiver_id{std::move(receiver_id)} {
+        };
+    };
+
+    struct GetOrdersBySender {
+        const std::string sender_id{};
+
+        explicit GetOrdersBySender(std::string sender_id) : sender_id{std::move(sender_id)} {
+        };
+    };
+    // -----------------------------------------------------------------------------------------------------------------
+
+    // ? Products
+    // -----------------------------------------------------------------------------------------------------------------
+    struct GetProduct {
+        const std::string id{};
+
+        explicit GetProduct(std::string id) : id{std::move(id)} {
+        };
+    };
+
+    struct GetProductData {
+        const std::string id{};
+        const std::string field{};
+
+        explicit GetProductData(std::string id, std::string field) : id{std::move(id)}, field{std::move(field)} {
+        };
+    };
+    // -----------------------------------------------------------------------------------------------------------------
     // -----------------------------------------------------------------------------------------------------------------
 
 public:
@@ -87,7 +165,8 @@ public:
 
     // TODO: There has to be a better way to do this
     using Query = std::variant<GetAllUsers, GetUser, GetUsersByRole, GetUserData, GetAllTrucks, GetTruck, GetTrucksBySize,
-        GetTrucksByModel, GetTruckData>;
+        GetTrucksByModel, GetTruckData, GetDeposit, GetDepositData, GetOrder, GetOrderData, GetOrdersByFinalDestination,
+        GetOrdersByReceiver, GetOrdersBySender, GetProduct, GetProductData>;
 
     // ? User queries
     // -----------------------------------------------------------------------------------------------------------------
@@ -140,6 +219,66 @@ public:
      */
     static auto getTruckData(const std::string &id, const std::string &field) -> GetTruckData {
         return GetTruckData(id, field);
+    };
+
+    // ? Deposit queries
+    /**
+     * @brief A query for getting a specific deposit by id
+     */
+    static auto getDeposit(const std::string &id) -> GetDeposit { return GetDeposit(id); };
+
+    /**
+     * @brief A query for fetching a field of some deposit by their id
+     */
+    static auto getDepositData(const std::string &id, const std::string &field) -> GetDepositData {
+        return GetDepositData(id, field);
+    };
+
+    // ? Order queries
+    /**
+     * @brief A query for getting a specific order by id
+     */
+    static auto getOrder(const std::string &id) -> GetOrder { return GetOrder(id); };
+
+    /**
+     * @brief A query for fetching a field of some order by their id
+     */
+    static auto getOrderData(const std::string &id, const std::string &field) -> GetOrderData {
+        return GetOrderData(id, field);
+    };
+
+    /**
+     * @brief A query for getting orders by their final destination
+     */
+    static auto getOrdersByFinalDestination(const std::string &final_destination) -> GetOrdersByFinalDestination {
+        return GetOrdersByFinalDestination(final_destination);
+    };
+
+    /**
+     * @brief A query for getting orders by their receiver id
+     */
+    static auto getOrdersByReceiver(const std::string &receiver_id) -> GetOrdersByReceiver {
+        return GetOrdersByReceiver(receiver_id);
+    };
+
+    /**
+     * @brief A query for getting orders by their sender id
+     */
+    static auto getOrdersBySender(const std::string &sender_id) -> GetOrdersBySender {
+        return GetOrdersBySender(sender_id);
+    };
+
+    // ? Product queries
+    /**
+     * @brief A query for getting a specific product by id
+     */
+    static auto getProduct(const std::string &id) -> GetProduct { return GetProduct(id); };
+
+    /**
+     * @brief A query for fetching a field of some product by their id
+     */
+    static auto getProductData(const std::string &id, const std::string &field) -> GetProductData {
+        return GetProductData(id, field);
     };
 
     /**

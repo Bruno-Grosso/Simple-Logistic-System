@@ -1,1 +1,1 @@
-SELECT * FORM deposit WHERE id = ?;
+SELECT * FROM deposit WHERE id = ?;
