@@ -99,6 +99,16 @@ CREATE TABLE users (
     role TEXT CHECK(role IN ('admin','warehouse_worker','truck_driver','client')) NOT NULL
 );
 
+CREATE TABLE online_users (
+    session_id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    
+    login_time TEXT DEFAULT CURRENT_TIMESTAMP, --the time the user made the login
+    last_activity TEXT DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
 CREATE TABLE trucks_cargo (
     truck_id TEXT,
     
