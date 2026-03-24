@@ -35,7 +35,6 @@ TEST_F(QueryProcessorTest, DataFromAUser) {
     EXPECT_EQ(qp.getQuery(QueryProcessor::getUserData("Some ID", "role")),
               "SELECT role FROM users WHERE id = 'Some ID';");
 }
-
 // ---------------------------------------------------------------------------------------------------------------------
 
 // ? Truck query tests
@@ -66,7 +65,6 @@ TEST_F(QueryProcessorTest, DataFromATruck) {
     EXPECT_EQ(qp.getQuery(QueryProcessor::getTruckData("Some ID", "is_valid")),
               "SELECT is_valid FROM truck WHERE id = 'Some ID';");
 }
-
 // ---------------------------------------------------------------------------------------------------------------------
 
 // ? Deposit query tests
@@ -78,7 +76,6 @@ TEST_F(QueryProcessorTest, SingleDeposit) {
 TEST_F(QueryProcessorTest, DataFromADeposit) {
     EXPECT_EQ(qp.getQuery(QueryProcessor::getDepositData("ID", "name")), "SELECT name FROM deposit WHERE id = 'ID';");
 }
-
 // ---------------------------------------------------------------------------------------------------------------------
 
 // ? Order query tests
@@ -103,7 +100,6 @@ TEST_F(QueryProcessorTest, OrdersByReceiver) {
 TEST_F(QueryProcessorTest, OrdersBySender) {
     EXPECT_EQ(qp.getQuery(QueryProcessor::getOrdersBySender("S1")), "SELECT * FROM orders WHERE sender_id = 'S1';");
 }
-
 // ---------------------------------------------------------------------------------------------------------------------
 
 // ? Product query tests
@@ -115,5 +111,4 @@ TEST_F(QueryProcessorTest, SingleProduct) {
 TEST_F(QueryProcessorTest, DataFromAProduct) {
     EXPECT_EQ(qp.getQuery(QueryProcessor::getProductData("ID", "price")), "SELECT price FROM product WHERE id = 'ID';");
 }
-
 // ---------------------------------------------------------------------------------------------------------------------
