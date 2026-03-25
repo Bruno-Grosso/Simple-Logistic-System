@@ -81,20 +81,20 @@ class QueryProcessor {
     };
     // -----------------------------------------------------------------------------------------------------------------
 
-    // ? Deposits
+    // ? Warehouses
     // -----------------------------------------------------------------------------------------------------------------
-    struct GetDeposit {
+    struct GetWarehouse {
         const std::string id{};
 
-        explicit GetDeposit(std::string id) : id{std::move(id)} {
+        explicit GetWarehouse(std::string id) : id{std::move(id)} {
         };
     };
 
-    struct GetDepositData {
+    struct GetWarehouseData {
         const std::string id{};
         const std::string field{};
 
-        explicit GetDepositData(std::string id, std::string field) : id{std::move(id)}, field{std::move(field)} {
+        explicit GetWarehouseData(std::string id, std::string field) : id{std::move(id)}, field{std::move(field)} {
         };
     };
     // -----------------------------------------------------------------------------------------------------------------
@@ -165,7 +165,7 @@ public:
 
     // TODO: There has to be a better way to do this
     using Query = std::variant<GetAllUsers, GetUser, GetUsersByRole, GetUserData, GetAllTrucks, GetTruck, GetTrucksBySize,
-        GetTrucksByModel, GetTruckData, GetDeposit, GetDepositData, GetOrder, GetOrderData, GetOrdersByFinalDestination,
+        GetTrucksByModel, GetTruckData, GetWarehouse, GetWarehouseData, GetOrder, GetOrderData, GetOrdersByFinalDestination,
         GetOrdersByReceiver, GetOrdersBySender, GetProduct, GetProductData>;
 
     // ? User queries
@@ -221,17 +221,17 @@ public:
         return GetTruckData(id, field);
     };
 
-    // ? Deposit queries
+    // ? Warehouse queries
     /**
-     * @brief A query for getting a specific deposit by id
+     * @brief A query for getting a specific warehouse by id
      */
-    static auto getDeposit(const std::string &id) -> GetDeposit { return GetDeposit(id); };
+    static auto getWarehouse(const std::string &id) -> GetWarehouse { return GetWarehouse(id); };
 
     /**
-     * @brief A query for fetching a field of some deposit by their id
+     * @brief A query for fetching a field of some warehouse by their id
      */
-    static auto getDepositData(const std::string &id, const std::string &field) -> GetDepositData {
-        return GetDepositData(id, field);
+    static auto getWarehouseData(const std::string &id, const std::string &field) -> GetWarehouseData {
+        return GetWarehouseData(id, field);
     };
 
     // ? Order queries

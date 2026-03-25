@@ -74,14 +74,14 @@ auto QueryProcessor::getQuery(const Query &query) -> std::string {
             return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
         }
         // -------------------------------------------------------------------------------------------------------------
-        // ? Deposit
+        // ? Warehouse
         // -------------------------------------------------------------------------------------------------------------
-        else if constexpr (std::is_same_v<T, GetDeposit>) {
-            std::string base_query = read_query(base_location + "/deposits/get_deposit.sql");
+        else if constexpr (std::is_same_v<T, GetWarehouse>) {
+            std::string base_query = read_query(base_location + "/warehouses/get_warehouse.sql");
 
             return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
-        } else if constexpr (std::is_same_v<T, GetDepositData>) {
-            std::string base_query = read_query(base_location + "/deposits/get_deposit_data.sql");
+        } else if constexpr (std::is_same_v<T, GetWarehouseData>) {
+            std::string base_query = read_query(base_location + "/warehouses/get_warehouse_data.sql");
             base_query.replace(base_query.find('?'), 1, q.field);
 
             return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
@@ -103,7 +103,7 @@ auto QueryProcessor::getQuery(const Query &query) -> std::string {
 
             return base_query.replace(base_query.find('?'), 1, "'" + q.final_destination + "'");
         } else if constexpr (std::is_same_v<T, GetOrdersByReceiver>) {
-            std::string base_query = read_query(base_location + "/orders/get_orders_by_reciver.sql");
+            std::string base_query = read_query(base_location + "/orders/get_orders_by_receiver.sql");
 
             return base_query.replace(base_query.find('?'), 1, "'" + q.receiver_id + "'");
         } else if constexpr (std::is_same_v<T, GetOrdersBySender>) {
@@ -115,11 +115,11 @@ auto QueryProcessor::getQuery(const Query &query) -> std::string {
         // ? Product
         // -------------------------------------------------------------------------------------------------------------
         else if constexpr (std::is_same_v<T, GetProduct>) {
-            std::string base_query = read_query(base_location + "/product/get_product.sql");
+            std::string base_query = read_query(base_location + "/products/get_product.sql");
 
             return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
         } else if constexpr (std::is_same_v<T, GetProductData>) {
-            std::string base_query = read_query(base_location + "/product/get_product_data.sql");
+            std::string base_query = read_query(base_location + "/products/get_product_data.sql");
             base_query.replace(base_query.find('?'), 1, q.field);
 
             return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");

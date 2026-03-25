@@ -1,1 +1,1 @@
-SELECT * FROM truck;
+SELECT * FROM trucks;

@@ -1,1 +1,1 @@
-SELECT * FROM truck WHERE model = ?;
+SELECT * FROM trucks WHERE model = ?;

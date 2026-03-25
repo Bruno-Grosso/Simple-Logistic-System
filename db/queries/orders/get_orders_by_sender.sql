@@ -1,1 +1,1 @@
-SELECT * FROM orders WHERE sender_id = ?;
+SELECT * FROM orders WHERE client_id = ?;

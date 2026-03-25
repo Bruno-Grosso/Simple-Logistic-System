@@ -16,12 +16,12 @@ struct QueryProcessorTest : ::testing::Test {
 // ? User query tests
 // ---------------------------------------------------------------------------------------------------------------------
 TEST_F(QueryProcessorTest, AllUsers) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllUsers()), "SELECT * FROM users;");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllUsers()), "SELECT id, name, address, role FROM users ORDER BY name ASC;\n");
 }
 
 TEST_F(QueryProcessorTest, SingleUser) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getUser("Some ID")), "SELECT * FROM users WHERE id = 'Some ID';");
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getUser("other")), "SELECT * FROM users WHERE id = 'other';");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getUser("Some ID")), "SELECT id, name, address, role FROM users WHERE id = 'Some ID';\n");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getUser("other")), "SELECT id, name, address, role FROM users WHERE id = 'other';\n");
 }
 
 TEST_F(QueryProcessorTest, UsersByRole) {
@@ -40,41 +40,41 @@ TEST_F(QueryProcessorTest, DataFromAUser) {
 // ? Truck query tests
 // ---------------------------------------------------------------------------------------------------------------------
 TEST_F(QueryProcessorTest, AllTrucks) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllTrucks()), "SELECT * FROM truck;");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllTrucks()), "SELECT * FROM trucks;");
 }
 
 TEST_F(QueryProcessorTest, SingleTruck) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getTruck("Some ID")), "SELECT * FROM truck WHERE id = 'Some ID';");
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getTruck("other")), "SELECT * FROM truck WHERE id = 'other';");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getTruck("Some ID")), "SELECT * FROM trucks WHERE id = 'Some ID';");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getTruck("other")), "SELECT * FROM trucks WHERE id = 'other';");
 }
 
 
 TEST_F(QueryProcessorTest, TrucksBySize) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getTrucksBySize("L")), "SELECT * FROM truck WHERE size = 'L';");
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getTrucksBySize("M")), "SELECT * FROM truck WHERE size = 'M';");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getTrucksBySize("L")), "SELECT * FROM trucks WHERE size = 'L';");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getTrucksBySize("M")), "SELECT * FROM trucks WHERE size = 'M';");
 }
 
 TEST_F(QueryProcessorTest, TrucksByModel) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getTrucksByModel("m1")), "SELECT * FROM truck WHERE model = 'm1';");
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getTrucksByModel("m2")), "SELECT * FROM truck WHERE model = 'm2';");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getTrucksByModel("m1")), "SELECT * FROM trucks WHERE model = 'm1';");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getTrucksByModel("m2")), "SELECT * FROM trucks WHERE model = 'm2';");
 }
 
 TEST_F(QueryProcessorTest, DataFromATruck) {
     EXPECT_EQ(qp.getQuery(QueryProcessor::getTruckData("ID", "volume_max")),
-              "SELECT volume_max FROM truck WHERE id = 'ID';");
+              "SELECT volume_max FROM trucks WHERE id = 'ID';");
     EXPECT_EQ(qp.getQuery(QueryProcessor::getTruckData("Some ID", "is_valid")),
-              "SELECT is_valid FROM truck WHERE id = 'Some ID';");
+              "SELECT is_valid FROM trucks WHERE id = 'Some ID';");
 }
 // ---------------------------------------------------------------------------------------------------------------------
 
-// ? Deposit query tests
+// ? Warehouse query tests
 // ---------------------------------------------------------------------------------------------------------------------
-TEST_F(QueryProcessorTest, SingleDeposit) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getDeposit("Some ID")), "SELECT * FROM deposit WHERE id = 'Some ID';");
+TEST_F(QueryProcessorTest, SingleWarehouse) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getWarehouse("Some ID")), "SELECT * FROM warehouses WHERE id = 'Some ID';");
 }
 
-TEST_F(QueryProcessorTest, DataFromADeposit) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getDepositData("ID", "name")), "SELECT name FROM deposit WHERE id = 'ID';");
+TEST_F(QueryProcessorTest, DataFromAWarehouse) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getWarehouseData("ID", "name")), "SELECT name FROM warehouses WHERE id = 'ID';");
 }
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -94,21 +94,21 @@ TEST_F(QueryProcessorTest, OrdersByFinalDestination) {
 }
 
 TEST_F(QueryProcessorTest, OrdersByReceiver) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getOrdersByReceiver("R1")), "SELECT * FROM orders WHERE receiver_id = 'R1';");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getOrdersByReceiver("R1")), "SELECT * FROM orders WHERE final_destination = 'R1';");
 }
 
 TEST_F(QueryProcessorTest, OrdersBySender) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getOrdersBySender("S1")), "SELECT * FROM orders WHERE sender_id = 'S1';");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getOrdersBySender("S1")), "SELECT * FROM orders WHERE client_id = 'S1';");
 }
 // ---------------------------------------------------------------------------------------------------------------------
 
 // ? Product query tests
 // ---------------------------------------------------------------------------------------------------------------------
 TEST_F(QueryProcessorTest, SingleProduct) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getProduct("Some ID")), "SELECT * FROM product WHERE id = 'Some ID';");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getProduct("Some ID")), "SELECT * FROM products WHERE id = 'Some ID';");
 }
 
 TEST_F(QueryProcessorTest, DataFromAProduct) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getProductData("ID", "price")), "SELECT price FROM product WHERE id = 'ID';");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getProductData("ID", "price")), "SELECT price FROM products WHERE id = 'ID';");
 }
 // ---------------------------------------------------------------------------------------------------------------------
