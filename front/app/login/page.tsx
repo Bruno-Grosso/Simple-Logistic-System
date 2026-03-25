@@ -44,11 +44,6 @@ export default function LoginPage() {
           }}
           aria-hidden
         />
-        <div
-          className="pointer-events-none absolute -right-px top-0 h-[120%] w-px origin-top bg-primary/25"
-          style={{ transform: "rotate(-24deg)" }}
-          aria-hidden
-        />
 
         <div className="relative z-10 max-w-md">
           <div className="mb-8 flex size-14 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/10">

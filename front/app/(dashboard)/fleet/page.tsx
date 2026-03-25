@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { AlertTriangle, Route, Snowflake, Truck as TruckIcon, Warehouse, Wrench } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
+import { PageShell } from "@/components/page-shell"
 import { StatCard } from "@/components/stat-card"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -51,9 +52,9 @@ export default function FleetPage() {
   const maintenance = TRUCKS.filter((t) => !t.is_valid).length
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <PageShell>
       <PageHeader crumbs={[{ label: "Fleet" }]} />
-      <div className="flex-1 space-y-6 overflow-auto p-4 sm:p-6">
+      <div className="min-h-0 flex-1 space-y-6 overflow-auto">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard label="Total trucks" value={TRUCKS.length} icon={TruckIcon} />
           <StatCard label="Traveling" value={traveling} icon={Route} />
@@ -140,6 +141,6 @@ export default function FleetPage() {
           })}
         </div>
       </div>
-    </div>
+    </PageShell>
   )
 }

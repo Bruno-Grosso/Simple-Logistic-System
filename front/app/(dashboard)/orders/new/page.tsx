@@ -4,6 +4,7 @@ import { useId, useMemo, useState } from "react"
 import Link from "next/link"
 import { Loader2, Plus, Trash2 } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
+import { PageShell } from "@/components/page-shell"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -68,14 +69,14 @@ export default function NewOrderPage() {
   const deadlineFieldId = `order-deadline-${formId}`
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <PageShell>
       <PageHeader
         crumbs={[
           { label: "Orders", href: "/orders" },
           { label: "New Order" },
         ]}
       />
-      <div className="flex-1 overflow-auto p-4 sm:p-6">
+      <div className="min-h-0 flex-1 overflow-auto">
         <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6" aria-label="Create order">
           <Card>
             <CardHeader>
@@ -242,6 +243,6 @@ export default function NewOrderPage() {
           </div>
         </form>
       </div>
-    </div>
+    </PageShell>
   )
 }

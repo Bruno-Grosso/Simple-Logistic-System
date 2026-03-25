@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowUpRight, Package, Plus } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
+import { PageShell } from "@/components/page-shell"
 import { Badge } from "@/components/ui/badge"
 import {
   Table,
@@ -48,7 +49,7 @@ export default function OrdersPage() {
   today.setHours(0, 0, 0, 0)
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <PageShell>
       <PageHeader
         crumbs={[{ label: "Orders" }]}
         actions={
@@ -67,7 +68,7 @@ export default function OrdersPage() {
           </Link>
         }
       />
-      <div className="flex-1 overflow-auto p-4 sm:p-6">
+      <div className="min-h-0 flex-1 overflow-auto">
         <div className="overflow-x-auto rounded-lg border border-border">
           <Table className="min-w-[700px]">
             <TableHeader>
@@ -157,6 +158,6 @@ export default function OrdersPage() {
           </Table>
         </div>
       </div>
-    </div>
+    </PageShell>
   )
 }

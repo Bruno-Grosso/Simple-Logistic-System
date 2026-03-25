@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
+import { PageShell } from "@/components/page-shell";
 import { StatCard } from "@/components/stat-card";
 import { TruckFleetDialog } from "@/components/truck-fleet-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -63,11 +64,8 @@ export default function DashboardPage() {
   const maintenanceTrucks = TRUCKS.filter((t) => t.wear_percentage > 80);
 
   return (
-    <div className="flex flex-col gap-6 p-4 sm:p-6">
-      <PageHeader
-        crumbs={[{ label: "Dashboard" }]}
-        titleClassName="text-xl sm:text-2xl"
-      />
+    <PageShell>
+      <PageHeader crumbs={[{ label: "Dashboard" }]} />
 
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -284,7 +282,7 @@ export default function DashboardPage() {
           })}
         </div>
       </section>
-    </div>
+    </PageShell>
   );
 }
 

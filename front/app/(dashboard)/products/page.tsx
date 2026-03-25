@@ -1,6 +1,7 @@
 import { Box } from "lucide-react"
 
 import { PageHeader } from "@/components/page-header"
+import { PageShell } from "@/components/page-shell"
 import {
   Table,
   TableBody,
@@ -23,9 +24,9 @@ function isExpired(isoDate: string | undefined): boolean {
 
 export default function ProductsPage() {
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <PageShell>
       <PageHeader crumbs={[{ label: "Products" }]} />
-      <div className="flex-1 p-4 sm:p-6">
+      <div className="min-h-0 flex-1">
         <div className="overflow-x-auto rounded-xl ring-1 ring-border">
           <Table className="min-w-[650px]">
             <TableHeader>
@@ -101,6 +102,6 @@ export default function ProductsPage() {
           </Table>
         </div>
       </div>
-    </div>
+    </PageShell>
   )
 }

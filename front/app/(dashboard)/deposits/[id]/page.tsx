@@ -4,6 +4,7 @@ import { Package, Truck } from "lucide-react"
 
 import { InfoField } from "@/components/info-field"
 import { PageHeader } from "@/components/page-header"
+import { PageShell } from "@/components/page-shell"
 import {
   Card,
   CardContent,
@@ -50,14 +51,14 @@ export default async function DepositDetailPage({
   const inbound = TRUCKS.filter((t) => t.destination_deposit_id === deposit.id)
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <PageShell>
       <PageHeader
         crumbs={[
           { label: "Deposits", href: "/deposits" },
           { label: name },
         ]}
       />
-      <div className="flex-1 p-4 sm:p-6">
+      <div className="min-h-0 flex-1 overflow-auto">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           <div className="space-y-5 lg:col-span-2">
             <Card>
@@ -189,6 +190,6 @@ export default async function DepositDetailPage({
           </div>
         </div>
       </div>
-    </div>
+    </PageShell>
   )
 }

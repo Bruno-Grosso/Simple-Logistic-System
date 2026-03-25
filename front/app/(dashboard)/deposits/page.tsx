@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Warehouse } from "lucide-react"
 
 import { PageHeader } from "@/components/page-header"
+import { PageShell } from "@/components/page-shell"
 import {
   Card,
   CardContent,
@@ -14,9 +15,9 @@ import { DEPOSITS, TRUCKS, getDepositLabel, getStockByDeposit } from "@/lib/mock
 
 export default function DepositsPage() {
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <PageShell>
       <PageHeader crumbs={[{ label: "Deposits" }]} />
-      <div className="flex-1 p-4 sm:p-6">
+      <div className="min-h-0 flex-1 overflow-auto">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {DEPOSITS.map((deposit) => {
             const label = getDepositLabel(deposit)
@@ -90,6 +91,6 @@ export default function DepositsPage() {
           })}
         </div>
       </div>
-    </div>
+    </PageShell>
   )
 }

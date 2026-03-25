@@ -1,6 +1,7 @@
 import { Boxes } from "lucide-react"
 
 import { PageHeader } from "@/components/page-header"
+import { PageShell } from "@/components/page-shell"
 import {
   Table,
   TableBody,
@@ -19,9 +20,9 @@ export default function StockPage() {
   const inTransit = STOCK.filter((s) => s.truck_id).length
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <PageShell>
       <PageHeader crumbs={[{ label: "Stock" }]} />
-      <div className="flex-1 space-y-6 p-4 sm:p-6">
+      <div className="min-h-0 flex-1 space-y-6 overflow-auto">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Card>
             <CardContent className="pt-6">
@@ -113,6 +114,6 @@ export default function StockPage() {
           </Table>
         </div>
       </div>
-    </div>
+    </PageShell>
   )
 }
