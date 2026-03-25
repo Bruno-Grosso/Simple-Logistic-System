@@ -19,11 +19,6 @@ public:
     static sqlite3 *db;
     static int rc;
 
-    // Functions
-    explicit App() = default;
-
-    ~App() = default;
-
     static auto init() -> void;
 
     static auto run() -> void;
