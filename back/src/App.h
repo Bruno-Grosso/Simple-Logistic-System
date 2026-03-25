@@ -12,8 +12,8 @@
 
 class App {
 public:
-    // These are all global lifetimes
-    // This should change for the final build in the dockerfile
+    // ? These are all global lifetimes
+    // ! This should change for the final build in the dockerfile
     static constexpr std::string_view db_path{"../../db/db.db"};
     static QueryProcessor qp;
     static sqlite3 *db;

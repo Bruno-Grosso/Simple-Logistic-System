@@ -46,6 +46,7 @@ class QueryProcessor {
         explicit GetUserData(std::string id, std::string field) : id{std::move(id)}, field{std::move(field)} {
         };
     };
+
     // -----------------------------------------------------------------------------------------------------------------
 
     // ? Trucks
@@ -81,6 +82,7 @@ class QueryProcessor {
         explicit GetTruckData(std::string id, std::string field) : id{std::move(id)}, field{std::move(field)} {
         };
     };
+
     // -----------------------------------------------------------------------------------------------------------------
 
     // ? Warehouses
@@ -99,6 +101,7 @@ class QueryProcessor {
         explicit GetWarehouseData(std::string id, std::string field) : id{std::move(id)}, field{std::move(field)} {
         };
     };
+
     // -----------------------------------------------------------------------------------------------------------------
 
     // ? Orders
@@ -121,7 +124,9 @@ class QueryProcessor {
     struct GetOrdersByFinalDestination {
         const std::string final_destination{};
 
-        explicit GetOrdersByFinalDestination(std::string final_destination) : final_destination{std::move(final_destination)} {
+        explicit GetOrdersByFinalDestination(std::string final_destination) : final_destination{
+            std::move(final_destination)
+        } {
         };
     };
 
@@ -138,6 +143,7 @@ class QueryProcessor {
         explicit GetOrdersBySender(std::string sender_id) : sender_id{std::move(sender_id)} {
         };
     };
+
     // -----------------------------------------------------------------------------------------------------------------
 
     // ? Products
@@ -156,6 +162,7 @@ class QueryProcessor {
         explicit GetProductData(std::string id, std::string field) : id{std::move(id)}, field{std::move(field)} {
         };
     };
+
     // -----------------------------------------------------------------------------------------------------------------
 
     // ? Suppliers
@@ -184,6 +191,7 @@ class QueryProcessor {
         explicit GetSupplierData(std::string id, std::string field) : id{std::move(id)}, field{std::move(field)} {
         };
     };
+
     // -----------------------------------------------------------------------------------------------------------------
 
     // ? Freight Costs
@@ -202,9 +210,11 @@ class QueryProcessor {
         const std::string order_id{};
         const std::string field{};
 
-        explicit GetFreightCostData(std::string order_id, std::string field) : order_id{std::move(order_id)}, field{std::move(field)} {
+        explicit GetFreightCostData(std::string order_id, std::string field) : order_id{std::move(order_id)},
+                                                                               field{std::move(field)} {
         };
     };
+
     // -----------------------------------------------------------------------------------------------------------------
 
     // ? Online Users
@@ -230,9 +240,11 @@ class QueryProcessor {
         const std::string session_id{};
         const std::string field{};
 
-        explicit GetOnlineUserData(std::string session_id, std::string field) : session_id{std::move(session_id)}, field{std::move(field)} {
+        explicit GetOnlineUserData(std::string session_id, std::string field) : session_id{std::move(session_id)},
+            field{std::move(field)} {
         };
     };
+
     // -----------------------------------------------------------------------------------------------------------------
     // -----------------------------------------------------------------------------------------------------------------
 
@@ -243,9 +255,12 @@ public:
     ~QueryProcessor() = default;
 
     // TODO: There has to be a better way to do this
-    using Query = std::variant<GetAllUsers, GetUser, GetUsersByRole, GetUserData, GetAllTrucks, GetTruck, GetTrucksBySize,
-        GetTrucksByModel, GetTruckData, GetWarehouse, GetWarehouseData, GetOrder, GetOrderData, GetOrdersByFinalDestination,
-        GetOrdersByReceiver, GetOrdersBySender, GetProduct, GetProductData, GetAllSuppliers, GetSupplier, GetSuppliersByLocation,
+    using Query = std::variant<GetAllUsers, GetUser, GetUsersByRole, GetUserData, GetAllTrucks, GetTruck,
+        GetTrucksBySize,
+        GetTrucksByModel, GetTruckData, GetWarehouse, GetWarehouseData, GetOrder, GetOrderData,
+        GetOrdersByFinalDestination,
+        GetOrdersByReceiver, GetOrdersBySender, GetProduct, GetProductData, GetAllSuppliers, GetSupplier,
+        GetSuppliersByLocation,
         GetSupplierData, GetAllFreightCosts, GetFreightCost, GetFreightCostData, GetAllOnlineUsers, GetOnlineUser,
         GetOnlineUsersByRole, GetOnlineUserData>;
 
@@ -446,7 +461,8 @@ public:
     /**
      * @brief Executes a given query
      */
-    static auto executeQuery(const Query &query, std::function<void(const drogon::HttpResponsePtr &)> &&callback) -> void;
+    static auto executeQuery(const Query &query,
+                             std::function<void(const drogon::HttpResponsePtr &)> &&callback) -> void;
 };
 
 

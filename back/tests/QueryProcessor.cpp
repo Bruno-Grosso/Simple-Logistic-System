@@ -18,12 +18,15 @@ struct QueryProcessorTest : ::testing::Test {
 // ? User query tests
 // ---------------------------------------------------------------------------------------------------------------------
 TEST_F(QueryProcessorTest, AllUsers) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllUsers()), "SELECT id, name, address, role FROM users ORDER BY name ASC;\n");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllUsers()),
+              "SELECT id, name, address, role FROM users ORDER BY name ASC;\n");
 }
 
 TEST_F(QueryProcessorTest, SingleUser) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getUser("Some ID")), "SELECT id, name, address, role FROM users WHERE id = 'Some ID';\n");
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getUser("other")), "SELECT id, name, address, role FROM users WHERE id = 'other';\n");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getUser("Some ID")),
+              "SELECT id, name, address, role FROM users WHERE id = 'Some ID';\n");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getUser("other")),
+              "SELECT id, name, address, role FROM users WHERE id = 'other';\n");
 }
 
 TEST_F(QueryProcessorTest, UsersByRole) {
@@ -37,6 +40,7 @@ TEST_F(QueryProcessorTest, DataFromAUser) {
     EXPECT_EQ(qp.getQuery(QueryProcessor::getUserData("Some ID", "role")),
               "SELECT role FROM users WHERE id = 'Some ID';");
 }
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 // ? Truck query tests
@@ -67,6 +71,7 @@ TEST_F(QueryProcessorTest, DataFromATruck) {
     EXPECT_EQ(qp.getQuery(QueryProcessor::getTruckData("Some ID", "is_valid")),
               "SELECT is_valid FROM trucks WHERE id = 'Some ID';");
 }
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 // ? Warehouse query tests
@@ -76,8 +81,10 @@ TEST_F(QueryProcessorTest, SingleWarehouse) {
 }
 
 TEST_F(QueryProcessorTest, DataFromAWarehouse) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getWarehouseData("ID", "name")), "SELECT name FROM warehouses WHERE id = 'ID';");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getWarehouseData("ID", "name")),
+              "SELECT name FROM warehouses WHERE id = 'ID';");
 }
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 // ? Order query tests
@@ -96,12 +103,14 @@ TEST_F(QueryProcessorTest, OrdersByFinalDestination) {
 }
 
 TEST_F(QueryProcessorTest, OrdersByReceiver) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getOrdersByReceiver("R1")), "SELECT * FROM orders WHERE final_destination = 'R1';");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getOrdersByReceiver("R1")),
+              "SELECT * FROM orders WHERE final_destination = 'R1';");
 }
 
 TEST_F(QueryProcessorTest, OrdersBySender) {
     EXPECT_EQ(qp.getQuery(QueryProcessor::getOrdersBySender("S1")), "SELECT * FROM orders WHERE client_id = 'S1';");
 }
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 // ? Product query tests
@@ -111,61 +120,77 @@ TEST_F(QueryProcessorTest, SingleProduct) {
 }
 
 TEST_F(QueryProcessorTest, DataFromAProduct) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getProductData("ID", "price")), "SELECT price FROM products WHERE id = 'ID';");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getProductData("ID", "price")),
+              "SELECT price FROM products WHERE id = 'ID';");
 }
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 // ? Supplier query tests
 // ---------------------------------------------------------------------------------------------------------------------
 TEST_F(QueryProcessorTest, AllSuppliers) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllSuppliers()), "SELECT id, name, location FROM suppliers ORDER BY name ASC;\n");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllSuppliers()),
+              "SELECT id, name, location FROM suppliers ORDER BY name ASC;\n");
 }
 
 TEST_F(QueryProcessorTest, SingleSupplier) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getSupplier("S1")), "SELECT id, name, location FROM suppliers WHERE id = 'S1';\n");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getSupplier("S1")),
+              "SELECT id, name, location FROM suppliers WHERE id = 'S1';\n");
 }
 
 TEST_F(QueryProcessorTest, SuppliersByLocation) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getSuppliersByLocation("Porto")), "SELECT id, name, location FROM suppliers WHERE location = 'Porto' ORDER BY name ASC;\n");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getSuppliersByLocation("Porto")),
+              "SELECT id, name, location FROM suppliers WHERE location = 'Porto' ORDER BY name ASC;\n");
 }
 
 TEST_F(QueryProcessorTest, DataFromASupplier) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getSupplierData("S1", "name")), "SELECT name FROM suppliers WHERE id = 'S1';");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getSupplierData("S1", "name")),
+              "SELECT name FROM suppliers WHERE id = 'S1';");
 }
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 // ? Freight Cost query tests
 // ---------------------------------------------------------------------------------------------------------------------
 TEST_F(QueryProcessorTest, AllFreightCosts) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllFreightCosts()), "SELECT order_id, fuel_cost, labor_cost, maintenance_cost, total_cost, calculated_at FROM freight_cost ORDER BY order_id ASC;\n");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllFreightCosts()),
+              "SELECT order_id, fuel_cost, labor_cost, maintenance_cost, total_cost, calculated_at FROM freight_cost ORDER BY order_id ASC;\n");
 }
 
 TEST_F(QueryProcessorTest, SingleFreightCost) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getFreightCost("O1")), "SELECT order_id, fuel_cost, labor_cost, maintenance_cost, total_cost, calculated_at FROM freight_cost WHERE order_id = 'O1';\n");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getFreightCost("O1")),
+              "SELECT order_id, fuel_cost, labor_cost, maintenance_cost, total_cost, calculated_at FROM freight_cost WHERE order_id = 'O1';\n");
 }
 
 TEST_F(QueryProcessorTest, DataFromAFreightCost) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getFreightCostData("O1", "total_cost")), "SELECT total_cost FROM freight_cost WHERE order_id = 'O1';");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getFreightCostData("O1", "total_cost")),
+              "SELECT total_cost FROM freight_cost WHERE order_id = 'O1';");
 }
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 // ? Online User query tests
 // ---------------------------------------------------------------------------------------------------------------------
 TEST_F(QueryProcessorTest, AllOnlineUsers) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllOnlineUsers()), "SELECT id, name, role, address FROM users ORDER BY name ASC;\n");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllOnlineUsers()),
+              "SELECT id, name, role, address FROM users ORDER BY name ASC;\n");
 }
 
 TEST_F(QueryProcessorTest, SingleOnlineUser) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getOnlineUser("SID1")), "SELECT id, name, role, address FROM users WHERE id = 'SID1';\n");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getOnlineUser("SID1")),
+              "SELECT id, name, role, address FROM users WHERE id = 'SID1';\n");
 }
 
 TEST_F(QueryProcessorTest, OnlineUsersByRole) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getOnlineUsersByRole("admin")), "SELECT id, name, role, address FROM users WHERE role = 'admin' ORDER BY name ASC;\n");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getOnlineUsersByRole("admin")),
+              "SELECT id, name, role, address FROM users WHERE role = 'admin' ORDER BY name ASC;\n");
 }
 
 TEST_F(QueryProcessorTest, DataFromAnOnlineUser) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::getOnlineUserData("SID1", "login_time")), "SELECT login_time FROM online_users WHERE session_id = 'SID1';");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getOnlineUserData("SID1", "login_time")),
+              "SELECT login_time FROM online_users WHERE session_id = 'SID1';");
 }
+
 // ---------------------------------------------------------------------------------------------------------------------
 // * -------------------------------------------------------------------------------------------------------------------
 

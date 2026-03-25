@@ -184,7 +184,8 @@ auto QueryProcessor::getQuery(const Query &query) -> std::string {
     }, query);
 }
 
-auto QueryProcessor::executeQuery(const QueryProcessor::Query &query, std::function<void(const drogon::HttpResponsePtr &)> &&callback) -> void {
+auto QueryProcessor::executeQuery(const QueryProcessor::Query &query,
+                                  std::function<void(const drogon::HttpResponsePtr &)> &&callback) -> void {
     const auto query_str = App::qp.getQuery(query);
     Json::Value arr(Json::arrayValue);
 
@@ -195,7 +196,8 @@ auto QueryProcessor::executeQuery(const QueryProcessor::Query &query, std::funct
 
                                const auto columns = std::span(colName, argc);
 
-                               for (const auto values = std::span(argv, argc); auto [val, col]: std::views::zip(values, columns))
+                               for (const auto values = std::span(argv, argc); auto [val, col]: std::views::zip(
+                                        values, columns))
                                    obj[col] = val ? val : "";
 
                                l_arr->append(obj);
