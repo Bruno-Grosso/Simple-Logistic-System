@@ -125,6 +125,59 @@ auto QueryProcessor::getQuery(const Query &query) -> std::string {
             return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
         }
         // -------------------------------------------------------------------------------------------------------------
+        // ? Supplier
+        // -------------------------------------------------------------------------------------------------------------
+        else if constexpr (std::is_same_v<T, GetAllSuppliers>) {
+            return read_query(base_location + "/suppliers/get_all_suppliers.sql");
+        } else if constexpr (std::is_same_v<T, GetSupplier>) {
+            std::string base_query = read_query(base_location + "/suppliers/get_supplier.sql");
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
+        } else if constexpr (std::is_same_v<T, GetSuppliersByLocation>) {
+            std::string base_query = read_query(base_location + "/suppliers/get_suppliers_by_location.sql");
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.location + "'");
+        } else if constexpr (std::is_same_v<T, GetSupplierData>) {
+            std::string base_query = read_query(base_location + "/suppliers/get_supplier_data.sql");
+            base_query.replace(base_query.find('?'), 1, q.field);
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // ? Freight Cost
+        // -------------------------------------------------------------------------------------------------------------
+        else if constexpr (std::is_same_v<T, GetAllFreightCosts>) {
+            return read_query(base_location + "/freight_cost/get_all_freight_costs.sql");
+        } else if constexpr (std::is_same_v<T, GetFreightCost>) {
+            std::string base_query = read_query(base_location + "/freight_cost/get_freight_cost.sql");
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.order_id + "'");
+        } else if constexpr (std::is_same_v<T, GetFreightCostData>) {
+            std::string base_query = read_query(base_location + "/freight_cost/get_freight_cost_data.sql");
+            base_query.replace(base_query.find('?'), 1, q.field);
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.order_id + "'");
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // ? Online User
+        // -------------------------------------------------------------------------------------------------------------
+        else if constexpr (std::is_same_v<T, GetAllOnlineUsers>) {
+            return read_query(base_location + "/online_users/get_all_online_users.sql");
+        } else if constexpr (std::is_same_v<T, GetOnlineUser>) {
+            std::string base_query = read_query(base_location + "/online_users/get_online_user.sql");
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.session_id + "'");
+        } else if constexpr (std::is_same_v<T, GetOnlineUsersByRole>) {
+            std::string base_query = read_query(base_location + "/online_users/get_online_users_by_role.sql");
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.role + "'");
+        } else if constexpr (std::is_same_v<T, GetOnlineUserData>) {
+            std::string base_query = read_query(base_location + "/online_users/get_online_user_data.sql");
+            base_query.replace(base_query.find('?'), 1, q.field);
+
+            return base_query.replace(base_query.find('?'), 1, "'" + q.session_id + "'");
+        }
+        // -------------------------------------------------------------------------------------------------------------
         else throw std::runtime_error("Invalid Query type");
     }, query);
 }

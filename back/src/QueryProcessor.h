@@ -155,6 +155,83 @@ class QueryProcessor {
         };
     };
     // -----------------------------------------------------------------------------------------------------------------
+
+    // ? Suppliers
+    // -----------------------------------------------------------------------------------------------------------------
+    struct GetAllSuppliers {
+    };
+
+    struct GetSupplier {
+        const std::string id{};
+
+        explicit GetSupplier(std::string id) : id{std::move(id)} {
+        };
+    };
+
+    struct GetSuppliersByLocation {
+        const std::string location{};
+
+        explicit GetSuppliersByLocation(std::string location) : location{std::move(location)} {
+        };
+    };
+
+    struct GetSupplierData {
+        const std::string id{};
+        const std::string field{};
+
+        explicit GetSupplierData(std::string id, std::string field) : id{std::move(id)}, field{std::move(field)} {
+        };
+    };
+    // -----------------------------------------------------------------------------------------------------------------
+
+    // ? Freight Costs
+    // -----------------------------------------------------------------------------------------------------------------
+    struct GetAllFreightCosts {
+    };
+
+    struct GetFreightCost {
+        const std::string order_id{};
+
+        explicit GetFreightCost(std::string order_id) : order_id{std::move(order_id)} {
+        };
+    };
+
+    struct GetFreightCostData {
+        const std::string order_id{};
+        const std::string field{};
+
+        explicit GetFreightCostData(std::string order_id, std::string field) : order_id{std::move(order_id)}, field{std::move(field)} {
+        };
+    };
+    // -----------------------------------------------------------------------------------------------------------------
+
+    // ? Online Users
+    // -----------------------------------------------------------------------------------------------------------------
+    struct GetAllOnlineUsers {
+    };
+
+    struct GetOnlineUser {
+        const std::string session_id{};
+
+        explicit GetOnlineUser(std::string session_id) : session_id{std::move(session_id)} {
+        };
+    };
+
+    struct GetOnlineUsersByRole {
+        const std::string role{};
+
+        explicit GetOnlineUsersByRole(std::string role) : role{std::move(role)} {
+        };
+    };
+
+    struct GetOnlineUserData {
+        const std::string session_id{};
+        const std::string field{};
+
+        explicit GetOnlineUserData(std::string session_id, std::string field) : session_id{std::move(session_id)}, field{std::move(field)} {
+        };
+    };
+    // -----------------------------------------------------------------------------------------------------------------
     // -----------------------------------------------------------------------------------------------------------------
 
 public:
@@ -166,7 +243,9 @@ public:
     // TODO: There has to be a better way to do this
     using Query = std::variant<GetAllUsers, GetUser, GetUsersByRole, GetUserData, GetAllTrucks, GetTruck, GetTrucksBySize,
         GetTrucksByModel, GetTruckData, GetWarehouse, GetWarehouseData, GetOrder, GetOrderData, GetOrdersByFinalDestination,
-        GetOrdersByReceiver, GetOrdersBySender, GetProduct, GetProductData>;
+        GetOrdersByReceiver, GetOrdersBySender, GetProduct, GetProductData, GetAllSuppliers, GetSupplier, GetSuppliersByLocation,
+        GetSupplierData, GetAllFreightCosts, GetFreightCost, GetFreightCostData, GetAllOnlineUsers, GetOnlineUser,
+        GetOnlineUsersByRole, GetOnlineUserData>;
 
     // ? User queries
     // -----------------------------------------------------------------------------------------------------------------
@@ -279,6 +358,74 @@ public:
      */
     static auto getProductData(const std::string &id, const std::string &field) -> GetProductData {
         return GetProductData(id, field);
+    };
+
+    // ? Supplier queries
+    /**
+     * @brief A query for getting all suppliers
+     */
+    static auto getAllSuppliers() -> GetAllSuppliers { return GetAllSuppliers{}; }
+
+    /**
+     * @brief A query for getting a specific supplier by id
+     */
+    static auto getSupplier(const std::string &id) -> GetSupplier { return GetSupplier(id); };
+
+    /**
+     * @brief A query for getting suppliers by their location
+     */
+    static auto getSuppliersByLocation(const std::string &location) -> GetSuppliersByLocation {
+        return GetSuppliersByLocation(location);
+    };
+
+    /**
+     * @brief A query for fetching a field of some supplier by their id
+     */
+    static auto getSupplierData(const std::string &id, const std::string &field) -> GetSupplierData {
+        return GetSupplierData(id, field);
+    };
+
+    // ? Freight Cost queries
+    /**
+     * @brief A query for getting all freight costs
+     */
+    static auto getAllFreightCosts() -> GetAllFreightCosts { return GetAllFreightCosts{}; }
+
+    /**
+     * @brief A query for getting a specific freight cost by order_id
+     */
+    static auto getFreightCost(const std::string &order_id) -> GetFreightCost { return GetFreightCost(order_id); };
+
+    /**
+     * @brief A query for fetching a field of some freight cost by their order_id
+     */
+    static auto getFreightCostData(const std::string &order_id, const std::string &field) -> GetFreightCostData {
+        return GetFreightCostData(order_id, field);
+    };
+
+    // ? Online User queries
+    /**
+     * @brief A query for getting all online users
+     */
+    static auto getAllOnlineUsers() -> GetAllOnlineUsers { return GetAllOnlineUsers{}; }
+
+    /**
+     * @brief A query for getting a specific online user by session_id
+     */
+    static auto getOnlineUser(const std::string &session_id) -> GetOnlineUser { return GetOnlineUser(session_id); };
+
+    /**
+     * @brief A query for getting online users by their role
+     */
+    static auto getOnlineUsersByRole(const std::string &role) -> GetOnlineUsersByRole {
+        return GetOnlineUsersByRole(role);
+    };
+
+    /**
+     * @brief A query for fetching a field of some online user by their session_id
+     */
+    static auto getOnlineUserData(const std::string &session_id, const std::string &field) -> GetOnlineUserData {
+        return GetOnlineUserData(session_id, field);
     };
 
     /**
