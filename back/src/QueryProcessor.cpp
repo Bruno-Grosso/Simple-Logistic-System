@@ -8,6 +8,8 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "App.h"
+
 auto QueryProcessor::read_query(std::string_view path) -> std::string {
     std::ifstream file(path.data());
 
@@ -51,7 +53,7 @@ auto QueryProcessor::getQuery(const Query &query) -> std::string {
             return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
         }
         // -------------------------------------------------------------------------------------------------------------
-        // ? Truck
+        // ? Trucks
         // -------------------------------------------------------------------------------------------------------------
         else if constexpr (std::is_same_v<T, GetAllTrucks>) {
             return read_query(base_location + "/trucks/get_all_trucks.sql");
@@ -180,4 +182,26 @@ auto QueryProcessor::getQuery(const Query &query) -> std::string {
         // -------------------------------------------------------------------------------------------------------------
         else throw std::runtime_error("Invalid Query type");
     }, query);
+}
+
+auto QueryProcessor::executeQuery(const QueryProcessor::Query &query, std::function<void(const drogon::HttpResponsePtr &)> &&callback) -> void {
+    const auto query_str = App::qp.getQuery(query);
+    Json::Value arr(Json::arrayValue);
+
+    App::rc = sqlite3_exec(App::db, query_str.c_str(),
+                           [](void *data, const int argc, char **argv, char **colName) -> int {
+                               auto *l_arr = static_cast<Json::Value *>(data);
+                               Json::Value obj;
+
+                               const auto columns = std::span(colName, argc);
+
+                               for (const auto values = std::span(argv, argc); auto [val, col]: std::views::zip(values, columns))
+                                   obj[col] = val ? val : "";
+
+                               l_arr->append(obj);
+                               return 0;
+                           }, &arr, nullptr);
+
+    const auto resp = drogon::HttpResponse::newHttpJsonResponse(arr);
+    callback(resp);
 }

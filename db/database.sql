@@ -203,7 +203,7 @@ CREATE TABLE freight_cost (
     
     calculated_at TEXT DEFAULT CURRENT_TIMESTAMP,
 
-    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
 --Indexing

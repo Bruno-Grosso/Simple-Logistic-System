@@ -5,10 +5,12 @@
 #ifndef SIMPLELOGISTICSSYSTEM_QUERY_PROCESSOR_H
 #define SIMPLELOGISTICSSYSTEM_QUERY_PROCESSOR_H
 
+#include <functional>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <variant>
+#include <drogon/HttpResponse.h>
 
 
 class QueryProcessor {
@@ -440,6 +442,11 @@ public:
      * @throws std::runtime_error If the file cannot be opened.
      */
     auto getQuery(const Query &query) -> std::string;
+
+    /**
+     * @brief Executes a given query
+     */
+    static auto executeQuery(const Query &query, std::function<void(const drogon::HttpResponsePtr &)> &&callback) -> void;
 };
 
 

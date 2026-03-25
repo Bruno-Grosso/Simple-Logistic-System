@@ -13,6 +13,8 @@ struct QueryProcessorTest : ::testing::Test {
     QueryProcessor qp;
 };
 
+// * Query Building Tests
+// ---------------------------------------------------------------------------------------------------------------------
 // ? User query tests
 // ---------------------------------------------------------------------------------------------------------------------
 TEST_F(QueryProcessorTest, AllUsers) {
@@ -165,3 +167,7 @@ TEST_F(QueryProcessorTest, DataFromAnOnlineUser) {
     EXPECT_EQ(qp.getQuery(QueryProcessor::getOnlineUserData("SID1", "login_time")), "SELECT login_time FROM online_users WHERE session_id = 'SID1';");
 }
 // ---------------------------------------------------------------------------------------------------------------------
+// * -------------------------------------------------------------------------------------------------------------------
+
+// * Routing Tests on Mock Data
+// TODO: this, well, checking JSON could give a little trouble
