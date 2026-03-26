@@ -1,0 +1,1 @@
+SELECT * FROM trucks WHERE has_refrigeration = 1 AND volume_max >= ?;
