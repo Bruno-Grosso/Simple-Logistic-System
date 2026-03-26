@@ -595,27 +595,60 @@ public:
 
     ~QueryProcessor() = default;
 
-    // TODO: There has to be a better way to do this
-    using Query = std::variant<GetAllUsers, GetUser, GetUsersByRole, GetUserData,
-        CountUsersByRole, CreateUser, DeleteUser, UpdateUserPassword, UpdateUsersData,
-        GetAllTrucks, GetTruck, GetTrucksBySize, GetTrucksByModel, GetTruckData,
-        GetWarehouse, GetWarehouseData,
-        GetOrder, GetOrderData, GetOrdersByFinalDestination, GetOrdersByReceiver, GetOrdersBySender,
-        GetProduct, GetProductData,
-        GetAllSuppliers, GetSupplier, GetSuppliersByLocation, GetSupplierData,
-        CountSuppliersByLocation, CreateSupplier, DeleteSupplier, UpdateSupplier,
-        GetAllFreightCosts, GetFreightCost, GetFreightCostData,
-        CountFreightCosts, CreateFreightCost, DeleteFreightCost, UpdateFreightCost,
-        GetAllOnlineUsers, GetOnlineUser, GetOnlineUsersByRole, GetOnlineUserData,
-        CountOnlineUsersByRole,
-        CountOrderItemsByOrder, CountOrderItemsByProduct, CreateOrderItem, DeleteOrderItem, GetAllOrderItems,
-        GetOrderItemsByOrder, GetOrderItemsByProduct, GetOrderProductQuantity, UpdateOrderItemQuantity,
-        CountSuppliesRouteByOrder, CountSuppliesRouteBySupplier, CreateSuppliesRoute, DeleteSuppliesRoute,
-        GetAllSuppliesRoute, GetSuppliesRoute, GetSuppliesRouteByOrder, GetSuppliesRouteBySupplier, UpdateSuppliesRoute,
-        CountTruckCargoByProduct, CountTruckCargoByTruck, CreateTruckCargo, DeleteTruckCargoProduct, GetAllTrucksCargo,
-        GetTruckCargo, GetTruckCargoByProduct, GetTruckCargoByTruck, UpdateTruckCargoQuantity,
-        CountStockByProduct, CountStockByWarehouse, CreateWarehouseStock, DeleteWarehouseStock, GetAllWarehouseStock,
-        GetStockByProduct, GetStockByWarehouse, GetWarehouseProductQuantity, UpdateWarehouseStockQuantity>;
+    using UserQueries = std::variant<GetAllUsers, GetUser, GetUsersByRole, GetUserData,
+        CountUsersByRole, CreateUser, DeleteUser, UpdateUserPassword, UpdateUsersData>;
+
+    using TruckQueries = std::variant<GetAllTrucks, GetTruck, GetTrucksBySize, GetTrucksByModel, GetTruckData>;
+
+    using WarehouseQueries = std::variant<GetWarehouse, GetWarehouseData>;
+
+    using OrderQueries = std::variant<GetOrder, GetOrderData, GetOrdersByFinalDestination, GetOrdersByReceiver,
+        GetOrdersBySender>;
+
+    using ProductQueries = std::variant<GetProduct, GetProductData>;
+
+    using SupplierQueries = std::variant<GetAllSuppliers, GetSupplier, GetSuppliersByLocation, GetSupplierData,
+        CountSuppliersByLocation, CreateSupplier, DeleteSupplier, UpdateSupplier>;
+
+    using FreightQueries = std::variant<GetAllFreightCosts, GetFreightCost, GetFreightCostData,
+        CountFreightCosts, CreateFreightCost, DeleteFreightCost, UpdateFreightCost>;
+
+    using OnlineUserQueries = std::variant<GetAllOnlineUsers, GetOnlineUser, GetOnlineUsersByRole, GetOnlineUserData,
+        CountOnlineUsersByRole>;
+
+    using OrderItemsQueries = std::variant<CountOrderItemsByOrder, CountOrderItemsByProduct, CreateOrderItem,
+        DeleteOrderItem, GetAllOrderItems,
+        GetOrderItemsByOrder, GetOrderItemsByProduct, GetOrderProductQuantity, UpdateOrderItemQuantity>;
+
+    using SupplyRouteQueries = std::variant<CountSuppliesRouteByOrder, CountSuppliesRouteBySupplier, CreateSuppliesRoute
+        , DeleteSuppliesRoute,
+        GetAllSuppliesRoute, GetSuppliesRoute, GetSuppliesRouteByOrder, GetSuppliesRouteBySupplier, UpdateSuppliesRoute>
+    ;
+
+    using TruckCargoQueries = std::variant<CountTruckCargoByProduct, CountTruckCargoByTruck, CreateTruckCargo,
+        DeleteTruckCargoProduct, GetAllTrucksCargo,
+        GetTruckCargo, GetTruckCargoByProduct, GetTruckCargoByTruck, UpdateTruckCargoQuantity>;
+
+    using StockQueries = std::variant<CountStockByProduct, CountStockByWarehouse, CreateWarehouseStock,
+        DeleteWarehouseStock, GetAllWarehouseStock,
+        GetStockByProduct, GetStockByWarehouse>;
+
+    using WarehouseStockQueries = std::variant<GetWarehouseProductQuantity, UpdateWarehouseStockQuantity>;
+
+    using Query = std::variant<
+        UserQueries
+        , TruckQueries
+        , WarehouseQueries
+        , OrderQueries
+        , ProductQueries
+        , SupplierQueries
+        , FreightQueries
+        , OnlineUserQueries
+        , OrderItemsQueries
+        , SupplyRouteQueries
+        , TruckCargoQueries
+        , StockQueries
+        , WarehouseStockQueries>;
 
     // ? User queries
     // -----------------------------------------------------------------------------------------------------------------
@@ -644,7 +677,7 @@ public:
     static auto countUsersByRole() -> CountUsersByRole { return CountUsersByRole{}; };
 
     static auto createUser(const std::string &id, const std::string &name, const std::string &password,
-                            const std::string &address, const std::string &role) -> CreateUser {
+                           const std::string &address, const std::string &role) -> CreateUser {
         return CreateUser(id, name, password, address, role);
     };
 
@@ -655,7 +688,7 @@ public:
     };
 
     static auto updateUsersData(const std::string &id, const std::string &name, const std::string &address,
-                                 const std::string &role) -> UpdateUsersData {
+                                const std::string &role) -> UpdateUsersData {
         return UpdateUsersData(id, name, address, role);
     };
 
@@ -809,8 +842,8 @@ public:
     static auto countFreightCosts() -> CountFreightCosts { return CountFreightCosts{}; };
 
     static auto createFreightCost(const std::string &order_id, const std::string &fuel_cost,
-                                   const std::string &labor_cost, const std::string &maintenance_cost,
-                                   const std::string &total_cost, const std::string &calculated_at)
+                                  const std::string &labor_cost, const std::string &maintenance_cost,
+                                  const std::string &total_cost, const std::string &calculated_at)
         -> CreateFreightCost {
         return CreateFreightCost(order_id, fuel_cost, labor_cost, maintenance_cost, total_cost, calculated_at);
     };
@@ -820,8 +853,8 @@ public:
     };
 
     static auto updateFreightCost(const std::string &order_id, const std::string &fuel_cost,
-                                   const std::string &labor_cost, const std::string &maintenance_cost,
-                                   const std::string &total_cost, const std::string &calculated_at)
+                                  const std::string &labor_cost, const std::string &maintenance_cost,
+                                  const std::string &total_cost, const std::string &calculated_at)
         -> UpdateFreightCost {
         return UpdateFreightCost(order_id, fuel_cost, labor_cost, maintenance_cost, total_cost, calculated_at);
     };
@@ -859,7 +892,7 @@ public:
     static auto countOrderItemsByProduct() -> CountOrderItemsByProduct { return CountOrderItemsByProduct{}; };
 
     static auto createOrderItem(const std::string &order_id, const std::string &product_id,
-                                 const std::string &quantity) -> CreateOrderItem {
+                                const std::string &quantity) -> CreateOrderItem {
         return CreateOrderItem(order_id, product_id, quantity);
     };
 
@@ -883,7 +916,7 @@ public:
     };
 
     static auto updateOrderItemQuantity(const std::string &order_id, const std::string &product_id,
-                                         const std::string &quantity) -> UpdateOrderItemQuantity {
+                                        const std::string &quantity) -> UpdateOrderItemQuantity {
         return UpdateOrderItemQuantity(order_id, product_id, quantity);
     };
 
@@ -895,14 +928,15 @@ public:
     };
 
     static auto createSuppliesRoute(const std::string &order_id, const std::string &supplier_id,
-                                     const std::string &truck_id, const std::string &estimated_departure,
-                                     const std::string &estimated_arrival, const std::string &actual_arrival)
+                                    const std::string &truck_id, const std::string &estimated_departure,
+                                    const std::string &estimated_arrival, const std::string &actual_arrival)
         -> CreateSuppliesRoute {
         return CreateSuppliesRoute(order_id, supplier_id, truck_id, estimated_departure, estimated_arrival,
                                    actual_arrival);
     };
 
-    static auto deleteSuppliesRoute(const std::string &order_id, const std::string &supplier_id) -> DeleteSuppliesRoute {
+    static auto deleteSuppliesRoute(const std::string &order_id,
+                                    const std::string &supplier_id) -> DeleteSuppliesRoute {
         return DeleteSuppliesRoute(order_id, supplier_id);
     };
 
@@ -921,8 +955,8 @@ public:
     };
 
     static auto updateSuppliesRoute(const std::string &order_id, const std::string &supplier_id,
-                                     const std::string &truck_id, const std::string &estimated_departure,
-                                     const std::string &estimated_arrival, const std::string &actual_arrival)
+                                    const std::string &truck_id, const std::string &estimated_departure,
+                                    const std::string &estimated_arrival, const std::string &actual_arrival)
         -> UpdateSuppliesRoute {
         return UpdateSuppliesRoute(order_id, supplier_id, truck_id, estimated_departure, estimated_arrival,
                                    actual_arrival);
@@ -934,7 +968,7 @@ public:
     static auto countTruckCargoByTruck() -> CountTruckCargoByTruck { return CountTruckCargoByTruck{}; };
 
     static auto createTruckCargo(const std::string &truck_id, const std::string &product_id,
-                                  const std::string &quantity) -> CreateTruckCargo {
+                                 const std::string &quantity) -> CreateTruckCargo {
         return CreateTruckCargo(truck_id, product_id, quantity);
     };
 
@@ -958,7 +992,7 @@ public:
     };
 
     static auto updateTruckCargoQuantity(const std::string &truck_id, const std::string &product_id,
-                                          const std::string &quantity) -> UpdateTruckCargoQuantity {
+                                         const std::string &quantity) -> UpdateTruckCargoQuantity {
         return UpdateTruckCargoQuantity(truck_id, product_id, quantity);
     };
 
@@ -968,7 +1002,7 @@ public:
     static auto countStockByWarehouse() -> CountStockByWarehouse { return CountStockByWarehouse{}; };
 
     static auto createWarehouseStock(const std::string &warehouse_id, const std::string &product_id,
-                                      const std::string &quantity) -> CreateWarehouseStock {
+                                     const std::string &quantity) -> CreateWarehouseStock {
         return CreateWarehouseStock(warehouse_id, product_id, quantity);
     };
 
@@ -993,7 +1027,7 @@ public:
     };
 
     static auto updateWarehouseStockQuantity(const std::string &warehouse_id, const std::string &product_id,
-                                              const std::string &quantity) -> UpdateWarehouseStockQuantity {
+                                             const std::string &quantity) -> UpdateWarehouseStockQuantity {
         return UpdateWarehouseStockQuantity(warehouse_id, product_id, quantity);
     };
 

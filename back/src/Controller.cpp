@@ -44,7 +44,7 @@ auto Controller::init() -> void {
 
     app().registerHandler("/clients",
                           [=](const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback) {
-                              auto json = req->getJsonObject();
+                              const auto json = req->getJsonObject();
                               QueryProcessor::executeQuery(
                                   QueryProcessor::createUser((*json)["id"].asString(), (*json)["name"].asString(),
                                                              (*json)["password"].asString(),
@@ -61,7 +61,7 @@ auto Controller::init() -> void {
     app().registerHandler("/clients/{1}/password",
                           [=](const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback,
                               const std::string &id) {
-                              auto json = req->getJsonObject();
+                              const auto json = req->getJsonObject();
                               QueryProcessor::executeQuery(
                                   QueryProcessor::updateUserPassword(id, (*json)["password"].asString()),
                                   std::move(callback));
@@ -70,7 +70,7 @@ auto Controller::init() -> void {
     app().registerHandler("/clients/{1}",
                           [=](const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback,
                               const std::string &id) {
-                              auto json = req->getJsonObject();
+                              const auto json = req->getJsonObject();
                               QueryProcessor::executeQuery(
                                   QueryProcessor::updateUsersData(id, (*json)["name"].asString(),
                                                                   (*json)["address"].asString(),
@@ -271,7 +271,7 @@ auto Controller::init() -> void {
 
     app().registerHandler("/freight_costs",
                           [=](const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback) {
-                              auto json = req->getJsonObject();
+                              const auto json = req->getJsonObject();
                               QueryProcessor::executeQuery(
                                   QueryProcessor::createFreightCost(
                                       (*json)["order_id"].asString(), (*json)["fuel_cost"].asString(),
@@ -290,7 +290,7 @@ auto Controller::init() -> void {
     app().registerHandler("/freight_costs/{1}",
                           [=](const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback,
                               const std::string &order_id) {
-                              auto json = req->getJsonObject();
+                              const auto json = req->getJsonObject();
                               QueryProcessor::executeQuery(
                                   QueryProcessor::updateFreightCost(
                                       order_id, (*json)["fuel_cost"].asString(), (*json)["labor_cost"].asString(),
@@ -390,8 +390,9 @@ auto Controller::init() -> void {
     app().registerHandler("/orders/{1}/items/{2}/quantity",
                           [=](const HttpRequestPtr &_, std::function<void(const HttpResponsePtr &)> &&callback,
                               const std::string &order_id, const std::string &product_id) {
-                              QueryProcessor::executeQuery(QueryProcessor::getOrderProductQuantity(order_id, product_id),
-                                                           std::move(callback));
+                              QueryProcessor::executeQuery(
+                                  QueryProcessor::getOrderProductQuantity(order_id, product_id),
+                                  std::move(callback));
                           }, {Get});
 
     app().registerHandler("/orders/{1}/items/{2}",
@@ -467,11 +468,12 @@ auto Controller::init() -> void {
     app().registerHandler("/supplies_routes/order/{1}/supplier/{2}",
                           [=](const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback,
                               const std::string &order_id, const std::string &supplier_id) {
-                              auto json = req->getJsonObject();
+                              const auto json = req->getJsonObject();
                               QueryProcessor::executeQuery(
                                   QueryProcessor::updateSuppliesRoute(
                                       order_id, supplier_id, (*json)["truck_id"].asString(),
-                                      (*json)["estimated_departure"].asString(), (*json)["estimated_arrival"].asString(),
+                                      (*json)["estimated_departure"].asString(),
+                                      (*json)["estimated_arrival"].asString(),
                                       (*json)["actual_arrival"].asString()),
                                   std::move(callback));
                           }, {Put});
@@ -494,19 +496,20 @@ auto Controller::init() -> void {
 
     app().registerHandler("/truck_cargo",
                           [=](const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback) {
-                              auto json = req->getJsonObject();
+                              const auto json = req->getJsonObject();
                               QueryProcessor::executeQuery(
                                   QueryProcessor::createTruckCargo((*json)["truck_id"].asString(),
-                                                                  (*json)["product_id"].asString(),
-                                                                  (*json)["quantity"].asString()),
+                                                                   (*json)["product_id"].asString(),
+                                                                   (*json)["quantity"].asString()),
                                   std::move(callback));
                           }, {Post});
 
     app().registerHandler("/truck_cargo/truck/{1}/product/{2}",
                           [=](const HttpRequestPtr &_, std::function<void(const HttpResponsePtr &)> &&callback,
                               const std::string &truck_id, const std::string &product_id) {
-                              QueryProcessor::executeQuery(QueryProcessor::deleteTruckCargoProduct(truck_id, product_id),
-                                                           std::move(callback));
+                              QueryProcessor::executeQuery(
+                                  QueryProcessor::deleteTruckCargoProduct(truck_id, product_id),
+                                  std::move(callback));
                           }, {Delete});
 
     app().registerHandler("/truck_cargo",
@@ -538,7 +541,7 @@ auto Controller::init() -> void {
     app().registerHandler("/truck_cargo/truck/{1}/product/{2}",
                           [=](const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback,
                               const std::string &truck_id, const std::string &product_id) {
-                              auto json = req->getJsonObject();
+                              const auto json = req->getJsonObject();
                               QueryProcessor::executeQuery(
                                   QueryProcessor::updateTruckCargoQuantity(truck_id, product_id,
                                                                            (*json)["quantity"].asString()),
@@ -556,12 +559,13 @@ auto Controller::init() -> void {
 
     app().registerHandler("/stocks/count/warehouse",
                           [=](const HttpRequestPtr &_, std::function<void(const HttpResponsePtr &)> &&callback) {
-                              QueryProcessor::executeQuery(QueryProcessor::countStockByWarehouse(), std::move(callback));
+                              QueryProcessor::executeQuery(QueryProcessor::countStockByWarehouse(),
+                                                           std::move(callback));
                           }, {Get});
 
     app().registerHandler("/stocks",
                           [=](const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback) {
-                              auto json = req->getJsonObject();
+                              const auto json = req->getJsonObject();
                               QueryProcessor::executeQuery(
                                   QueryProcessor::createWarehouseStock((*json)["warehouse_id"].asString(),
                                                                        (*json)["product_id"].asString(),
@@ -572,8 +576,9 @@ auto Controller::init() -> void {
     app().registerHandler("/stocks/warehouse/{1}/product/{2}",
                           [=](const HttpRequestPtr &_, std::function<void(const HttpResponsePtr &)> &&callback,
                               const std::string &warehouse_id, const std::string &product_id) {
-                              QueryProcessor::executeQuery(QueryProcessor::deleteWarehouseStock(warehouse_id, product_id),
-                                                           std::move(callback));
+                              QueryProcessor::executeQuery(
+                                  QueryProcessor::deleteWarehouseStock(warehouse_id, product_id),
+                                  std::move(callback));
                           }, {Delete});
 
     app().registerHandler("/stocks",
@@ -606,7 +611,7 @@ auto Controller::init() -> void {
     app().registerHandler("/stocks/warehouse/{1}/product/{2}",
                           [=](const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback,
                               const std::string &warehouse_id, const std::string &product_id) {
-                              auto json = req->getJsonObject();
+                              const auto json = req->getJsonObject();
                               QueryProcessor::executeQuery(
                                   QueryProcessor::updateWarehouseStockQuantity(warehouse_id, product_id,
                                                                                (*json)["quantity"].asString()),
