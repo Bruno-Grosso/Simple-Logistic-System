@@ -4,6 +4,6 @@ This aims to be a simple implementation of a logistics system, built as a projec
 Under orientation of Dener dos Santos.
 
 ## Modelagem de Dados
-<div style="overflow: auto; max-width: 100%; max-height: 700px; border: 1px solid #30363d; border-radius: 6px; background: #0d1117;">
-  <img src="./db/schema.svg" style="max-width: none; width: 1800px; padding: 20px;">
+<div style="overflow: auto; width: 100%; max-height: 600px; border: 1px solid #444;">
+  <img src="./db/schema.svg?v=1" style="max-width: none !important; width: 2000px !important;">
 </div>
