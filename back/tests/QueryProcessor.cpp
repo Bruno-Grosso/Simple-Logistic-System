@@ -4,8 +4,11 @@
 
 #include <gtest/gtest.h>
 #include <print>
+#include <fstream>
+#include <sstream>
 
 #include "../src/QueryProcessor.h"
+#include "../src/App.h"
 
 struct QueryProcessorTest : ::testing::Test {
     QueryProcessorTest() = default;
@@ -459,3 +462,85 @@ TEST_F(QueryProcessorTest, UpdateWarehouseStockQuantity) {
 
 // * Routing Tests on Mock Data
 // TODO: this, well, checking JSON could give a little trouble
+
+struct ExecuteQueryTest : ::testing::Test {
+    ExecuteQueryTest() = default;
+
+    static void SetUpTestSuite() {
+        // App::db is a static member
+        sqlite3_open(":memory:", &App::db);
+        
+        // Load schema
+        char* errMsg = nullptr;
+        std::string schema = read_file_content("../../db/database.sql");
+        if (sqlite3_exec(App::db, schema.c_str(), nullptr, nullptr, &errMsg) != SQLITE_OK) {
+            std::cerr << "Schema error: " << errMsg << std::endl;
+            sqlite3_free(errMsg);
+        }
+
+        // Load mock data
+        std::string mockData = read_file_content("../../db/fill_mock_data.sql");
+        if (sqlite3_exec(App::db, mockData.c_str(), nullptr, nullptr, &errMsg) != SQLITE_OK) {
+            std::cerr << "Mock data error: " << errMsg << std::endl;
+            sqlite3_free(errMsg);
+        }
+    }
+
+    static void TearDownTestSuite() {
+        sqlite3_close(App::db);
+        App::db = nullptr;
+    }
+
+    static auto read_file_content(const std::string& path) -> std::string {
+        std::ifstream file(path);
+        if (!file.is_open()) {
+            // Try one level up
+            file = std::ifstream("../" + path);
+            if (!file.is_open()) return "";
+        }
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        return buffer.str();
+    }
+};
+
+TEST_F(ExecuteQueryTest, GetProduct) {
+    bool called = false;
+    QueryProcessor::executeQuery(QueryProcessor::getProduct("PROD-001"), [&](const drogon::HttpResponsePtr& resp) {
+        called = true;
+        auto json = resp->getJsonObject();
+        ASSERT_NE(json, nullptr);
+        ASSERT_TRUE(json->isArray());
+        ASSERT_EQ(json->size(), 1);
+        EXPECT_EQ((*json)[0]["id"].asString(), "PROD-001");
+        EXPECT_EQ((*json)[0]["name"].asString(), "Fresh Milk");
+    });
+    EXPECT_TRUE(called);
+}
+
+TEST_F(ExecuteQueryTest, GetAllUsers) {
+    bool called = false;
+    QueryProcessor::executeQuery(QueryProcessor::getAllUsers(), [&](const drogon::HttpResponsePtr& resp) {
+        called = true;
+        auto json = resp->getJsonObject();
+        ASSERT_NE(json, nullptr);
+        ASSERT_TRUE(json->isArray());
+        // Mock data has 10 users
+        EXPECT_EQ(json->size(), 10);
+    });
+    EXPECT_TRUE(called);
+}
+
+TEST_F(ExecuteQueryTest, UsersByRole) {
+    bool called = false;
+    QueryProcessor::executeQuery(QueryProcessor::getUsersByRole("admin"), [&](const drogon::HttpResponsePtr& resp) {
+        called = true;
+        auto json = resp->getJsonObject();
+        ASSERT_NE(json, nullptr);
+        ASSERT_TRUE(json->isArray());
+        // USR-001 is admin
+        EXPECT_EQ(json->size(), 1);
+        EXPECT_EQ((*json)[0]["name"].asString(), "Alice Admin");
+    });
+    EXPECT_TRUE(called);
+}
