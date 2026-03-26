@@ -8,7 +8,7 @@ Este diagrama vetorial representa a estrutura de classes e relacionamentos do si
 
 > **Dica:** Como este é um arquivo SVG, você pode dar zoom na imagem no seu navegador para ler os detalhes sem perder qualidade.
 
-![Esquema do Banco de Dados](https://raw.githubusercontent.com/Bruno-Grosso/Simple-Logistic-System/refs/heads/main/db/database_scheme.svg)
+![Esquema do Banco de Dados](https://raw.githubusercontent.com/Bruno-Grosso/Simple-Logistic-System/refs/heads/main/db/database_scheme%20V3.0.svg)
 
 ---
 
@@ -17,22 +17,30 @@ Este diagrama vetorial representa a estrutura de classes e relacionamentos do si
 
 '''mermaid
 %%{init:{ "layout": "elk", "themeVariables": {"relationFontSize": "25px"}}}%%
+%%{init:{ "layout": "elk", "themeVariables": {"relationFontSize": "25px"}}}%%
 classDiagram
     direction LR
     
-    class User {
+    class Users {
         +UUID id
         +String NAME
-        +String POSITION
         +String PASSWORD
-        +String LOCATION
+        +String ADDRESS
+        +String ROLE
     }
-    note for User "CARGO: Cliente ou ADM."
-    note for User "SENHA: Acesso ao sistema."
+    note for Users "CARGO: Cliente ou ADM."
+    note for Users "SENHA: Acesso ao sistema."
 
-    class Product {
+    class Online_users{
+        +UUID SESSION_id
+        +Users[] USER_id
+        +DOUBLE[] LOGIN_TIME
+        +DOUBLE[] LAST_ACTIVITY
+    }
+
+    class Products {
         +UUID id
-        +String NOME
+        +String NAME
         +BOOL IS_COLD
         +BOOL IS_FRAGILE
         +DATE_TIME EXPIRE_DATE
@@ -46,85 +54,126 @@ classDiagram
     class Truck {
         +UUID id
         +String MODEL
+        +DOUBLE[] SPEED
         +BOOL IS_VALID
-        +BOOL IS_TRAVELING
-        +DOUBLE CAPACITY
+        +BOOL IS_DELIVERING
+        +DOUBLE[] SIZE
         +DATE_TIME ETA
-        +DOUBLE[] VOLUME_ACTUAL
+        +DOUBLE[] VOULME_CURRENT
         +DOUBLE[] VOLUME_MAX
-        +DOUBLE[] WEIGHT_ACTUAL
+        +DOUBLE[] WEIGHT_CURRENT
         +DOUBLE[] WEIGHT_MAX
-        +Deposit[] ORIGIN
-        +Deposit[] DESTINATION
-        +Product[] CARGO
-        +String[] LOCATIONS
+        +BOOL HAS_REFRIGERATION
+        +Warehouses[] WAREHOUSE_ORIGIN_id
+        +Warehouses[] WAREHOUSE_CURRENT_id
+        +Warehouses[] WAREHOUSE_DESTINATION_id
+        +DOUBLE[] FUEL_CAPACITY
+        +DOUBLE[] FUEL_CURRENT
+        +DOUBLE[] FUEL_CONSUMPTION
+        +DOUBLE[] TRUCK_MAINTENANCE
     }
     note for Truck "ETA: Chegada estimada."
 
-    class Deposit {
-        +UUID id
-        +String LOCATION
-        +String SIZE,
-        +Real VOLUME_ACTUAL,
-        +Real VOLUME_MAX,
-        +DOUBLE[] CAPACITY
-        +Product[] PRODUCTS
-        +Truck[] TRUCKS
+    class Trucks_cargo{
+        +Truck[] TRUCK_id
+        +Products[] PRODUCTS_id
+        +INTEGER QUANTITY
     }
 
-    class Order {
+    class Orders {
         +UUID id
-        +String DESTINATION
-        +String SENDER
-        +String RECEIVER
+        +String FINAL_DESTINATION
         +DATE_TIME TIME_LIMIT
         +String STATUS
         +DOUBLE[] PRICE
-        +Product[] PRODUCT
-        +Deposit[] ROUTE
-        +Client[] USER
+        +BOOL SUPPLIER_DELIVERY
+        +Suppliers[] SUPPLIER_id
+        +Users[] CLIENT_id
         
     }
-    note for Order "USER: Lista de clientes vinculados."
-    note for Order "ROUTE: Depósitos da rota."
-    note for Order "STATUS: Avanço da viagem." 
+    note for Orders "USER: Lista de clientes vinculados."
+    note for Orders "ROUTE: Depósitos da rota."
+    note for Orders "STATUS: Avanço da viagem." 
 
-    class Stock{
-        +UUID id
+    class Orders_items{
+        +Orders[] ORDER_id
+        +Products[] PRODUCTS_id
         +INTEGER QUANTITY
-        +String ARRIVED_AT
-        +Product[] PRODUCT
-        +Deposit[] DEPOSIT
-        +Truck[] TRUCKS         
     }
 
-    class Order_Route{
-        +UUID id
+    class Warehouses_stock{
+        +Warehouses[] WAREHOUSE_id
+        +Product[] PRODUCT  
+        +INTEGER QUANTITY          
+    }
+
+    class Orders_Route{
+        +Orders[] id
         +INTEGER STEP
+        +Warehouses[] WAREHOUSE_id
+        +Truck[] TRUCK_id
+        +Warehouses[] WAREHOUSE_DESTINATION_id
         +String ESTIMATED_TIME
         +String ARRIVED_AT
-        +Deposit[] DEPOSIT
     }
 
-    class Employees{
+    class Suppliers{
         +UUID id
         +String NAME
-        +String POSITION
-        +BOOL IS_ABLE
-        +Truck[] TRUCK
-        +Deposit[] DEPOSIT
+        +String LOCATION
     }
-    %% Relacionamentos com 1 e *
-    User " * " --> " 1 " Order : ORDER
-    Product " * " --> " 1 " Truck : CARGO
-    Product " * " --> " 1 " Deposit : PRODUCTS
-    Product " * " --> " 1 " Order : PRODUCT
-    Product " * " --> " 1 " Stock : PRODUCT
-    Deposit " * " --> " 1 " Order : ROUTE
-    Deposit " * " --> " 1 " Truck : DEPOSITS
-    Deposit " * " --> " 1 " Stock : DEPOSITS
-    Deposit " * " --> " 1 " Order_Route : DEPOSITS
-    Deposit " * " --> " 1 " Employees : EMPLOYEES 
-    Truck " * " --> " 1 " Stock : TRUCKS
-    Truck " * " --> " 1 " Employees : EMPLOYEES 
 
+    class Suppliers_route{
+        +Orders[] ORDER_id
+        +Suppliers[] SUPPLIER_id
+        +Truck[] TRUCK_id
+        +DOUBLE[] ESTIMATED_DEPARTURE
+        +DOUBLE[] ESTIMATED_ARRIVAL
+        +DOUBLE[] ACTUAL_ARRIVAL   
+    }
+
+    class Warehouses{
+        +UUID id
+        +String LOCATION
+        +DOUBLE[] SIZE 
+        +DOUBLE[] VOULME_CURRENT
+        +DOUBLE[] VOLUME_MAX
+        +BOOL HAS_REFRIGERATION
+        +DOUBLE[] FUEL_PRICE
+    }
+
+    class Freight_cost{
+        +Orders[] ORDER_id
+        +DOUBLE[] FUEL_COST
+        +DOUBLE[] LABOR_COST
+        +DOUBLE[] MAINTENANCE_COST
+        +DOUBLE[] TOTAL_COST
+        +DOUBLE[] CALCULATED_AT 
+    }
+
+
+    
+    %% Relacionamentos com 1 e *
+    Users " 1 " --> " * " Orders : ORDER
+    Users " 1 " --> " 1 " Online_users : ONLINE_USERS
+    Products " * " --> " 1 " Truck : TRUCKS_CARGO
+    Products " * " --> " 1 " Warehouses : WAREHOUSE_STOCK
+    Products " * " --> " 1 " Orders_items : ORDERS_ITEMS
+    Products " * " --> " 1 " Warehouses_stock : STOCK
+    Products " * " --> " 1 " Trucks_cargo : STOCK
+    Orders " * " --> " 1 " Orders_Route : ORDERS
+    Orders " 1 " --> " * " Orders_items : ORDERS_ITEMS
+    Orders " 1 " --> " * " Suppliers_route : SUPPLIERS_ROUTE
+    Orders " 1 " --> " 1 " Freight_cost : FREIGHT_COST
+    Suppliers " * " --> " 1 " Orders : SUPPLIERS_ROUTE
+    Suppliers " 1 " --> " 1 " Suppliers_route : SUPPLIERS_ROUTE
+    Truck " * " --> " 1 " Warehouses : TRUCKS
+    Truck " 1 " --> " 1 " Trucks_cargo : TRUCKS
+    Truck " 1 " --> " * " Orders_Route : TRUCKS_IN_ROUTE
+    Truck " 1 " --> " * " Suppliers_route : SUPPLIERS_ROUTE
+    Warehouses " 1 " --> " 1 " Warehouses_stock : STOCK
+    Warehouses " 1 " --> " * " Orders_Route : WAREHOUSE_ROUTE
+
+    
+   
+   
