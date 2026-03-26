@@ -47,6 +47,42 @@ class QueryProcessor {
         };
     };
 
+    struct CountUsersByRole {
+    };
+
+    struct CreateUser {
+        const std::string id, name, password, address, role;
+
+        explicit CreateUser(std::string id, std::string name, std::string password, std::string address,
+                            std::string role)
+            : id{std::move(id)}, name{std::move(name)}, password{std::move(password)}, address{std::move(address)},
+              role{std::move(role)} {
+        };
+    };
+
+    struct DeleteUser {
+        const std::string id;
+
+        explicit DeleteUser(std::string id) : id{std::move(id)} {
+        };
+    };
+
+    struct UpdateUserPassword {
+        const std::string id, password;
+
+        explicit UpdateUserPassword(std::string id, std::string password) : id{std::move(id)},
+                                                                            password{std::move(password)} {
+        };
+    };
+
+    struct UpdateUsersData {
+        const std::string id, name, address, role;
+
+        explicit UpdateUsersData(std::string id, std::string name, std::string address, std::string role)
+            : id{std::move(id)}, name{std::move(name)}, address{std::move(address)}, role{std::move(role)} {
+        };
+    };
+
     // -----------------------------------------------------------------------------------------------------------------
 
     // ? Trucks
@@ -192,6 +228,32 @@ class QueryProcessor {
         };
     };
 
+    struct CountSuppliersByLocation {
+    };
+
+    struct CreateSupplier {
+        const std::string id, name, location;
+
+        explicit CreateSupplier(std::string id, std::string name, std::string location)
+            : id{std::move(id)}, name{std::move(name)}, location{std::move(location)} {
+        };
+    };
+
+    struct DeleteSupplier {
+        const std::string id;
+
+        explicit DeleteSupplier(std::string id) : id{std::move(id)} {
+        };
+    };
+
+    struct UpdateSupplier {
+        const std::string id, name, location;
+
+        explicit UpdateSupplier(std::string id, std::string name, std::string location)
+            : id{std::move(id)}, name{std::move(name)}, location{std::move(location)} {
+        };
+    };
+
     // -----------------------------------------------------------------------------------------------------------------
 
     // ? Freight Costs
@@ -212,6 +274,38 @@ class QueryProcessor {
 
         explicit GetFreightCostData(std::string order_id, std::string field) : order_id{std::move(order_id)},
                                                                                field{std::move(field)} {
+        };
+    };
+
+    struct CountFreightCosts {
+    };
+
+    struct CreateFreightCost {
+        const std::string order_id, fuel_cost, labor_cost, maintenance_cost, total_cost, calculated_at;
+
+        explicit CreateFreightCost(std::string order_id, std::string fuel_cost, std::string labor_cost,
+                                   std::string maintenance_cost, std::string total_cost, std::string calculated_at)
+            : order_id{std::move(order_id)}, fuel_cost{std::move(fuel_cost)}, labor_cost{std::move(labor_cost)},
+              maintenance_cost{std::move(maintenance_cost)}, total_cost{std::move(total_cost)},
+              calculated_at{std::move(calculated_at)} {
+        };
+    };
+
+    struct DeleteFreightCost {
+        const std::string order_id;
+
+        explicit DeleteFreightCost(std::string order_id) : order_id{std::move(order_id)} {
+        };
+    };
+
+    struct UpdateFreightCost {
+        const std::string order_id, fuel_cost, labor_cost, maintenance_cost, total_cost, calculated_at;
+
+        explicit UpdateFreightCost(std::string order_id, std::string fuel_cost, std::string labor_cost,
+                                   std::string maintenance_cost, std::string total_cost, std::string calculated_at)
+            : order_id{std::move(order_id)}, fuel_cost{std::move(fuel_cost)}, labor_cost{std::move(labor_cost)},
+              maintenance_cost{std::move(maintenance_cost)}, total_cost{std::move(total_cost)},
+              calculated_at{std::move(calculated_at)} {
         };
     };
 
@@ -245,6 +339,253 @@ class QueryProcessor {
         };
     };
 
+    struct CountOnlineUsersByRole {
+    };
+
+    // -----------------------------------------------------------------------------------------------------------------
+
+    // ? Orders Items
+    // -----------------------------------------------------------------------------------------------------------------
+    struct CountOrderItemsByOrder {
+    };
+
+    struct CountOrderItemsByProduct {
+    };
+
+    struct CreateOrderItem {
+        const std::string order_id, product_id, quantity;
+
+        explicit CreateOrderItem(std::string order_id, std::string product_id, std::string quantity)
+            : order_id{std::move(order_id)}, product_id{std::move(product_id)}, quantity{std::move(quantity)} {
+        };
+    };
+
+    struct DeleteOrderItem {
+        const std::string order_id, product_id;
+
+        explicit DeleteOrderItem(std::string order_id, std::string product_id)
+            : order_id{std::move(order_id)}, product_id{std::move(product_id)} {
+        };
+    };
+
+    struct GetAllOrderItems {
+    };
+
+    struct GetOrderItemsByOrder {
+        const std::string order_id;
+
+        explicit GetOrderItemsByOrder(std::string order_id) : order_id{std::move(order_id)} {
+        };
+    };
+
+    struct GetOrderItemsByProduct {
+        const std::string product_id;
+
+        explicit GetOrderItemsByProduct(std::string product_id) : product_id{std::move(product_id)} {
+        };
+    };
+
+    struct GetOrderProductQuantity {
+        const std::string order_id, product_id;
+
+        explicit GetOrderProductQuantity(std::string order_id, std::string product_id)
+            : order_id{std::move(order_id)}, product_id{std::move(product_id)} {
+        };
+    };
+
+    struct UpdateOrderItemQuantity {
+        const std::string order_id, product_id, quantity;
+
+        explicit UpdateOrderItemQuantity(std::string order_id, std::string product_id, std::string quantity)
+            : order_id{std::move(order_id)}, product_id{std::move(product_id)}, quantity{std::move(quantity)} {
+        };
+    };
+
+    // -----------------------------------------------------------------------------------------------------------------
+
+    // ? Supplies Routes
+    // -----------------------------------------------------------------------------------------------------------------
+    struct CountSuppliesRouteByOrder {
+    };
+
+    struct CountSuppliesRouteBySupplier {
+    };
+
+    struct CreateSuppliesRoute {
+        const std::string order_id, supplier_id, truck_id, estimated_departure, estimated_arrival, actual_arrival;
+
+        explicit CreateSuppliesRoute(std::string order_id, std::string supplier_id, std::string truck_id,
+                                     std::string estimated_departure, std::string estimated_arrival,
+                                     std::string actual_arrival)
+            : order_id{std::move(order_id)}, supplier_id{std::move(supplier_id)}, truck_id{std::move(truck_id)},
+              estimated_departure{std::move(estimated_departure)}, estimated_arrival{std::move(estimated_arrival)},
+              actual_arrival{std::move(actual_arrival)} {
+        };
+    };
+
+    struct DeleteSuppliesRoute {
+        const std::string order_id, supplier_id;
+
+        explicit DeleteSuppliesRoute(std::string order_id, std::string supplier_id)
+            : order_id{std::move(order_id)}, supplier_id{std::move(supplier_id)} {
+        };
+    };
+
+    struct GetAllSuppliesRoute {
+    };
+
+    struct GetSuppliesRoute {
+        const std::string order_id, supplier_id;
+
+        explicit GetSuppliesRoute(std::string order_id, std::string supplier_id)
+            : order_id{std::move(order_id)}, supplier_id{std::move(supplier_id)} {
+        };
+    };
+
+    struct GetSuppliesRouteByOrder {
+        const std::string order_id;
+
+        explicit GetSuppliesRouteByOrder(std::string order_id) : order_id{std::move(order_id)} {
+        };
+    };
+
+    struct GetSuppliesRouteBySupplier {
+        const std::string supplier_id;
+
+        explicit GetSuppliesRouteBySupplier(std::string supplier_id) : supplier_id{std::move(supplier_id)} {
+        };
+    };
+
+    struct UpdateSuppliesRoute {
+        const std::string order_id, supplier_id, truck_id, estimated_departure, estimated_arrival, actual_arrival;
+
+        explicit UpdateSuppliesRoute(std::string order_id, std::string supplier_id, std::string truck_id,
+                                     std::string estimated_departure, std::string estimated_arrival,
+                                     std::string actual_arrival)
+            : order_id{std::move(order_id)}, supplier_id{std::move(supplier_id)}, truck_id{std::move(truck_id)},
+              estimated_departure{std::move(estimated_departure)}, estimated_arrival{std::move(estimated_arrival)},
+              actual_arrival{std::move(actual_arrival)} {
+        };
+    };
+
+    // -----------------------------------------------------------------------------------------------------------------
+
+    // ? Truck Cargo
+    // -----------------------------------------------------------------------------------------------------------------
+    struct CountTruckCargoByProduct {
+    };
+
+    struct CountTruckCargoByTruck {
+    };
+
+    struct CreateTruckCargo {
+        const std::string truck_id, product_id, quantity;
+
+        explicit CreateTruckCargo(std::string truck_id, std::string product_id, std::string quantity)
+            : truck_id{std::move(truck_id)}, product_id{std::move(product_id)}, quantity{std::move(quantity)} {
+        };
+    };
+
+    struct DeleteTruckCargoProduct {
+        const std::string truck_id, product_id;
+
+        explicit DeleteTruckCargoProduct(std::string truck_id, std::string product_id)
+            : truck_id{std::move(truck_id)}, product_id{std::move(product_id)} {
+        };
+    };
+
+    struct GetAllTrucksCargo {
+    };
+
+    struct GetTruckCargo {
+        const std::string truck_id, product_id;
+
+        explicit GetTruckCargo(std::string truck_id, std::string product_id)
+            : truck_id{std::move(truck_id)}, product_id{std::move(product_id)} {
+        };
+    };
+
+    struct GetTruckCargoByProduct {
+        const std::string product_id;
+
+        explicit GetTruckCargoByProduct(std::string product_id) : product_id{std::move(product_id)} {
+        };
+    };
+
+    struct GetTruckCargoByTruck {
+        const std::string truck_id;
+
+        explicit GetTruckCargoByTruck(std::string truck_id) : truck_id{std::move(truck_id)} {
+        };
+    };
+
+    struct UpdateTruckCargoQuantity {
+        const std::string truck_id, product_id, quantity;
+
+        explicit UpdateTruckCargoQuantity(std::string truck_id, std::string product_id, std::string quantity)
+            : truck_id{std::move(truck_id)}, product_id{std::move(product_id)}, quantity{std::move(quantity)} {
+        };
+    };
+
+    // -----------------------------------------------------------------------------------------------------------------
+
+    // ? Warehouses Stocks
+    // -----------------------------------------------------------------------------------------------------------------
+    struct CountStockByProduct {
+    };
+
+    struct CountStockByWarehouse {
+    };
+
+    struct CreateWarehouseStock {
+        const std::string warehouse_id, product_id, quantity;
+
+        explicit CreateWarehouseStock(std::string warehouse_id, std::string product_id, std::string quantity)
+            : warehouse_id{std::move(warehouse_id)}, product_id{std::move(product_id)}, quantity{std::move(quantity)} {
+        };
+    };
+
+    struct DeleteWarehouseStock {
+        const std::string warehouse_id, product_id;
+
+        explicit DeleteWarehouseStock(std::string warehouse_id, std::string product_id)
+            : warehouse_id{std::move(warehouse_id)}, product_id{std::move(product_id)} {
+        };
+    };
+
+    struct GetAllWarehouseStock {
+    };
+
+    struct GetStockByProduct {
+        const std::string product_id;
+
+        explicit GetStockByProduct(std::string product_id) : product_id{std::move(product_id)} {
+        };
+    };
+
+    struct GetStockByWarehouse {
+        const std::string warehouse_id;
+
+        explicit GetStockByWarehouse(std::string warehouse_id) : warehouse_id{std::move(warehouse_id)} {
+        };
+    };
+
+    struct GetWarehouseProductQuantity {
+        const std::string warehouse_id, product_id;
+
+        explicit GetWarehouseProductQuantity(std::string warehouse_id, std::string product_id)
+            : warehouse_id{std::move(warehouse_id)}, product_id{std::move(product_id)} {
+        };
+    };
+
+    struct UpdateWarehouseStockQuantity {
+        const std::string warehouse_id, product_id, quantity;
+
+        explicit UpdateWarehouseStockQuantity(std::string warehouse_id, std::string product_id, std::string quantity)
+            : warehouse_id{std::move(warehouse_id)}, product_id{std::move(product_id)}, quantity{std::move(quantity)} {
+        };
+    };
+
     // -----------------------------------------------------------------------------------------------------------------
     // -----------------------------------------------------------------------------------------------------------------
 
@@ -255,14 +596,26 @@ public:
     ~QueryProcessor() = default;
 
     // TODO: There has to be a better way to do this
-    using Query = std::variant<GetAllUsers, GetUser, GetUsersByRole, GetUserData, GetAllTrucks, GetTruck,
-        GetTrucksBySize,
-        GetTrucksByModel, GetTruckData, GetWarehouse, GetWarehouseData, GetOrder, GetOrderData,
-        GetOrdersByFinalDestination,
-        GetOrdersByReceiver, GetOrdersBySender, GetProduct, GetProductData, GetAllSuppliers, GetSupplier,
-        GetSuppliersByLocation,
-        GetSupplierData, GetAllFreightCosts, GetFreightCost, GetFreightCostData, GetAllOnlineUsers, GetOnlineUser,
-        GetOnlineUsersByRole, GetOnlineUserData>;
+    using Query = std::variant<GetAllUsers, GetUser, GetUsersByRole, GetUserData,
+        CountUsersByRole, CreateUser, DeleteUser, UpdateUserPassword, UpdateUsersData,
+        GetAllTrucks, GetTruck, GetTrucksBySize, GetTrucksByModel, GetTruckData,
+        GetWarehouse, GetWarehouseData,
+        GetOrder, GetOrderData, GetOrdersByFinalDestination, GetOrdersByReceiver, GetOrdersBySender,
+        GetProduct, GetProductData,
+        GetAllSuppliers, GetSupplier, GetSuppliersByLocation, GetSupplierData,
+        CountSuppliersByLocation, CreateSupplier, DeleteSupplier, UpdateSupplier,
+        GetAllFreightCosts, GetFreightCost, GetFreightCostData,
+        CountFreightCosts, CreateFreightCost, DeleteFreightCost, UpdateFreightCost,
+        GetAllOnlineUsers, GetOnlineUser, GetOnlineUsersByRole, GetOnlineUserData,
+        CountOnlineUsersByRole,
+        CountOrderItemsByOrder, CountOrderItemsByProduct, CreateOrderItem, DeleteOrderItem, GetAllOrderItems,
+        GetOrderItemsByOrder, GetOrderItemsByProduct, GetOrderProductQuantity, UpdateOrderItemQuantity,
+        CountSuppliesRouteByOrder, CountSuppliesRouteBySupplier, CreateSuppliesRoute, DeleteSuppliesRoute,
+        GetAllSuppliesRoute, GetSuppliesRoute, GetSuppliesRouteByOrder, GetSuppliesRouteBySupplier, UpdateSuppliesRoute,
+        CountTruckCargoByProduct, CountTruckCargoByTruck, CreateTruckCargo, DeleteTruckCargoProduct, GetAllTrucksCargo,
+        GetTruckCargo, GetTruckCargoByProduct, GetTruckCargoByTruck, UpdateTruckCargoQuantity,
+        CountStockByProduct, CountStockByWarehouse, CreateWarehouseStock, DeleteWarehouseStock, GetAllWarehouseStock,
+        GetStockByProduct, GetStockByWarehouse, GetWarehouseProductQuantity, UpdateWarehouseStockQuantity>;
 
     // ? User queries
     // -----------------------------------------------------------------------------------------------------------------
@@ -287,6 +640,25 @@ public:
     static auto getUserData(const std::string &id, const std::string &field) -> GetUserData {
         return GetUserData(id, field);
     };
+
+    static auto countUsersByRole() -> CountUsersByRole { return CountUsersByRole{}; };
+
+    static auto createUser(const std::string &id, const std::string &name, const std::string &password,
+                            const std::string &address, const std::string &role) -> CreateUser {
+        return CreateUser(id, name, password, address, role);
+    };
+
+    static auto deleteUser(const std::string &id) -> DeleteUser { return DeleteUser(id); };
+
+    static auto updateUserPassword(const std::string &id, const std::string &password) -> UpdateUserPassword {
+        return UpdateUserPassword(id, password);
+    };
+
+    static auto updateUsersData(const std::string &id, const std::string &name, const std::string &address,
+                                 const std::string &role) -> UpdateUsersData {
+        return UpdateUsersData(id, name, address, role);
+    };
+
     // -----------------------------------------------------------------------------------------------------------------
 
     // ? Truck queries
@@ -402,6 +774,20 @@ public:
         return GetSupplierData(id, field);
     };
 
+    static auto countSuppliersByLocation() -> CountSuppliersByLocation { return CountSuppliersByLocation{}; };
+
+    static auto createSupplier(const std::string &id, const std::string &name, const std::string &location)
+        -> CreateSupplier {
+        return CreateSupplier(id, name, location);
+    };
+
+    static auto deleteSupplier(const std::string &id) -> DeleteSupplier { return DeleteSupplier(id); };
+
+    static auto updateSupplier(const std::string &id, const std::string &name, const std::string &location)
+        -> UpdateSupplier {
+        return UpdateSupplier(id, name, location);
+    };
+
     // ? Freight Cost queries
     /**
      * @brief A query for getting all freight costs
@@ -418,6 +804,26 @@ public:
      */
     static auto getFreightCostData(const std::string &order_id, const std::string &field) -> GetFreightCostData {
         return GetFreightCostData(order_id, field);
+    };
+
+    static auto countFreightCosts() -> CountFreightCosts { return CountFreightCosts{}; };
+
+    static auto createFreightCost(const std::string &order_id, const std::string &fuel_cost,
+                                   const std::string &labor_cost, const std::string &maintenance_cost,
+                                   const std::string &total_cost, const std::string &calculated_at)
+        -> CreateFreightCost {
+        return CreateFreightCost(order_id, fuel_cost, labor_cost, maintenance_cost, total_cost, calculated_at);
+    };
+
+    static auto deleteFreightCost(const std::string &order_id) -> DeleteFreightCost {
+        return DeleteFreightCost(order_id);
+    };
+
+    static auto updateFreightCost(const std::string &order_id, const std::string &fuel_cost,
+                                   const std::string &labor_cost, const std::string &maintenance_cost,
+                                   const std::string &total_cost, const std::string &calculated_at)
+        -> UpdateFreightCost {
+        return UpdateFreightCost(order_id, fuel_cost, labor_cost, maintenance_cost, total_cost, calculated_at);
     };
 
     // ? Online User queries
@@ -443,6 +849,152 @@ public:
      */
     static auto getOnlineUserData(const std::string &session_id, const std::string &field) -> GetOnlineUserData {
         return GetOnlineUserData(session_id, field);
+    };
+
+    static auto countOnlineUsersByRole() -> CountOnlineUsersByRole { return CountOnlineUsersByRole{}; };
+
+    // ? Orders Items queries
+    static auto countOrderItemsByOrder() -> CountOrderItemsByOrder { return CountOrderItemsByOrder{}; };
+
+    static auto countOrderItemsByProduct() -> CountOrderItemsByProduct { return CountOrderItemsByProduct{}; };
+
+    static auto createOrderItem(const std::string &order_id, const std::string &product_id,
+                                 const std::string &quantity) -> CreateOrderItem {
+        return CreateOrderItem(order_id, product_id, quantity);
+    };
+
+    static auto deleteOrderItem(const std::string &order_id, const std::string &product_id) -> DeleteOrderItem {
+        return DeleteOrderItem(order_id, product_id);
+    };
+
+    static auto getAllOrderItems() -> GetAllOrderItems { return GetAllOrderItems{}; };
+
+    static auto getOrderItemsByOrder(const std::string &order_id) -> GetOrderItemsByOrder {
+        return GetOrderItemsByOrder(order_id);
+    };
+
+    static auto getOrderItemsByProduct(const std::string &product_id) -> GetOrderItemsByProduct {
+        return GetOrderItemsByProduct(product_id);
+    };
+
+    static auto getOrderProductQuantity(const std::string &order_id, const std::string &product_id)
+        -> GetOrderProductQuantity {
+        return GetOrderProductQuantity(order_id, product_id);
+    };
+
+    static auto updateOrderItemQuantity(const std::string &order_id, const std::string &product_id,
+                                         const std::string &quantity) -> UpdateOrderItemQuantity {
+        return UpdateOrderItemQuantity(order_id, product_id, quantity);
+    };
+
+    // ? Supplies Routes queries
+    static auto countSuppliesRouteByOrder() -> CountSuppliesRouteByOrder { return CountSuppliesRouteByOrder{}; };
+
+    static auto countSuppliesRouteBySupplier() -> CountSuppliesRouteBySupplier {
+        return CountSuppliesRouteBySupplier{};
+    };
+
+    static auto createSuppliesRoute(const std::string &order_id, const std::string &supplier_id,
+                                     const std::string &truck_id, const std::string &estimated_departure,
+                                     const std::string &estimated_arrival, const std::string &actual_arrival)
+        -> CreateSuppliesRoute {
+        return CreateSuppliesRoute(order_id, supplier_id, truck_id, estimated_departure, estimated_arrival,
+                                   actual_arrival);
+    };
+
+    static auto deleteSuppliesRoute(const std::string &order_id, const std::string &supplier_id) -> DeleteSuppliesRoute {
+        return DeleteSuppliesRoute(order_id, supplier_id);
+    };
+
+    static auto getAllSuppliesRoute() -> GetAllSuppliesRoute { return GetAllSuppliesRoute{}; };
+
+    static auto getSuppliesRoute(const std::string &order_id, const std::string &supplier_id) -> GetSuppliesRoute {
+        return GetSuppliesRoute(order_id, supplier_id);
+    };
+
+    static auto getSuppliesRouteByOrder(const std::string &order_id) -> GetSuppliesRouteByOrder {
+        return GetSuppliesRouteByOrder(order_id);
+    };
+
+    static auto getSuppliesRouteBySupplier(const std::string &supplier_id) -> GetSuppliesRouteBySupplier {
+        return GetSuppliesRouteBySupplier(supplier_id);
+    };
+
+    static auto updateSuppliesRoute(const std::string &order_id, const std::string &supplier_id,
+                                     const std::string &truck_id, const std::string &estimated_departure,
+                                     const std::string &estimated_arrival, const std::string &actual_arrival)
+        -> UpdateSuppliesRoute {
+        return UpdateSuppliesRoute(order_id, supplier_id, truck_id, estimated_departure, estimated_arrival,
+                                   actual_arrival);
+    };
+
+    // ? Truck Cargo queries
+    static auto countTruckCargoByProduct() -> CountTruckCargoByProduct { return CountTruckCargoByProduct{}; };
+
+    static auto countTruckCargoByTruck() -> CountTruckCargoByTruck { return CountTruckCargoByTruck{}; };
+
+    static auto createTruckCargo(const std::string &truck_id, const std::string &product_id,
+                                  const std::string &quantity) -> CreateTruckCargo {
+        return CreateTruckCargo(truck_id, product_id, quantity);
+    };
+
+    static auto deleteTruckCargoProduct(const std::string &truck_id, const std::string &product_id)
+        -> DeleteTruckCargoProduct {
+        return DeleteTruckCargoProduct(truck_id, product_id);
+    };
+
+    static auto getAllTrucksCargo() -> GetAllTrucksCargo { return GetAllTrucksCargo{}; };
+
+    static auto getTruckCargo(const std::string &truck_id, const std::string &product_id) -> GetTruckCargo {
+        return GetTruckCargo(truck_id, product_id);
+    };
+
+    static auto getTruckCargoByProduct(const std::string &product_id) -> GetTruckCargoByProduct {
+        return GetTruckCargoByProduct(product_id);
+    };
+
+    static auto getTruckCargoByTruck(const std::string &truck_id) -> GetTruckCargoByTruck {
+        return GetTruckCargoByTruck(truck_id);
+    };
+
+    static auto updateTruckCargoQuantity(const std::string &truck_id, const std::string &product_id,
+                                          const std::string &quantity) -> UpdateTruckCargoQuantity {
+        return UpdateTruckCargoQuantity(truck_id, product_id, quantity);
+    };
+
+    // ? Warehouses Stocks queries
+    static auto countStockByProduct() -> CountStockByProduct { return CountStockByProduct{}; };
+
+    static auto countStockByWarehouse() -> CountStockByWarehouse { return CountStockByWarehouse{}; };
+
+    static auto createWarehouseStock(const std::string &warehouse_id, const std::string &product_id,
+                                      const std::string &quantity) -> CreateWarehouseStock {
+        return CreateWarehouseStock(warehouse_id, product_id, quantity);
+    };
+
+    static auto deleteWarehouseStock(const std::string &warehouse_id, const std::string &product_id)
+        -> DeleteWarehouseStock {
+        return DeleteWarehouseStock(warehouse_id, product_id);
+    };
+
+    static auto getAllWarehouseStock() -> GetAllWarehouseStock { return GetAllWarehouseStock{}; };
+
+    static auto getStockByProduct(const std::string &product_id) -> GetStockByProduct {
+        return GetStockByProduct(product_id);
+    };
+
+    static auto getStockByWarehouse(const std::string &warehouse_id) -> GetStockByWarehouse {
+        return GetStockByWarehouse(warehouse_id);
+    };
+
+    static auto getWarehouseProductQuantity(const std::string &warehouse_id, const std::string &product_id)
+        -> GetWarehouseProductQuantity {
+        return GetWarehouseProductQuantity(warehouse_id, product_id);
+    };
+
+    static auto updateWarehouseStockQuantity(const std::string &warehouse_id, const std::string &product_id,
+                                              const std::string &quantity) -> UpdateWarehouseStockQuantity {
+        return UpdateWarehouseStockQuantity(warehouse_id, product_id, quantity);
     };
 
     /**
