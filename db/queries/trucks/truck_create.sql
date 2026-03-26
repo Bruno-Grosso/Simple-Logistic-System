@@ -1,0 +1,1 @@
+INSERT INTO trucks (id, model, speed, is_valid, is_delivering, size, volume_current, volume_max, weight_current, weight_max, has_refrigeration, current_warehouse_id, origin_warehouse_id, destination_warehouse_id, estimated_time, fuel_capacity, fuel_current, fuel_consumption, truck_maintenance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
