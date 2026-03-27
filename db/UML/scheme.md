@@ -8,6 +8,8 @@ Este diagrama vetorial representa a estrutura de classes e relacionamentos do si
 
 ![Esquema do Banco de Dados .jpeg](UML%20scheme%20Image%201.PNG)
 
+![Esquema do Banco de Dados 2 .jpeg](UML%20scheme%20Image%202.PNG)
+
 ![Esquema do Banco de Dados .svg](https://raw.githubusercontent.com/Bruno-Grosso/Simple-Logistic-System/refs/heads/main/db/UML/dbdatabase_scheme%20V3.0.svg)
 
 ---
