@@ -6,9 +6,9 @@ Abaixo está a representação das classes e relacionamentos do sistema:
 
 Este diagrama vetorial representa a estrutura de classes e relacionamentos do sistema, incluindo Usuários, Funcionários, Produtos e Logística de Entrega, renderizado com o motor ELK para máxima clareza.
 
-> **Dica:** Como este é um arquivo SVG, você pode dar zoom na imagem no seu navegador para ler os detalhes sem perder qualidade.
+![Esquema do Banco de Dados .jpeg](UML%20Scheme%20Image%201.jpeg)
 
-![Esquema do Banco de Dados](https://raw.githubusercontent.com/Bruno-Grosso/Simple-Logistic-System/refs/heads/main/db/UML/dbdatabase_scheme%20V3.0.svg)
+![Esquema do Banco de Dados .svg](https://raw.githubusercontent.com/Bruno-Grosso/Simple-Logistic-System/refs/heads/main/db/UML/dbdatabase_scheme%20V3.0.svg)
 
 ---
 
