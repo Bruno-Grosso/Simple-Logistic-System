@@ -20,7 +20,7 @@ CREATE TABLE suppliers (
     location TEXT
 );
 
--- Warehouse informations
+-- Warehouse information
 CREATE TABLE warehouses (
     id TEXT PRIMARY KEY,
     location TEXT NOT NULL,
@@ -64,7 +64,7 @@ CREATE TABLE trucks (
 
     current_warehouse_id TEXT, --NULL if delivering
     
-    --delivering informations(NULL if not delivering)
+    --delivering information (NULL if not delivering)
     estimated_time TEXT,
     origin_warehouse_id TEXT,
     destination_warehouse_id TEXT,
@@ -125,7 +125,7 @@ CREATE TABLE orders (
     id TEXT PRIMARY KEY,
     
     client_id TEXT NOT NULL, --the sender
-    final_destination TEXT, --the reciever
+    final_destination TEXT, --the receiver
     
     time_limit TEXT,
     price REAL DEFAULT 0,
@@ -161,7 +161,7 @@ CREATE TABLE orders_route (
     warehouse_id TEXT,
     truck_id TEXT,
 
-    --if its going to other warehouse. Else NULL
+    --if it's going to other warehouse. Else NULL
     destination_warehouse_id TEXT,
     
     estimated_time TEXT,

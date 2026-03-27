@@ -322,7 +322,7 @@
   **Example of activity**: If you want to calculate revenue or display the total cost to the client, use this field.  
   **Example value**: `150.75`
 
-- **status (TEXT: 'Pending','Shipped','Delivered','Cancelled')**:  
+- **status (TEXT: 'Pending','Shipped','Delivered','Canceled')**:  
   This field indicates the current state of the order.  
   **Example of activity**: If you want to filter orders that are ready for shipping, check this field.  
   **Example value**: `"Pending"`
