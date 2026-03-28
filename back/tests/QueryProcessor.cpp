@@ -87,6 +87,92 @@ TEST_F(QueryProcessorTest, DataFromATruck) {
               "SELECT volume_max FROM trucks WHERE id = 'ID';");
 }
 
+TEST_F(QueryProcessorTest, CreateTruck) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::createTruck("T1", "M1", "80.0", "1", "0", "L", "0.0", "100.0", "0.0", "500.0", "1", "W1", "W1", "W2", "10", "100.0", "100.0", "5.0", "0")),
+              "INSERT INTO trucks (id, model, speed, is_valid, is_delivering, size, volume_current, volume_max, weight_current, weight_max, has_refrigeration, current_warehouse_id, origin_warehouse_id, destination_warehouse_id, estimated_time, fuel_capacity, fuel_current, fuel_consumption, truck_maintenance) VALUES ('T1', 'M1', 80.0, 1, 0, 'L', 0.0, 100.0, 0.0, 500.0, 1, 'W1', 'W1', 'W2', '10', 100.0, 100.0, 5.0, 0);\n");
+}
+
+TEST_F(QueryProcessorTest, DeleteTruck) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::deleteTruck("T1")), "DELETE FROM trucks WHERE id = 'T1';\n");
+}
+
+TEST_F(QueryProcessorTest, UpdateTruck) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::updateTruck("T1", "M2", "90.0", "1", "1", "XL", "10.0", "120.0", "50.0", "600.0", "1", "W2", "W1", "W3", "5", "150.0", "80.0", "6.0", "1")),
+              "UPDATE trucks SET model = 'M2', speed = 90.0, is_valid = 1, is_delivering = 1, size = 'XL', volume_current = 10.0, volume_max = 120.0, weight_current = 50.0, weight_max = 600.0, has_refrigeration = 1, current_warehouse_id = 'W2', origin_warehouse_id = 'W1', destination_warehouse_id = 'W3', estimated_time = '5', fuel_capacity = 150.0, fuel_current = 80.0, fuel_consumption = 6.0, truck_maintenance = 1 WHERE id = 'T1';\n");
+}
+
+TEST_F(QueryProcessorTest, TrucksAtWarehouse) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getTrucksAtWarehouse("W1")), "SELECT * FROM trucks WHERE current_warehouse_id = 'W1';\n");
+}
+
+TEST_F(QueryProcessorTest, TrucksByDestination) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getTrucksByDestination("W2")), "SELECT * FROM trucks WHERE destination_warehouse_id = 'W2';\n");
+}
+
+TEST_F(QueryProcessorTest, TrucksByOrigin) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getTrucksByOrigin("W1")), "SELECT * FROM trucks WHERE origin_warehouse_id = 'W1';\n");
+}
+
+TEST_F(QueryProcessorTest, CurrentlyDeliveringTrucks) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getCurrentlyDeliveringTrucks()), "SELECT * FROM trucks WHERE is_delivering = 1;\n");
+}
+
+TEST_F(QueryProcessorTest, NotCurrentlyDeliveringTrucks) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getNotCurrentlyDeliveringTrucks()), "SELECT * FROM trucks WHERE is_delivering = 0;\n");
+}
+
+TEST_F(QueryProcessorTest, ValidTrucks) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getValidTrucks()), "SELECT * FROM trucks WHERE is_valid = 1;\n");
+}
+
+TEST_F(QueryProcessorTest, InvalidTrucks) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getInvalidTrucks()), "SELECT * FROM trucks WHERE is_valid = 0;\n");
+}
+
+TEST_F(QueryProcessorTest, RefrigeratedTrucks) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getRefrigeratedTrucks()), "SELECT * FROM trucks WHERE has_refrigeration = 1;\n");
+}
+
+TEST_F(QueryProcessorTest, NotRefrigeratedTrucks) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getNotRefrigeratedTrucks()), "SELECT * FROM trucks WHERE has_refrigeration = 0;\n");
+}
+
+TEST_F(QueryProcessorTest, RefrigeratedDeliveringTrucks) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getRefrigeratedDeliveringTrucks()), "SELECT * FROM trucks WHERE has_refrigeration = 1 AND is_delivering = 1;\n");
+}
+
+TEST_F(QueryProcessorTest, RefrigeratedNotDeliveringTrucks) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getRefrigeratedNotDeliveringTrucks()), "SELECT * FROM trucks WHERE has_refrigeration = 1 AND is_delivering = 0;\n");
+}
+
+TEST_F(QueryProcessorTest, GetTruckDetailedCargo) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getTruckDetailedCargo("T1")), "SELECT tc.truck_id, tc.product_id, tc.quantity, p.name FROM trucks_cargo tc JOIN products p ON p.id = tc.product_id WHERE tc.truck_id = 'T1';\n");
+}
+
+TEST_F(QueryProcessorTest, GetAllTrucksWithCargo) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllTrucksWithCargo()), "SELECT tc.truck_id, tc.product_id, tc.quantity, p.name FROM trucks_cargo tc JOIN products p ON p.id = tc.product_id;\n");
+}
+
+TEST_F(QueryProcessorTest, FindTruckByProduct) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::findTruckByProduct("P1")), "SELECT t.id, t.model, tc.quantity FROM trucks t JOIN trucks_cargo tc ON t.id = tc.truck_id WHERE tc.product_id = 'P1';\n");
+}
+
+TEST_F(QueryProcessorTest, FindTruckByVolumeCapacity) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::findTruckByVolumeCapacity("100.0")), "SELECT * FROM trucks WHERE volume_max >= 100.0;\n");
+}
+
+TEST_F(QueryProcessorTest, FindTruckByWeightCapacity) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::findTruckByWeightCapacity("500.0")), "SELECT * FROM trucks WHERE weight_max >= 500.0;\n");
+}
+
+TEST_F(QueryProcessorTest, FindRefrigeratedTruckByVolumeCapacity) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::findRefrigeratedTruckByVolumeCapacity("100.0")), "SELECT * FROM trucks WHERE has_refrigeration = 1 AND volume_max >= 100.0;\n");
+}
+
+TEST_F(QueryProcessorTest, FindRefrigeratedTruckByWeightCapacity) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::findRefrigeratedTruckByWeightCapacity("500.0")), "SELECT * FROM trucks WHERE has_refrigeration = 1 AND weight_max >= 500.0;\n");
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 // ? Warehouse query tests
@@ -98,6 +184,80 @@ TEST_F(QueryProcessorTest, SingleWarehouse) {
 TEST_F(QueryProcessorTest, DataFromAWarehouse) {
     EXPECT_EQ(qp.getQuery(QueryProcessor::getWarehouseData("ID", "name")),
               "SELECT name FROM warehouses WHERE id = 'ID';");
+}
+
+TEST_F(QueryProcessorTest, CreateWarehouse) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::createWarehouse("W1", "Loc", "L", "0.0", "1000.0", "1", "2.0")),
+              "INSERT INTO warehouses (id, location, size, volume_current, volume_max, has_refrigeration, fuel_price) VALUES ('W1', 'Loc', 'L', 0.0, 1000.0, 1, 2.0);\n");
+}
+
+TEST_F(QueryProcessorTest, DeleteWarehouse) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::deleteWarehouse("W1")), "DELETE FROM warehouses WHERE id = 'W1';\n");
+}
+
+TEST_F(QueryProcessorTest, UpdateWarehouse) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::updateWarehouse("W1", "NewLoc", "XL", "10.0", "1200.0", "1", "2.5")),
+              "UPDATE warehouses SET location = 'NewLoc', size = 'XL', volume_current = 10.0, volume_max = 1200.0, has_refrigeration = 1, fuel_price = 2.5 WHERE id = 'W1';\n");
+}
+
+TEST_F(QueryProcessorTest, GetAllWarehouses) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllWarehouses()), "SELECT * FROM warehouses;\n");
+}
+
+TEST_F(QueryProcessorTest, WarehouseProducts) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getWarehouseProducts("W1")), "SELECT p.id, p.name, ws.quantity FROM warehouses_stock ws JOIN products p ON p.id = ws.product_id WHERE ws.warehouse_id = 'W1';\n");
+}
+
+TEST_F(QueryProcessorTest, WarehouseTotalItems) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getWarehouseTotalItems("W1")), "SELECT warehouse_id, SUM(quantity) AS total_items FROM warehouses_stock GROUP BY warehouse_id;\n");
+}
+
+TEST_F(QueryProcessorTest, WarehouseAvailableCapacity) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getWarehouseAvailableCapacity()), "SELECT * FROM warehouses WHERE volume_current < volume_max;\n");
+}
+
+TEST_F(QueryProcessorTest, WarehousesSortedByFreeVolume) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getWarehousesSortedByFreeVolume()), "SELECT *, (volume_max - volume_current) AS free_volume FROM warehouses ORDER BY free_volume DESC;\n");
+}
+
+TEST_F(QueryProcessorTest, MostLoadedWarehouses) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getMostLoadedWarehouses()), "SELECT *, (volume_current * 1.0 / volume_max) AS usage_ratio FROM warehouses ORDER BY usage_ratio DESC;\n");
+}
+
+TEST_F(QueryProcessorTest, RefrigeratedWarehouses) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getRefrigeratedWarehouses()), "SELECT * FROM warehouses WHERE has_refrigeration = 1;\n");
+}
+
+TEST_F(QueryProcessorTest, CalculateWarehouseUsedVolume) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::calculateWarehouseUsedVolume()), "SELECT ws.warehouse_id, SUM(ws.quantity * p.volume) AS used_volume FROM warehouses_stock ws JOIN products p ON p.id = ws.product_id GROUP BY ws.warehouse_id;\n");
+}
+
+TEST_F(QueryProcessorTest, FindWarehouseByProduct) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::findWarehouseByProduct("P1")), "SELECT w.id, w.location, ws.quantity FROM warehouses w JOIN warehouses_stock ws ON w.id = ws.warehouse_id WHERE ws.product_id = 'P1';\n");
+}
+
+TEST_F(QueryProcessorTest, FindWarehouseByRequiredVolume) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::findWarehouseByRequiredVolume("100.0")), "SELECT * FROM warehouses WHERE (volume_max - volume_current) >= 100.0;\n");
+}
+
+TEST_F(QueryProcessorTest, FindColdStorageWarehouse) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::findColdStorageWarehouse()), "SELECT * FROM warehouses WHERE has_refrigeration = 1 AND volume_current < volume_max;\n");
+}
+
+TEST_F(QueryProcessorTest, FindColdWarehouseWithCapacity) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::findColdWarehouseWithCapacity("50.0")), "SELECT * FROM warehouses WHERE has_refrigeration = 1 AND (volume_max - volume_current) >= 50.0;\n");
+}
+
+TEST_F(QueryProcessorTest, FindEmptyWarehouses) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::findEmptyWarehouses()), "SELECT w.* FROM warehouses w LEFT JOIN warehouses_stock ws ON w.id = ws.warehouse_id WHERE ws.product_id IS NULL;\n");
+}
+
+TEST_F(QueryProcessorTest, FindExpiringProductsInWarehouses) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::findExpiringProductsInWarehouses()), "SELECT w.id, p.name, p.expire_date FROM warehouses w JOIN warehouses_stock ws ON w.id = ws.warehouse_id JOIN products p ON p.id = ws.product_id WHERE p.expire_date IS NOT NULL ORDER BY p.expire_date ASC;\n");
+}
+
+TEST_F(QueryProcessorTest, FindFragileProductsInWarehouses) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::findFragileProductsInWarehouses()), "SELECT DISTINCT w.id, w.location FROM warehouses w JOIN warehouses_stock ws ON w.id = ws.warehouse_id JOIN products p ON p.id = ws.product_id WHERE p.is_fragile = 1;\n");
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -126,9 +286,145 @@ TEST_F(QueryProcessorTest, OrdersBySender) {
     EXPECT_EQ(qp.getQuery(QueryProcessor::getOrdersBySender("S1")), "SELECT * FROM orders WHERE client_id = 'S1';");
 }
 
+TEST_F(QueryProcessorTest, CreateOrder) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::createOrder("O1", "C1", "Dest", "Time", "100.0", "Pending", "Sup1", "0")),
+              "INSERT INTO orders (id, client_id, final_destination, time_limit, price, status, supplier_id, supplier_delivery) VALUES ('O1', 'C1', 'Dest', 'Time', 100.0, 'Pending', 'Sup1', 0);\n");
+}
+
+TEST_F(QueryProcessorTest, DeleteOrder) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::deleteOrder("O1")), "DELETE FROM orders WHERE id = 'O1';\n");
+}
+
+TEST_F(QueryProcessorTest, UpdateOrder) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::updateOrder("O1", "C2", "Dest2", "Time2", "150.0", "Shipped", "Sup2", "1")),
+              "UPDATE orders SET client_id = 'C2', final_destination = 'Dest2', time_limit = 'Time2', price = 150.0, status = 'Shipped', supplier_id = 'Sup2', supplier_delivery = 1 WHERE id = 'O1';\n");
+}
+
+TEST_F(QueryProcessorTest, GetAllOrders) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllOrders()), "SELECT * FROM orders;\n");
+}
+
+TEST_F(QueryProcessorTest, OrdersByStatus) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getOrdersByStatus("Shipped")), "SELECT * FROM orders WHERE status = 'Shipped';\n");
+}
+
+TEST_F(QueryProcessorTest, CancelledOrders) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getCancelledOrders()), "SELECT * FROM orders WHERE status = 'Cancelled';\n");
+}
+
+TEST_F(QueryProcessorTest, DeliveredOrders) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getDeliveredOrders()), "SELECT * FROM orders WHERE status = 'Delivered';\n");
+}
+
+TEST_F(QueryProcessorTest, PendingOrders) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getPendingOrders()), "SELECT * FROM orders WHERE status = 'Pending';\n");
+}
+
+TEST_F(QueryProcessorTest, ShippedOrders) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getShippedOrders()), "SELECT * FROM orders WHERE status = 'Shipped';\n");
+}
+
+TEST_F(QueryProcessorTest, SupplierDeliveredOrders) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getSupplierDeliveredOrders()), "SELECT * FROM orders WHERE supplier_delivery = 1;\n");
+}
+
+TEST_F(QueryProcessorTest, SupplierOrders) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getSupplierOrders("Sup1")), "SELECT * FROM orders WHERE supplier_id = 'Sup1';\n");
+}
+
+TEST_F(QueryProcessorTest, OrderFreightCost) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getOrderFreightCost("O1")), "SELECT * FROM freight_cost WHERE order_id = 'O1';\n");
+}
+
+TEST_F(QueryProcessorTest, OrderItems) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getOrderItems("O1")), "SELECT oi.order_id, oi.product_id, oi.quantity, p.name FROM orders_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = 'O1';\n");
+}
+
+TEST_F(QueryProcessorTest, OrderRoute) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getOrderRoute("O1")), "SELECT * FROM orders_route WHERE order_id = 'O1';\n");
+}
+
+TEST_F(QueryProcessorTest, OrderRoutesByTruck) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getOrderRoutesByTruck("T1")), "SELECT * FROM orders_route WHERE truck_id = 'T1';\n");
+}
+
+TEST_F(QueryProcessorTest, OrderRoutesByWarehouse) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getOrderRoutesByWarehouse("W1")), "SELECT * FROM orders_route WHERE warehouse_id = 'W1';\n");
+}
+
+TEST_F(QueryProcessorTest, OrderSupplierRoute) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getOrderSupplierRoute("O1")), "SELECT * FROM supplies_route WHERE order_id = 'O1';\n");
+}
+
+TEST_F(QueryProcessorTest, FindOrderByProduct) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::findOrderByProduct("P1")), "SELECT oi.order_id, oi.quantity, o.client_id, o.status FROM orders_items oi JOIN orders o ON o.id = oi.order_id WHERE oi.product_id = 'P1';\n");
+}
+
+TEST_F(QueryProcessorTest, GetAllOrdersFreightCosts) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllOrdersFreightCosts()), "SELECT * FROM freight_cost;\n");
+}
+
+TEST_F(QueryProcessorTest, GetAllOrdersItems) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllOrdersItems()), "SELECT oi.order_id, oi.product_id, oi.quantity, p.name FROM orders_items oi JOIN products p ON p.id = oi.product_id;\n");
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
-// ? Product query tests
+// ? Orders Route query tests
+// ---------------------------------------------------------------------------------------------------------------------
+TEST_F(QueryProcessorTest, CreateOrderRoute) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::createOrderRoute("O1", "1", "W1", "T1", "W2", "T10", "A10")),
+              "INSERT INTO orders_route (order_id, step, warehouse_id, truck_id, destination_warehouse_id, estimated_time, arrived_at) VALUES ('O1', 1, 'W1', 'T1', 'W2', 'T10', 'A10');\n");
+}
+
+TEST_F(QueryProcessorTest, DeleteOrderRoute) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::deleteOrderRoute("O1", "1")),
+              "DELETE FROM orders_route WHERE order_id = 'O1' AND step = 1;\n");
+}
+
+TEST_F(QueryProcessorTest, GetAllOrdersRoute) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllOrdersRoute()), "SELECT * FROM orders_route;\n");
+}
+
+TEST_F(QueryProcessorTest, ArrivedOrdersRoute) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getArrivedOrdersRoute()), "SELECT * FROM orders_route WHERE arrived_at IS NOT NULL;\n");
+}
+
+TEST_F(QueryProcessorTest, PendingArrivalOrdersRoute) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getPendingArrivalOrdersRoute()), "SELECT * FROM orders_route WHERE arrived_at IS NULL;\n");
+}
+
+TEST_F(QueryProcessorTest, OrdersRouteByDestination) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getOrdersRouteByDestination("W2")),
+              "SELECT * FROM orders_route WHERE destination_warehouse_id = 'W2';\n");
+}
+
+TEST_F(QueryProcessorTest, OrdersRouteByOrder) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getOrdersRouteByOrder("O1")), "SELECT * FROM orders_route WHERE order_id = 'O1';\n");
+}
+
+TEST_F(QueryProcessorTest, OrdersRouteByStep) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getOrdersRouteByStep("O1", "1")),
+              "SELECT * FROM orders_route WHERE order_id = 'O1' AND step = 1;\n");
+}
+
+TEST_F(QueryProcessorTest, OrdersRouteByTruck) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getOrdersRouteByTruck("T1")), "SELECT * FROM orders_route WHERE truck_id = 'T1';\n");
+}
+
+TEST_F(QueryProcessorTest, OrdersRouteByWarehouse) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getOrdersRouteByWarehouse("W1")), "SELECT * FROM orders_route WHERE warehouse_id = 'W1';\n");
+}
+
+TEST_F(QueryProcessorTest, UpdateOrderRoute) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::updateOrderRoute("O1", "1", "W3", "T3", "W4", "T20", "A20")),
+              "UPDATE orders_route SET warehouse_id = 'W3', truck_id = 'T3', destination_warehouse_id = 'W4', estimated_time = 'T20', arrived_at = 'A20' WHERE order_id = 'O1' AND step = 1;\n");
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// ? Orders Items query tests
+
 // ---------------------------------------------------------------------------------------------------------------------
 TEST_F(QueryProcessorTest, SingleProduct) {
     EXPECT_EQ(qp.getQuery(QueryProcessor::getProduct("Some ID")), "SELECT * FROM products WHERE id = 'Some ID';");
@@ -137,6 +433,72 @@ TEST_F(QueryProcessorTest, SingleProduct) {
 TEST_F(QueryProcessorTest, DataFromAProduct) {
     EXPECT_EQ(qp.getQuery(QueryProcessor::getProductData("ID", "price")),
               "SELECT price FROM products WHERE id = 'ID';");
+}
+
+TEST_F(QueryProcessorTest, CreateProduct) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::createProduct("P1", "Name", "10.0", "1", "0", "2026-12-31", "1x1x1", "1.0", "1.0")),
+              "INSERT INTO products (id, name, price, is_cold, is_fragile, expire_date, size, volume, weight) VALUES ('P1', 'Name', 10.0, 1, 0, '2026-12-31', '1x1x1', 1.0, 1.0);\n");
+}
+
+TEST_F(QueryProcessorTest, DeleteProduct) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::deleteProduct("P1")), "DELETE FROM products WHERE id = 'P1';\n");
+}
+
+TEST_F(QueryProcessorTest, UpdateProduct) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::updateProduct("P1", "NewName", "15.0", "0", "1", "2027-01-01", "2x2x2", "8.0", "5.0")),
+              "UPDATE products SET name = 'NewName', price = 15.0, is_cold = 0, is_fragile = 1, expire_date = '2027-01-01', size = '2x2x2', volume = 8.0, weight = 5.0 WHERE id = 'P1';\n");
+}
+
+TEST_F(QueryProcessorTest, GetAllProducts) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllProducts()), "SELECT * FROM products;\n");
+}
+
+TEST_F(QueryProcessorTest, ProductById) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getProductById("P1")), "SELECT * FROM products WHERE id = 'P1';\n");
+}
+
+TEST_F(QueryProcessorTest, ProductByName) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getProductByName("Milk")), "SELECT * FROM products WHERE name LIKE '%Milk%';\n");
+}
+
+TEST_F(QueryProcessorTest, ColdProducts) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getColdProducts()), "SELECT * FROM products WHERE is_cold = 1;\n");
+}
+
+TEST_F(QueryProcessorTest, ExpirableProducts) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getExpirableProducts()), "SELECT * FROM products WHERE expire_date IS NOT NULL;\n");
+}
+
+TEST_F(QueryProcessorTest, FragileProducts) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getFragileProducts()), "SELECT * FROM products WHERE is_fragile = 1;\n");
+}
+
+TEST_F(QueryProcessorTest, ProductOrders) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getProductOrders("P1")), "SELECT oi.order_id, oi.quantity, p.id, p.name FROM orders_items oi JOIN products p ON p.id = oi.product_id WHERE p.id = 'P1';\n");
+}
+
+TEST_F(QueryProcessorTest, ProductStockInWarehouses) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getProductStockInWarehouses("P1")), "SELECT ws.warehouse_id, ws.quantity, p.id, p.name FROM warehouses_stock ws JOIN products p ON p.id = ws.product_id WHERE p.id = 'P1';\n");
+}
+
+TEST_F(QueryProcessorTest, ProductByPriceRange) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::findProductByPriceRange("10", "20")), "SELECT * FROM products WHERE price BETWEEN 10 AND 20;\n");
+}
+
+TEST_F(QueryProcessorTest, ProductByVolume) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::findProductByVolume("5.0")), "SELECT * FROM products WHERE volume <= 5.0;\n");
+}
+
+TEST_F(QueryProcessorTest, ProductByWeight) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::findProductByWeight("10.0")), "SELECT * FROM products WHERE weight <= 10.0;\n");
+}
+
+TEST_F(QueryProcessorTest, GetAllProductsOrders) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllProductsOrders()), "SELECT oi.order_id, oi.quantity, p.id, p.name FROM orders_items oi JOIN products p ON p.id = oi.product_id;\n");
+}
+
+TEST_F(QueryProcessorTest, GetAllProductsStock) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::getAllProductsStock()), "SELECT ws.warehouse_id, ws.quantity, p.id, p.name FROM warehouses_stock ws JOIN products p ON p.id = ws.product_id;\n");
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -248,6 +610,21 @@ TEST_F(QueryProcessorTest, DataFromAnOnlineUser) {
 TEST_F(QueryProcessorTest, CountOnlineUsersByRole) {
     EXPECT_EQ(qp.getQuery(QueryProcessor::countOnlineUsersByRole()),
               "SELECT users.role, COUNT(*) AS total_users FROM users JOIN online_users ON users.id = online_users.user_id GROUP BY users.role;\n");
+}
+
+TEST_F(QueryProcessorTest, CreateOnlineUser) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::createOnlineUser("SID1", "U1", "2026-03-25 09:00:00", "2026-03-25 10:00:00")),
+              "INSERT INTO online_users (session_id, user_id, login_time, last_activity) VALUES ('SID1', 'U1', '2026-03-25 09:00:00', '2026-03-25 10:00:00');\n");
+}
+
+TEST_F(QueryProcessorTest, DeleteOnlineUser) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::deleteOnlineUser("SID1")),
+              "DELETE FROM online_users WHERE session_id = 'SID1';\n");
+}
+
+TEST_F(QueryProcessorTest, UpdateOnlineUser) {
+    EXPECT_EQ(qp.getQuery(QueryProcessor::updateOnlineUser("SID1", "2026-03-25 11:00:00")),
+              "UPDATE online_users SET last_activity = '2026-03-25 11:00:00' WHERE session_id = 'SID1';\n");
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -474,7 +851,7 @@ struct ExecuteQueryTest : ::testing::Test {
     }
 
     static auto read_file_content(const std::string &path) -> std::string {
-        std::ifstream file("../../../" + path);
+        std::ifstream file("../../" + path);
         std::stringstream buffer;
         buffer << file.rdbuf();
         return buffer.str();
@@ -990,6 +1367,36 @@ TEST_F(ExecuteQueryTest, OnlineUsersQueries) {
         ASSERT_NE(json, nullptr);
         ASSERT_GE(json->size(), 1);
     });
+    // CreateOnlineUser
+    QueryProcessor::executeQuery(
+        QueryProcessor::createOnlineUser("SESS-NEW", "USR-004", "2026-03-25 12:00:00", "2026-03-25 12:00:00"),
+        [](const drogon::HttpResponsePtr &resp) {
+            QueryProcessor::executeQuery(QueryProcessor::getOnlineUser("SESS-NEW"),
+                                         [](const drogon::HttpResponsePtr &resp2) {
+                                             auto json2 = resp2->getJsonObject();
+                                             ASSERT_NE(json2, nullptr);
+                                             ASSERT_EQ(json2->size(), 1);
+                                         });
+        });
+    // DeleteOnlineUser
+    QueryProcessor::executeQuery(QueryProcessor::deleteOnlineUser("SESS-003"), [](const drogon::HttpResponsePtr &resp) {
+        QueryProcessor::executeQuery(QueryProcessor::getOnlineUser("SESS-003"), [](const drogon::HttpResponsePtr &resp2) {
+            auto json2 = resp2->getJsonObject();
+            ASSERT_NE(json2, nullptr);
+            ASSERT_EQ(json2->size(), 0);
+        });
+    });
+    // UpdateOnlineUser
+    QueryProcessor::executeQuery(QueryProcessor::updateOnlineUser("SESS-001", "2026-03-25 13:00:00"),
+                                 [](const drogon::HttpResponsePtr &resp) {
+                                     QueryProcessor::executeQuery(QueryProcessor::getOnlineUserData("SESS-001", "last_activity"),
+                                                                  [](const drogon::HttpResponsePtr &resp2) {
+                                                                      auto json2 = resp2->getJsonObject();
+                                                                      ASSERT_NE(json2, nullptr);
+                                                                      EXPECT_EQ((*json2)[0]["last_activity"].asString(),
+                                                                          "2026-03-25 13:00:00");
+                                                                  });
+                                 });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

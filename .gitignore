@@ -46,6 +46,7 @@
 
 # debug directories
 back/cmake-build-debug
+back/build
 
 # --- Frontend (Next.js / Node) ---
 node_modules/
