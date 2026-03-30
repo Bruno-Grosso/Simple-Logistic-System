@@ -1,1 +1,1 @@
-SELECT id, name, address, role FROM users WHERE id = ?;
+SELECT id, name, email, address, role FROM users WHERE id = ?;

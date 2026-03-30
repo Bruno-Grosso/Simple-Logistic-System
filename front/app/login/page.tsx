@@ -1,38 +1,28 @@
-"use client";
+import Link from "next/link"
+import { Truck } from "lucide-react"
+import { redirect } from "next/navigation"
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Truck, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { getSession } from "@/lib/auth/get-session"
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { LoginForm } from "./login-form"
 
-export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPass, setShowPass] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
+  const session = await getSession()
+  if (session) {
+    redirect("/dashboard")
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 600));
-    if (email && password) {
-      router.push("/dashboard");
-    } else {
-      setError("Please enter your email and password.");
-    }
-    setLoading(false);
-  };
+  const params = await searchParams
+  const justRegistered = params.registered === "1"
+  const showDevHint = process.env.NODE_ENV === "development"
 
   return (
-    <div className="min-h-screen bg-background flex relative overflow-hidden">
+    <div className="relative flex min-h-screen overflow-hidden bg-background">
       {/* Left — decorative (desktop) */}
       <div className="relative hidden w-1/2 flex-col justify-end p-12 lg:flex">
         <div
@@ -75,90 +65,46 @@ export default function LoginPage() {
               <CardDescription>Enter your work email and password.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-6 lg:pt-0">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    name="email"
-                    required
-                    autoComplete="email"
-                    placeholder="you@company.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="h-10"
-                  />
+              {justRegistered ? (
+                <div
+                  role="status"
+                  className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400"
+                >
+                  Account created! You can now sign in.
                 </div>
+              ) : null}
 
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      name="password"
-                      type={showPass ? "text" : "password"}
-                      required
-                      autoComplete="current-password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className={cn("h-10 pr-11")}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      onClick={() => setShowPass((v) => !v)}
-                      aria-label={showPass ? "Hide password" : "Show password"}
-                      aria-pressed={showPass}
-                    >
-                      {showPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                    </Button>
-                  </div>
+              <LoginForm />
+
+              <p className="text-center text-sm text-muted-foreground">
+                Don&apos;t have an account?{" "}
+                <Link
+                  href="/register"
+                  className="font-medium text-foreground underline-offset-4 hover:underline"
+                >
+                  Register
+                </Link>
+              </p>
+
+              {showDevHint ? (
+                <div className="space-y-3 border-t border-border pt-4">
+                  <p className="text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Local development
+                  </p>
+                  <p className="text-center text-xs text-muted-foreground">
+                    Set <code className="font-mono text-[11px]">LOGISYS_ALLOW_DEV_LOGIN=true</code> and{" "}
+                    <code className="font-mono text-[11px]">LOGISYS_DEV_USERS_JSON</code> in{" "}
+                    <code className="font-mono text-[11px]">.env.local</code>, or use{" "}
+                    <code className="font-mono text-[11px]">LOGISYS_AUTH_EMAIL</code> /{" "}
+                    <code className="font-mono text-[11px]">LOGISYS_AUTH_PASSWORD</code>. See{" "}
+                    <code className="font-mono text-[11px]">.env.example</code>.
+                  </p>
                 </div>
-
-                {error ? (
-                  <div
-                    role="alert"
-                    className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-                  >
-                    {error}
-                  </div>
-                ) : null}
-
-                <Button type="submit" className="w-full" size="lg" disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
-                      Signing in…
-                    </>
-                  ) : (
-                    "Sign in"
-                  )}
-                </Button>
-              </form>
-
-              <div className="space-y-3 border-t border-border pt-4">
-                <p className="text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Demo credentials
-                </p>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <div className="rounded-lg border border-border bg-muted/40 px-3 py-2.5">
-                    <p className="text-xs font-medium text-primary">Admin</p>
-                    <p className="mt-1 font-mono text-xs text-muted-foreground">ana@logisys.com</p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-muted/40 px-3 py-2.5">
-                    <p className="text-xs font-medium text-chart-2">Client</p>
-                    <p className="mt-1 font-mono text-xs text-muted-foreground">marcos@client.com</p>
-                  </div>
-                </div>
-              </div>
+              ) : null}
             </CardContent>
           </Card>
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -1,13 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { LogOut, Moon, Shield, Sun, Truck } from "lucide-react"
-import Link from "next/link"
+import { Moon, Shield, Sun, Truck } from "lucide-react"
 
 import { PageHeader } from "@/components/page-header"
+import { SignOutButton } from "@/components/sign-out"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 
 const USER = { name: "Rafael Mendes", role: "admin", email: "rafael.mendes@logisys.io" }
@@ -206,13 +205,7 @@ export default function SettingsPage() {
                   You will be returned to the login screen
                 </p>
               </div>
-              <Link
-                href="/login"
-                className={buttonVariants({ variant: "destructive", size: "sm" })}
-              >
-                <LogOut className="size-3.5" />
-                Sign out
-              </Link>
+              <SignOutButton variant="destructive" size="sm" />
             </div>
           </div>
         </section>

@@ -6,11 +6,13 @@
 #define SIMPLELOGISTICSSYSTEM_QUERY_PROCESSOR_H
 
 #include <functional>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <variant>
 #include <drogon/HttpResponse.h>
+#include <json/json.h>
 
 
 class QueryProcessor {
@@ -51,12 +53,12 @@ class QueryProcessor {
     };
 
     struct CreateUser {
-        const std::string id, name, password, address, role;
+        const std::string id, name, email, password, address, role;
 
-        explicit CreateUser(std::string id, std::string name, std::string password, std::string address,
-                            std::string role)
-            : id{std::move(id)}, name{std::move(name)}, password{std::move(password)}, address{std::move(address)},
-              role{std::move(role)} {
+        explicit CreateUser(std::string id, std::string name, std::string email, std::string password,
+                            std::string address, std::string role)
+            : id{std::move(id)}, name{std::move(name)}, email{std::move(email)}, password{std::move(password)},
+              address{std::move(address)}, role{std::move(role)} {
         };
     };
 
@@ -80,6 +82,14 @@ class QueryProcessor {
 
         explicit UpdateUsersData(std::string id, std::string name, std::string address, std::string role)
             : id{std::move(id)}, name{std::move(name)}, address{std::move(address)}, role{std::move(role)} {
+        };
+    };
+
+    /** Login: fetch id, name, password, role (internal — do not expose via public REST). */
+    struct GetUserForAuth {
+        const std::string email{};
+
+        explicit GetUserForAuth(std::string email) : email{std::move(email)} {
         };
     };
 
@@ -1161,7 +1171,7 @@ public:
 
     using Query = std::variant<
         // Users
-        GetAllUsers, GetUser, GetUsersByRole, GetUserData, CountUsersByRole, CreateUser, DeleteUser, UpdateUserPassword, UpdateUsersData,
+        GetAllUsers, GetUser, GetUsersByRole, GetUserData, CountUsersByRole, CreateUser, DeleteUser, UpdateUserPassword, UpdateUsersData, GetUserForAuth,
         // Trucks
         GetAllTrucks, GetTruck, GetTrucksBySize, GetTrucksByModel, GetTruckData, CreateTruck, DeleteTruck, UpdateTruck,
         GetTrucksAtWarehouse, GetTrucksByDestination, GetTrucksByOrigin, GetCurrentlyDeliveringTrucks,
@@ -1244,9 +1254,10 @@ public:
 
     static auto countUsersByRole() -> CountUsersByRole { return CountUsersByRole{}; };
 
-    static auto createUser(const std::string &id, const std::string &name, const std::string &password,
-                           const std::string &address, const std::string &role) -> CreateUser {
-        return CreateUser(id, name, password, address, role);
+    static auto createUser(const std::string &id, const std::string &name, const std::string &email,
+                           const std::string &password, const std::string &address, const std::string &role)
+        -> CreateUser {
+        return CreateUser(id, name, email, password, address, role);
     };
 
     static auto deleteUser(const std::string &id) -> DeleteUser { return DeleteUser(id); };
@@ -1259,6 +1270,14 @@ public:
                                 const std::string &role) -> UpdateUsersData {
         return UpdateUsersData(id, name, address, role);
     };
+
+    static auto getUserForAuth(const std::string &email) -> GetUserForAuth { return GetUserForAuth(email); }
+
+    /** First matching user row for login, or empty if none. */
+    static auto fetchUserForAuth(const std::string &email) -> std::optional<Json::Value>;
+
+    /** Run INSERT/UPDATE/DELETE (no row callback). */
+    static auto runSqlNoResult(const std::string &sql) -> bool;
 
     // -----------------------------------------------------------------------------------------------------------------
 

@@ -71,7 +71,10 @@ export default function FleetPage() {
             const highWear = t.wear_percentage > 80
 
             return (
-              <Card key={t.id} className="overflow-hidden">
+              <Card
+                key={t.id}
+                className="overflow-hidden border border-border ring-0"
+              >
                 <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-2">
                   <div className="min-w-0">
                     <CardTitle className="font-display text-base leading-tight">

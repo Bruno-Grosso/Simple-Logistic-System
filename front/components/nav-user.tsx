@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ChevronsUpDown, Settings, LogOut } from "lucide-react"
+import { ChevronsUpDown, Settings } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -16,6 +16,7 @@ import {
   SidebarMenuButton,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { SignOutMenuItem } from "@/components/sign-out"
 
 interface NavUserProps {
   user: { name: string; role: string }
@@ -56,10 +57,7 @@ export function NavUser({ user }: NavUserProps) {
               Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem render={<Link href="/login" />}>
-              <LogOut className="mr-2 size-4" />
-              Sign out
-            </DropdownMenuItem>
+            <SignOutMenuItem />
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

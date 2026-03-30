@@ -31,7 +31,7 @@ export default function DepositsPage() {
 
             return (
               <Link key={deposit.id} href={`/deposits/${deposit.id}`} className="block">
-                <Card className="h-full transition-colors hover:bg-muted/30">
+                <Card className="h-full border border-border ring-0 transition-colors hover:bg-muted/30">
                   <CardHeader className="flex flex-row items-start gap-3 space-y-0 pb-2">
                     <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
                       <Warehouse className="size-5 text-primary" aria-hidden />
@@ -54,7 +54,7 @@ export default function DepositsPage() {
                         {deposit.volume_actual} m³ of {deposit.volume_max ?? "—"} m³
                       </p>
                     </div>
-                    <div className="grid grid-cols-3 gap-3 border-t pt-4">
+                    <div className="grid grid-cols-3 gap-3 border-t border-border pt-4">
                       <div className="text-center">
                         <p className="text-lg font-semibold tabular-nums text-primary">
                           {stockEntries}

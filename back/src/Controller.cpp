@@ -4,8 +4,9 @@
 
 #include <drogon/drogon.h>
 
-#include "Controller.h"
 #include "App.h"
+#include "auth/AuthHandlers.h"
+#include "Controller.h"
 
 using namespace drogon;
 
@@ -14,6 +15,8 @@ auto Controller::init() -> void {
     // * -----------------------------------------------------------------------------------------------------------------
     // ? Users
     // -----------------------------------------------------------------------------------------------------------------
+
+    app().registerHandler("/login", &AuthHandlers::login, {Post});
     app().registerHandler(
         "/clients", [=](const HttpRequestPtr &_, std::function<void(const HttpResponsePtr &)> &&callback) {
             QueryProcessor::executeQuery(QueryProcessor::getAllUsers(), std::move(callback));
@@ -42,15 +45,7 @@ auto Controller::init() -> void {
                               QueryProcessor::executeQuery(QueryProcessor::countUsersByRole(), std::move(callback));
                           }, {Get});
 
-    app().registerHandler("/clients",
-                          [=](const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback) {
-                              const auto json = req->getJsonObject();
-                              QueryProcessor::executeQuery(
-                                  QueryProcessor::createUser((*json)["id"].asString(), (*json)["name"].asString(),
-                                                             (*json)["password"].asString(),
-                                                             (*json)["address"].asString(), (*json)["role"].asString()),
-                                  std::move(callback));
-                          }, {Post});
+    app().registerHandler("/clients", &AuthHandlers::registerUser, {Post});
 
     app().registerHandler("/clients/{1}",
                           [=](const HttpRequestPtr &_, std::function<void(const HttpResponsePtr &)> &&callback,

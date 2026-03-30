@@ -5,10 +5,29 @@
 #include "QueryProcessor.h"
 
 #include <fstream>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 
 #include "App.h"
+
+namespace {
+
+auto escape_sql_literal(const std::string &s) -> std::string {
+    std::string r;
+    r.reserve(s.size());
+    for (const char c : s) {
+        if (c == '\'')
+            r += "''";
+        else
+            r += c;
+    }
+    return r;
+}
+
+auto sql_string(const std::string &s) -> std::string { return "'" + escape_sql_literal(s) + "'"; }
+
+} // namespace
 
 auto QueryProcessor::read_query(std::string_view path) -> std::string {
     std::ifstream file(path.data());
@@ -55,11 +74,12 @@ auto QueryProcessor::getQuery(const Query &query) -> std::string {
                 return read_query(base_location + "/users/count_users_by_role.sql");
             } else if constexpr (std::is_same_v<T, CreateUser>) {
                 std::string base_query = read_query(base_location + "/users/create_user.sql");
-                base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
-                base_query.replace(base_query.find('?'), 1, "'" + q.name + "'");
-                base_query.replace(base_query.find('?'), 1, "'" + q.password + "'");
-                base_query.replace(base_query.find('?'), 1, "'" + q.address + "'");
-                return base_query.replace(base_query.find('?'), 1, "'" + q.role + "'");
+                base_query.replace(base_query.find('?'), 1, sql_string(q.id));
+                base_query.replace(base_query.find('?'), 1, sql_string(q.name));
+                base_query.replace(base_query.find('?'), 1, sql_string(q.email));
+                base_query.replace(base_query.find('?'), 1, sql_string(q.password));
+                base_query.replace(base_query.find('?'), 1, sql_string(q.address));
+                return base_query.replace(base_query.find('?'), 1, sql_string(q.role));
             } else if constexpr (std::is_same_v<T, DeleteUser>) {
                 std::string base_query = read_query(base_location + "/users/delete_user.sql");
                 return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
@@ -73,6 +93,9 @@ auto QueryProcessor::getQuery(const Query &query) -> std::string {
                 base_query.replace(base_query.find('?'), 1, "'" + q.address + "'");
                 base_query.replace(base_query.find('?'), 1, "'" + q.role + "'");
                 return base_query.replace(base_query.find('?'), 1, "'" + q.id + "'");
+            } else if constexpr (std::is_same_v<T, GetUserForAuth>) {
+                std::string base_query = read_query(base_location + "/users/get_user_for_auth.sql");
+                return base_query.replace(base_query.find('?'), 1, sql_string(q.email));
             }
             // -------------------------------------------------------------------------------------------------------------
             // ? Trucks
@@ -742,4 +765,30 @@ auto QueryProcessor::executeQuery(const QueryProcessor::Query &query,
 
     const auto resp = drogon::HttpResponse::newHttpJsonResponse(arr);
     callback(resp);
+}
+
+auto QueryProcessor::fetchUserForAuth(const std::string &email) -> std::optional<Json::Value> {
+    const auto query_str = App::qp.getQuery(GetUserForAuth(email));
+    Json::Value arr(Json::arrayValue);
+
+    App::rc = sqlite3_exec(
+        App::db, query_str.c_str(),
+        [](void *data, const int argc, char **argv, char **colName) -> int {
+            auto *l_arr = static_cast<Json::Value *>(data);
+            Json::Value obj;
+            for (int i = 0; i < argc; ++i)
+                obj[colName[i]] = argv[i] ? argv[i] : "";
+            l_arr->append(obj);
+            return 0;
+        },
+        &arr, nullptr);
+
+    if (App::rc != SQLITE_OK || arr.empty())
+        return std::nullopt;
+    return arr[static_cast<Json::ArrayIndex>(0)];
+}
+
+auto QueryProcessor::runSqlNoResult(const std::string &sql) -> bool {
+    App::rc = sqlite3_exec(App::db, sql.c_str(), nullptr, nullptr, nullptr);
+    return App::rc == SQLITE_OK;
 }

@@ -94,6 +94,7 @@ CREATE TABLE trucks (
 CREATE TABLE users (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
     password TEXT NOT NULL,
     address TEXT, --location
     role TEXT CHECK(role IN ('admin','warehouse_worker','truck_driver','client')) NOT NULL

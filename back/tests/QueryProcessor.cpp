@@ -44,8 +44,8 @@ TEST_F(QueryProcessorTest, CountUsersByRole) {
 }
 
 TEST_F(QueryProcessorTest, CreateUser) {
-    EXPECT_EQ(qp.getQuery(QueryProcessor::createUser("U1", "Name", "Pass", "Addr", "Role")),
-              "INSERT INTO users (id, name, password, address, role) VALUES ('U1', 'Name', 'Pass', 'Addr', 'Role');\n");
+    EXPECT_EQ(qp.getQuery(QueryProcessor::createUser("U1", "Name", "name@test.com", "Pass", "Addr", "Role")),
+              "INSERT INTO users (id, name, email, password, address, role) VALUES ('U1', 'Name', 'name@test.com', 'Pass', 'Addr', 'Role');\n");
 }
 
 TEST_F(QueryProcessorTest, DeleteUser) {
@@ -916,7 +916,7 @@ TEST_F(ExecuteQueryTest, UsersQueries) {
         ASSERT_GE(json->size(), 1);
     });
     // CreateUser
-    QueryProcessor::executeQuery(QueryProcessor::createUser("USR-NEW", "New User", "pass", "Addr", "client"),
+    QueryProcessor::executeQuery(QueryProcessor::createUser("USR-NEW", "New User", "new@test.com", "pass", "Addr", "client"),
                                  [](const drogon::HttpResponsePtr &resp) {
                                      QueryProcessor::executeQuery(QueryProcessor::getUser("USR-NEW"),
                                                                   [](const drogon::HttpResponsePtr &resp2) {
