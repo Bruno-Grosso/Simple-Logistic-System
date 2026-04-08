@@ -1,3 +1,0 @@
-{"operation": "POST", "table": "users", "data": {"id": 3, "name": "Alice", "new_field": "hello Alice", "new_field_to_test": ["new", "field"]}}
-{"operation": "POST", "table": "products", "data": {"id": 101, "name": "Widget", "price": 19.99, "category": "gadgets"}}
-{"operation": "PATCH", "table": "products", "data": {"id": 101, "price": 17.99, "category": "discounted gadgets"}}
