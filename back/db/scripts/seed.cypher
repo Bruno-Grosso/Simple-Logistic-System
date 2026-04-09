@@ -1,3 +1,5 @@
+//REALLY BE CAREFUL TO CHECK THE ARQUIVES PATH!!! FIX IT IF IN YOUR PC THE PATH IS DIFFERENT!
+
 LOAD CSV WITH HEADERS FROM 'file:///users.csv' AS row
 MERGE (u:User {id: row.id})
 SET u.name = row.name,
