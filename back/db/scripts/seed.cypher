@@ -9,8 +9,8 @@ SET u.name = row.name,
 
 LOAD CSV WITH HEADERS FROM 'file:///online_users.csv' AS row
 MERGE (s:Session {id: row.session_id})
-SET s.login = datetime(replace(row.time_login, ' ', 'T')),
-    s.last_activity = datetime(replace(row.time_last_activity, ' ', 'T'))
+SET s.login = datetime(replace(trim(row.time_login), ' ', 'T')),
+    s.last_activity = datetime(replace(trim(row.time_last_activity), ' ', 'T'))
 WITH s, row
 MATCH (u:User {id: row.user_id})
 MERGE (u)-[:HAS_SESSION]->(s);
@@ -26,8 +26,8 @@ SET p.name = row.name,
     p.height = toFloat(row.height),
     p.volume = toFloat(row.volume),
     p.price = toFloat(row.price),
-    p.expire_date = CASE WHEN row.expire_date IS NOT NULL AND row.expire_date <> ''
-                    THEN date(row.expire_date)
+    p.expire_date = CASE WHEN trim(row.expire_date) IS NOT NULL AND trim(row.expire_date) <> ''
+                    THEN date(trim(row.expire_date))
                     ELSE null END;
 
 LOAD CSV WITH HEADERS FROM 'file:///warehouses.csv' AS row
@@ -49,8 +49,8 @@ MATCH (p:Product {id: row.product_id})
 MERGE (w)-[r:STOCKS]->(p)
 SET r.quantity = toInteger(row.quantity),
     r.volume_occupied = toFloat(row.volume_occupied),
-    r.arrived = CASE WHEN row.arrived IS NOT NULL AND row.arrived <> ''
-                THEN datetime(replace(row.arrived, ' ', 'T'))
+    r.arrived = CASE WHEN trim(row.arrived) IS NOT NULL AND trim(row.arrived) <> ''
+                THEN datetime(replace(trim(row.arrived), ' ', 'T'))
                 ELSE null END;
 
 LOAD CSV WITH HEADERS FROM 'file:///truck_model.csv' AS row
@@ -73,8 +73,8 @@ SET t.is_valid = toBoolean(row.is_valid),
     t.weight_current = toFloat(row.weight_current),
     t.current_latitude = toFloat(row.current_latitude),
     t.current_longitude = toFloat(row.current_longitude),
-    t.time_expected = CASE WHEN row.time_expected IS NOT NULL AND row.time_expected <> ''
-                      THEN datetime(replace(row.time_expected, ' ', 'T'))
+    t.time_expected = CASE WHEN trim(row.time_expected) IS NOT NULL AND trim(row.time_expected) <> ''
+                      THEN datetime(replace(trim(row.time_expected), ' ', 'T'))
                       ELSE null END,
     t.fuel_current = toFloat(row.fuel_current),
     t.maintenance_level = toInteger(row.maintenance)
@@ -83,13 +83,13 @@ MATCH (tm:TruckModel {id: row.model_id})
 MERGE (t)-[:IS_MODEL]->(tm);
 
 LOAD CSV WITH HEADERS FROM 'file:///trucks.csv' AS row
-WHERE row.origin IS NOT NULL AND row.origin <> ''
+WITH row WHERE row.origin IS NOT NULL AND row.origin <> ''
 MATCH (t:Truck {id: row.id})
 MATCH (wo:Warehouse {id: row.origin})
 MERGE (t)-[:STARTS_AT]->(wo);
 
 LOAD CSV WITH HEADERS FROM 'file:///trucks.csv' AS row
-WHERE row.destination IS NOT NULL AND row.destination <> ''
+WITH row WHERE row.destination IS NOT NULL AND row.destination <> ''
 MATCH (t:Truck {id: row.id})
 MATCH (wd:Warehouse {id: row.destination})
 MERGE (t)-[:HEADING_TO]->(wd);
@@ -101,8 +101,8 @@ MERGE (t)-[r:CARRIES]->(p)
 SET r.quantity = toInteger(row.quantity),
     r.volume_occupied = toFloat(row.volume_occupied),
     r.weight_occupied = toFloat(row.weight_occupied),
-    r.arrived_at = CASE WHEN row.arrived IS NOT NULL AND row.arrived <> ''
-                   THEN datetime(replace(row.arrived, ' ', 'T'))
+    r.arrived_at = CASE WHEN trim(row.arrived) IS NOT NULL AND trim(row.arrived) <> ''
+                   THEN datetime(replace(trim(row.arrived), ' ', 'T'))
                    ELSE null END;
 
 LOAD CSV WITH HEADERS FROM 'file:///suppliers.csv' AS row
@@ -113,22 +113,22 @@ WITH s, row
 WHERE row.destination IS NOT NULL AND row.destination <> ''
 MATCH (w:Warehouse {id: row.destination})
 MERGE (s)-[r:SUPPLIES_TO]->(w)
-SET r.time_departed = CASE WHEN row.time_departed IS NOT NULL AND row.time_departed <> ''
-                      THEN datetime(replace(row.time_departed, ' ', 'T'))
+SET r.time_departed = CASE WHEN trim(row.time_departed) IS NOT NULL AND trim(row.time_departed) <> ''
+                      THEN datetime(replace(trim(row.time_departed), ' ', 'T'))
                       ELSE null END,
-    r.expected_arrival = CASE WHEN row.time_arrived_estimated IS NOT NULL AND row.time_arrived_estimated <> ''
-                         THEN datetime(replace(row.time_arrived_estimated, ' ', 'T'))
+    r.expected_arrival = CASE WHEN trim(row.time_arrived_estimated) IS NOT NULL AND trim(row.time_arrived_estimated) <> ''
+                         THEN datetime(replace(trim(row.time_arrived_estimated), ' ', 'T'))
                          ELSE null END;
 
 LOAD CSV WITH HEADERS FROM 'file:///orders.csv' AS row
 MERGE (o:Order {id: row.id})
 SET o.price = toFloat(row.price),
     o.status = row.status,
-    o.time_limit = CASE WHEN row.time_limit IS NOT NULL AND row.time_limit <> ''
-                   THEN datetime(replace(row.time_limit, ' ', 'T'))
+    o.time_limit = CASE WHEN trim(row.time_limit) IS NOT NULL AND trim(row.time_limit) <> ''
+                   THEN datetime(replace(trim(row.time_limit), ' ', 'T'))
                    ELSE null END,
-    o.time_expected = CASE WHEN row.time_expected IS NOT NULL AND row.time_expected <> ''
-                      THEN datetime(replace(row.time_expected, ' ', 'T'))
+    o.time_expected = CASE WHEN trim(row.time_expected) IS NOT NULL AND trim(row.time_expected) <> ''
+                      THEN datetime(replace(trim(row.time_expected), ' ', 'T'))
                       ELSE null END,
     o.destination_address = row.destination_address,
     o.supplier_delivered = toBoolean(row.supplier_delivered)
@@ -144,7 +144,7 @@ MATCH (t:Truck {id: row.truck_id})
 MERGE (t)-[:DELIVERING]->(o);
 
 LOAD CSV WITH HEADERS FROM 'file:///order_route.csv' AS row
-WHERE row.order_id IS NOT NULL AND row.order_id <> ''
+WITH row WHERE row.order_id IS NOT NULL AND row.order_id <> ''
 AND row.warehouse_id IS NOT NULL AND row.warehouse_id <> ''
 AND row.stop_order IS NOT NULL AND row.stop_order <> ''
 MATCH (o:Order {id: row.order_id})
@@ -166,7 +166,7 @@ SET f.cost_fuel = toFloat(row.cost_fuel),
     f.cost_labor = toFloat(row.cost_labor),
     f.cost_extra = toFloat(row.cost_extra),
     f.cost_total = toFloat(row.cost_total),
-    f.departure_calculated = CASE WHEN row.calculated IS NOT NULL AND row.calculated <> ''
-                             THEN datetime(replace(row.calculated, ' ', 'T'))
+    f.departure_calculated = CASE WHEN trim(row.calculated) IS NOT NULL AND trim(row.calculated) <> ''
+                             THEN datetime(replace(trim(row.calculated), ' ', 'T'))
                              ELSE null END
 MERGE (o)-[:HAS_FREIGHT]->(f);
