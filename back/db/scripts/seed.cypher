@@ -161,12 +161,14 @@ ON CREATE SET i.quantity = toInteger(row.quantity),
 
 LOAD CSV WITH HEADERS FROM 'file:///freights.csv' AS row
 MATCH (o:Order {id: row.order_id})
-MERGE (f:Freight {id: row.id})
+MERGE (f:Freight {id: row.order_id})
 SET f.cost_fuel = toFloat(row.cost_fuel),
     f.cost_labor = toFloat(row.cost_labor),
     f.cost_extra = toFloat(row.cost_extra),
     f.cost_total = toFloat(row.cost_total),
-    f.departure_calculated = CASE WHEN trim(row.calculated) IS NOT NULL AND trim(row.calculated) <> ''
+    f.departure_calculated = CASE WHEN row.calculated IS NOT NULL AND trim(row.calculated) <> ''
                              THEN datetime(replace(trim(row.calculated), ' ', 'T'))
+                             ELSE null END
+MERGE (o)-[:HAS_FREIGHT]->(f);
                              ELSE null END
 MERGE (o)-[:HAS_FREIGHT]->(f);
