@@ -50,7 +50,7 @@ MERGE (w)-[r:STOCKS]->(p)
 SET r.quantity = toInteger(row.quantity),
     r.volume_occupied = toFloat(row.volume_occupied),
     r.arrived = CASE WHEN row.arrived IS NOT NULL AND row.arrived <> ''
-                THEN date(row.arrived)
+                THEN datetime(replace(row.arrived, ' ', 'T'))
                 ELSE null END;
 
 LOAD CSV WITH HEADERS FROM 'file:///truck_model.csv' AS row
