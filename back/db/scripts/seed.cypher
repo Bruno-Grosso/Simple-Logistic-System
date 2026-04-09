@@ -166,9 +166,5 @@ SET f.cost_fuel = toFloat(row.cost_fuel),
     f.cost_labor = toFloat(row.cost_labor),
     f.cost_extra = toFloat(row.cost_extra),
     f.cost_total = toFloat(row.cost_total),
-    f.departure_calculated = CASE WHEN row.calculated IS NOT NULL AND trim(row.calculated) <> ''
-                             THEN datetime(replace(trim(row.calculated), ' ', 'T'))
-                             ELSE null END
-MERGE (o)-[:HAS_FREIGHT]->(f);
-                             ELSE null END
+    f.departure_calculated = CASE WHEN row.calculated IS NOT NULL AND trim(row.calculated) <> '' THEN datetime(replace(trim(row.calculated), ' ', 'T')) ELSE null END
 MERGE (o)-[:HAS_FREIGHT]->(f);
