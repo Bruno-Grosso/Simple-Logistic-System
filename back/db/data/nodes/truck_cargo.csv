@@ -1,6 +1,6 @@
-id,product_id,quantity,volume_occupied,weight_occupied
-T1,P1,50,100,250
-T1,P2,30,50,150
-T2,P3,20,40,60
-T2,P4,10,20,30
-T3,P5,0,0,0
+id,product_id,quantity,volume_occupied,weight_occupied,arrived
+T1,P1,50,100,250,2026-04-09 09:30:00
+T1,P2,30,50,150,2026-04-09 09:30:00
+T2,P3,20,40,60,2026-04-10 11:00:00
+T2,P4,10,20,30,2026-04-10 11:00:00
+T3,P5,0,0,0,
