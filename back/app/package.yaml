@@ -21,6 +21,11 @@ description:         Please see the README on GitHub at <https://github.com/Brun
 
 dependencies:
 - base >= 4.7 && < 5
+- servant
+- servant-server
+- http-types
+- aeson
+- warp
 
 ghc-options:
 - -Wall
