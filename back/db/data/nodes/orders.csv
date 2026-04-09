@@ -2,5 +2,5 @@ id,client_id,price,destination,supplier_id,supplier_delivered,status,time_limit,
 O1,U4,500,W1,S1,true,delivered,2026-04-09 12:00:00,2026-04-09 10:45:00,"Rua do Sol, 89, RJ",T2
 O2,U5,300,W2,S2,false,in_transit,2026-04-10 14:00:00,2026-04-10 13:30:00,"Rua das Acácias, 12, RJ",T1
 O3,U4,150,W1,S4,true,delivered,2026-04-09 15:00:00,2026-04-09 14:50:00,"Rua do Sol, 89, RJ",T2
-O4,U5,200,W3,S3,false,pending,2026-04-11 10:00:00,, "Rua das Acácias, 12, RJ",T3
+O4,U5,200,W3,S3,false,pending,2026-04-11 10:00:00,,"Rua das Acácias, 12, RJ",T3
 O5,U4,450,W2,S5,false,in_transit,2026-04-12 09:00:00,2026-04-12 08:45:00,"Rua do Sol, 89, RJ",T1
