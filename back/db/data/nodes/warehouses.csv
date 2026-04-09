@@ -1,0 +1,4 @@
+id,address,latitude,longitude,refrigeration,volume_current,volume_max,fuel_price,length,width,height
+W1,RJ,-22.28,-42.53,true,100,1000,5.5,20,15,10
+W2,SP,-23.55,-46.63,false,50,800,5.8,15,10,8
+W3,MG,-19.92,-43.94,true,200,1200,5.3,25,20,12
