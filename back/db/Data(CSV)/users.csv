@@ -1,0 +1,6 @@
+id,name,password,address,role
+U1,Luis Henrique,senha123,"Rua das Flores, 123, RJ",admin
+U2,Maria Silva,abc456,"Rua das Palmeiras, 45, RJ",truck_driver
+U3,João Souza,xyz789,"Rua das Laranjeiras, 67, RJ",warehouse_worker
+U4,Ana Costa,senha321,"Rua do Sol, 89, RJ",client
+U5,Pedro Lima,123abc,"Rua das Acácias, 12, RJ",client
