@@ -1,4 +1,0 @@
-id,model_id,is_valid,is_delivering,volume_current,weight_current,origin,current_latitude,current_longitude,destination,time_expected,fuel_current,maintenance
-T1,TM1,true,false,200,500,W1,-22.28,-42.53,,,150,2
-T2,TM2,true,true,100,300,W2,-23.55,-46.63,W1,2026-04-10 14:30:00,100,5
-T3,TM3,false,false,0,0,W3,-19.92,-43.94,,,50,1

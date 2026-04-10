@@ -1,4 +1,0 @@
-id,weight_max,volume_max,fuel_capacity,fuel_consumption,refrigeration,speed,length,width,height,name
-TM1,2000,15,300,0.2,true,80,8,2.5,3,Scania
-TM2,1500,10,250,0.25,false,70,7,2.3,2.8,Volvo
-TM3,3000,20,400,0.18,true,75,10,2.7,3.5,Mercedes
