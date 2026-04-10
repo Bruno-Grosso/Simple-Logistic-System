@@ -1,0 +1,6 @@
+id,name,location,time_departed,time_arrived_estimated,destination
+S1,Fornecedor A,"Rua das Orquídeas, 100, RJ",2026-04-09 07:00:00,2026-04-09 10:30:00,W1
+S2,Fornecedor B,"Av. Brasil, 200, SP",2026-04-09 08:15:00,2026-04-09 12:00:00,W2
+S3,Fornecedor C,"Rua das Palmeiras, 50, MG",2026-04-09 09:00:00,2026-04-09 13:30:00,W3
+S4,Fornecedor D,"Av. das Nações, 75, RJ",2026-04-09 06:45:00,2026-04-09 09:45:00,W1
+S5,Fornecedor E,"Rua do Comércio, 120, SP",2026-04-09 10:00:00,2026-04-09 14:30:00,W2

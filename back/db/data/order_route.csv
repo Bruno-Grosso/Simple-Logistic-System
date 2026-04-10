@@ -1,0 +1,12 @@
+order_id,warehouse_id,stop_order
+O1,W1,1
+O1,W2,2
+O2,W2,1
+O2,W3,2
+O3,W1,1
+O3,W2,2
+O3,W3,3
+O4,W1,1
+O5,W3,1
+O5,W1,2
+O5,W2,3
