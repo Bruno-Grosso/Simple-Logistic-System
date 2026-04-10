@@ -9,4 +9,4 @@ CREATE INDEX product_fragile IF NOT EXISTS FOR (p:Product) ON (p.fragile);
 CREATE INDEX truck_valid IF NOT EXISTS FOR (t:Truck) ON (t.is_valid);
 CREATE INDEX truck_delivering IF NOT EXISTS FOR (t:Truck) ON (t.is_delivering);
 CREATE INDEX warehouse_refrig IF NOT EXISTS FOR (w:Warehouse) ON (w.refrigeration);
-CREATE INDEX session_activity IF NOT EXISTS FOR (ss:Session) ON (ss.last_activity);
+CREATE INDEX session_activity IF NOT EXISTS FOR (s:Session) ON (s.last_activity);
