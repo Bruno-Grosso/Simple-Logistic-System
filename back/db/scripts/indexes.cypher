@@ -1,4 +1,12 @@
-CREATE INDEX FOR (o:Order) ON (o.status);
-CREATE INDEX FOR (t:Truck) ON (t.is_delivering);
-CREATE INDEX FOR (t:Truck) ON (t.is_valid);
-CREATE INDEX FOR (o:Order) ON (o.supplier_delivered);
+CREATE INDEX truck_loc IF NOT EXISTS FOR (t:Truck) ON (t.current_location);
+CREATE INDEX warehouse_loc IF NOT EXISTS FOR (w:Warehouse) ON (w.location);
+CREATE INDEX order_status IF NOT EXISTS FOR (o:Order) ON (o.status);
+CREATE INDEX order_time_limit IF NOT EXISTS FOR (o:Order) ON (o.time_limit);
+CREATE INDEX order_supplier_deliv IF NOT EXISTS FOR (o:Order) ON (o.supplier_delivered);
+CREATE INDEX product_name IF NOT EXISTS FOR (p:Product) ON (p.name);
+CREATE INDEX product_refrig IF NOT EXISTS FOR (p:Product) ON (p.refrigeration);
+CREATE INDEX product_fragile IF NOT EXISTS FOR (p:Product) ON (p.fragile);
+CREATE INDEX truck_valid IF NOT EXISTS FOR (t:Truck) ON (t.is_valid);
+CREATE INDEX truck_delivering IF NOT EXISTS FOR (t:Truck) ON (t.is_delivering);
+CREATE INDEX warehouse_refrig IF NOT EXISTS FOR (w:Warehouse) ON (w.refrigeration);
+CREATE INDEX session_activity IF NOT EXISTS FOR (ss:Session) ON (ss.last_activity);
