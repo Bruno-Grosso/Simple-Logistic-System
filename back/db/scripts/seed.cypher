@@ -63,7 +63,8 @@ SET tm.weight_max = toFloat(row.weight_max),
     tm.speed = toFloat(row.speed),
     tm.length = toFloat(row.length),
     tm.width = toFloat(row.width),
-    tm.height = toFloat(row.height);
+    tm.height = toFloat(row.height),
+    tm.name = row.name;
 
 LOAD CSV WITH HEADERS FROM 'file:///trucks.csv' AS row
 MERGE (t:Truck {id: row.id})
