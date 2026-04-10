@@ -74,26 +74,29 @@ SET t.is_valid = toBoolean(row.is_valid),
     t.weight_current = toFloat(row.weight_current),
     t.current_latitude = toFloat(row.current_latitude),
     t.current_longitude = toFloat(row.current_longitude),
-    t.time_expected = CASE WHEN trim(row.time_expected) IS NOT NULL AND trim(row.time_expected) <> ''
-                      THEN datetime(replace(trim(row.time_expected), ' ', 'T'))
-                      ELSE null END,
     t.fuel_current = toFloat(row.fuel_current),
-    t.maintenance_level = toInteger(row.maintenance)
+    t.maintenance_level = toInteger(row.maintenance),
+    t.time_expected = CASE 
+        WHEN row.time_expected IS NOT NULL AND trim(row.time_expected) <> ''
+        THEN datetime(replace(trim(row.time_expected), ' ', 'T'))
+        ELSE null END
 WITH t, row
 MATCH (tm:TruckModel {id: row.model_id})
-MERGE (t)-[:IS_MODEL]->(tm);
-
-LOAD CSV WITH HEADERS FROM 'file:///trucks.csv' AS row
-WITH row WHERE row.origin IS NOT NULL AND row.origin <> ''
-MATCH (t:Truck {id: row.id})
-MATCH (wo:Warehouse {id: row.origin})
-MERGE (t)-[:STARTS_AT]->(wo);
-
-LOAD CSV WITH HEADERS FROM 'file:///trucks.csv' AS row
-WITH row WHERE row.destination IS NOT NULL AND row.destination <> ''
-MATCH (t:Truck {id: row.id})
-MATCH (wd:Warehouse {id: row.destination})
-MERGE (t)-[:HEADING_TO]->(wd);
+MERGE (t)-[:IS_MODEL]->(tm)
+WITH t, row
+CALL {
+    WITH t, row
+    WITH t, row WHERE row.origin IS NOT NULL AND row.origin <> ''
+    MATCH (wo:Warehouse {id: row.origin})
+    MERGE (t)-[:STARTS_AT]->(wo)
+}
+WITH t, row
+CALL {
+    WITH t, row
+    WITH t, row WHERE row.destination IS NOT NULL AND row.destination <> ''
+    MATCH (wd:Warehouse {id: row.destination})
+    MERGE (t)-[:HEADING_TO]->(wd)
+}
 
 LOAD CSV WITH HEADERS FROM 'file:///truck_cargo.csv' AS row
 MATCH (t:Truck {id: row.id})
