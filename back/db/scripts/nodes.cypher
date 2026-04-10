@@ -96,13 +96,3 @@ SET o.price = toFloat(row.price),
         THEN datetime(replace(trim(row.time_expected), ' ', 'T')) 
         ELSE null 
     END;
-
-// FREIGHTS (novo que você mandou)
-LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/Bruno-Grosso/Simple-Logistic-System/refs/heads/main/back/db/data/freights.csv' AS row
-MERGE (f:Freight {order_id: trim(row.order_id)})
-SET 
-    f.cost_fuel = toFloat(row.cost_fuel),
-    f.cost_labor = toFloat(row.cost_labor),
-    f.cost_extra = toFloat(row.cost_extra),
-    f.cost_total = toFloat(row.cost_total),
-    f.calculated = toLower(trim(row.calculated)) IN ['true','1','yes'];
