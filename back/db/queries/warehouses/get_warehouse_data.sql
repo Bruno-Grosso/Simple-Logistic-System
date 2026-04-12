@@ -1,1 +1,0 @@
-SELECT ? FROM warehouses WHERE id = ?;

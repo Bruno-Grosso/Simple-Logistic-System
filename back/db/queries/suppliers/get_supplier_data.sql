@@ -1,1 +1,0 @@
-SELECT ? FROM suppliers WHERE id = ?;

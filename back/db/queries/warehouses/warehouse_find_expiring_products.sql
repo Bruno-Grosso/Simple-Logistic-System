@@ -1,1 +1,0 @@
-SELECT w.id, p.name, p.expire_date FROM warehouses w JOIN warehouses_stock ws ON w.id = ws.warehouse_id JOIN products p ON p.id = ws.product_id WHERE p.expire_date IS NOT NULL ORDER BY p.expire_date ASC;

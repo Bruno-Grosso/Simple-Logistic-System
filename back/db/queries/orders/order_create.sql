@@ -1,1 +1,0 @@
-INSERT INTO orders (id, client_id, final_destination, time_limit, price, status, supplier_id, supplier_delivery) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
