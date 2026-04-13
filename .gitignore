@@ -85,3 +85,9 @@ pnpm-debug.log*
 # Optional: testing / coverage (if added later)
 coverage/
 .nyc_output/
+
+# Valhalla archives
+mapa/*.pbf
+mapa/*.tar
+mapa/valhalla_tiles/
+mapa/valhalla.json
