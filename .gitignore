@@ -87,6 +87,6 @@ coverage/
 .nyc_output/
 
 # Valhalla archives
-mapa/*.tar
-mapa/valhalla_tiles/
-mapa/valhalla.json
+valhalla_map/*.tar
+valhalla_map/valhalla_tiles/
+valhalla_map/valhalla.json
