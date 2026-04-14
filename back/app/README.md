@@ -1,15 +1,13 @@
-# app
+# Back-end
 
-To install dependencies:
+This project uses *bun* as a server for the API and PostgresDB for the database.  
+Docker compose gets them to work together.
 
+## To run:
 ```bash
-bun install
+docker compose up
+```
 ```
 
-To run:
 
-```bash
-bun run index.ts
 ```
-
-This project was created using `bun init` in bun v1.3.12. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
