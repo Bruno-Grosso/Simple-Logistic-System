@@ -10,7 +10,7 @@
     "typescript": "^5"
   },
   "scripts": {
-    "build": "bun build index.ts --outdir=build",
+    "build": "bun build --target=bun index.ts --outdir=build",
     "start": "bun run build/index.js",
     "dev": "bun run build ; bun run start"
   }
