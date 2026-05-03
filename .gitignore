@@ -90,3 +90,6 @@ coverage/
 valhalla_map/*.tar
 valhalla_map/valhalla_tiles/
 valhalla_map/valhalla.json
+
+# Local scripts
+*.sh
