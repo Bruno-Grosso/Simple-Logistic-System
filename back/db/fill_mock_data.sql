@@ -1,16 +1,16 @@
--- Comprehensive Mock data for Simple Logistics System
--- Aligned with the schema in db/database.sql
+-- Updated Mock data for Simple Logistics System
+-- Aligned with the schema in db/db.sql and dbdocumentation.md
 
 -- 1. Products (8 entries)
 INSERT INTO products (id, name, is_cold, is_fragile, expire_date, price, size, volume, weight) VALUES
-('PROD-001', 'Fresh Milk', 1, 0, '2026-04-10', 3.50, '10x10x20', 0.002, 1.0),
-('PROD-002', 'Crystal Vase', 0, 1, NULL, 45.00, '30x30x40', 0.036, 2.5),
-('PROD-003', 'Smartphone X', 0, 0, NULL, 899.99, '15x8x2', 0.00024, 0.2),
-('PROD-004', 'Frozen Pizza', 1, 0, '2026-09-20', 5.99, '30x30x3', 0.0027, 0.5),
-('PROD-005', 'Office Chair', 0, 0, NULL, 120.00, '60x60x100', 0.36, 12.0),
-('PROD-006', 'Gaming Laptop', 0, 1, NULL, 1500.00, '40x30x5', 0.006, 3.0),
-('PROD-007', 'Red Wine Box', 0, 1, '2028-12-31', 80.00, '30x20x30', 0.018, 9.0),
-('PROD-008', 'Industrial Drill', 0, 0, NULL, 250.00, '40x15x25', 0.015, 5.5);
+('PROD-001', 'Fresh Milk', 1, 0, '2026-04-10', 3.50, '{"length":10,"width":10,"height":20}', 0.002, 1.0),
+('PROD-002', 'Crystal Vase', 0, 1, NULL, 45.00, '{"length":30,"width":30,"height":40}', 0.036, 2.5),
+('PROD-003', 'Smartphone X', 0, 0, NULL, 899.99, '{"length":15,"width":8,"height":2}', 0.00024, 0.2),
+('PROD-004', 'Frozen Pizza', 1, 0, '2026-09-20', 5.99, '{"length":30,"width":30,"height":3}', 0.0027, 0.5),
+('PROD-005', 'Office Chair', 0, 0, NULL, 120.00, '{"length":60,"width":60,"height":100}', 0.36, 12.0),
+('PROD-006', 'Gaming Laptop', 0, 1, NULL, 1500.00, '{"length":40,"width":30,"height":5}', 0.006, 3.0),
+('PROD-007', 'Red Wine Box', 0, 1, '2028-12-31', 80.00, '{"length":30,"width":20,"height":30}', 0.018, 9.0),
+('PROD-008', 'Industrial Drill', 0, 0, NULL, 250.00, '{"length":40,"width":15,"height":25}', 0.015, 5.5);
 
 -- 2. Suppliers (3 entries)
 INSERT INTO suppliers (id, name, location) VALUES
@@ -20,40 +20,31 @@ INSERT INTO suppliers (id, name, location) VALUES
 
 -- 3. Warehouses (3 entries)
 INSERT INTO warehouses (id, location, size, volume_current, volume_max, has_refrigeration, fuel_price) VALUES
-('WH-001', 'New York Central Hub', '100x100x10', 0.36, 100000.0, 1, 1.25),
-('WH-002', 'Los Angeles West Depot', '50x50x8', 0.0, 20000.0, 0, 1.35),
-('WH-003', 'Chicago Midwest Center', '80x60x10', 0.0, 48000.0, 1, 1.30);
+('WH-001', '{"latitude":40.7128,"longitude":-74.0060}', '{"length":100,"width":100,"height":10}', 0.36, 100000.0, 1, 1.25),
+('WH-002', '{"latitude":34.0522,"longitude":-118.2437}', '{"length":50,"width":50,"height":8}', 0.0, 20000.0, 0, 1.35),
+('WH-003', '{"latitude":41.8781,"longitude":-87.6298}', '{"length":80,"width":60,"height":10}', 0.0, 48000.0, 1, 1.30);
 
 -- 4. Users (10 entries)
--- role CHECK(role IN ('admin','warehouse_worker','truck_driver','client'))
 INSERT INTO users (id, name, password, address, role) VALUES
-('USR-001', 'Alice Admin', 'admin123', '123 Admin St, NY', 'admin'),
-('USR-002', 'Bob Worker', 'bobpass', '456 Warehouse Ln, NY', 'warehouse_worker'),
-('USR-003', 'Charlie Driver', 'trucker1', '789 Road Dr, NJ', 'truck_driver'),
-('USR-004', 'David Client', 'client789', '101 Customer Ave, PA', 'client'),
-('USR-005', 'Eve Client', 'evepass', '202 Buyer Rd, CT', 'client'),
-('USR-006', 'Frank Driver', 'frank123', '333 Elm St, NY', 'truck_driver'),
-('USR-007', 'Grace Worker', 'gracepass', '444 Oak St, IL', 'warehouse_worker'),
-('USR-008', 'Henry Client', 'henry789', '555 Market St, TX', 'client'),
-('USR-009', 'Ivy Client', 'ivypass', '666 Cloud St, CA', 'client'),
-('USR-010', 'Jack Worker', 'jackpass', '777 Bolt Ave, CA', 'warehouse_worker');
+('USR-001', 'Alice Admin', 'admin123', '{"address": "123 Admin St, NY"}', 'admin'),
+('USR-002', 'Bob Worker', 'bobpass', '{"address": "456 Warehouse Ln, NY"}', 'warehouse_worker'),
+('USR-003', 'Charlie Driver', 'trucker1', '{"address": "789 Road Dr, NJ"}', 'truck_driver'),
+('USR-004', 'David Client', 'client789', '{"address": "101 Customer Ave, PA"}', 'client'),
+('USR-005', 'Eve Client', 'evepass', '{"address": "202 Buyer Rd, CT"}', 'client'),
+('USR-006', 'Frank Driver', 'frank123', '{"address": "333 Elm St, NY"}', 'truck_driver'),
+('USR-007', 'Grace Worker', 'gracepass', '{"address": "444 Oak St, IL"}', 'warehouse_worker'),
+('USR-008', 'Henry Client', 'henry789', '{"address": "555 Market St, TX"}', 'client'),
+('USR-009', 'Ivy Client', 'ivypass', '{"address": "666 Cloud St, CA"}', 'client'),
+('USR-010', 'Jack Worker', 'jackpass', '{"address": "777 Bolt Ave, CA"}', 'warehouse_worker');
 
 -- 5. Trucks (4 entries)
--- Truck 1: Parked at WH-001
 INSERT INTO trucks (id, model, speed, is_valid, is_delivering, size, volume_current, volume_max, weight_current, weight_max, has_refrigeration, current_warehouse_id, fuel_capacity, fuel_current, fuel_consumption, truck_maintenance) VALUES
-('TRK-001', 'Volvo FH16', 85.0, 1, 0, '13.6x2.5x2.7', 0.0, 90.0, 0.0, 25000.0, 1, 'WH-001', 500.0, 450.0, 0.3, 2);
+('TRK-001', 'Volvo FH16', 85.0, 1, 0, '{"length":13.6,"width":2.5,"height":2.7}', 0.0, 90.0, 0.0, 25000.0, 1, 'WH-001', 500.0, 450.0, 0.3, 2),
+('TRK-002', 'Scania R500', 80.0, 1, 1, '{"length":13.6,"width":2.5,"height":2.7}', 0.036, 90.0, 2.5, 25000.0, 0, NULL, 600.0, 300.0, 0.35, 1),
+('TRK-003', 'MAN TGX', 82.0, 1, 0, '{"length":13.6,"width":2.5,"height":2.7}', 0.0, 90.0, 0.0, 25000.0, 1, 'WH-003', 550.0, 500.0, 0.32, 0),
+('TRK-004', 'Iveco S-Way', 75.0, 0, 0, '{"length":12,"width":2.4,"height":2.5}', 0.0, 72.0, 0.0, 18000.0, 0, 'WH-002', 400.0, 50.0, 0.28, 5);
 
--- Truck 2: Delivering from WH-001 to WH-002
-INSERT INTO trucks (id, model, speed, is_valid, is_delivering, size, volume_current, volume_max, weight_current, weight_max, has_refrigeration, current_warehouse_id, origin_warehouse_id, destination_warehouse_id, estimated_time, fuel_capacity, fuel_current, fuel_consumption, truck_maintenance) VALUES
-('TRK-002', 'Scania R500', 80.0, 1, 1, '13.6x2.5x2.7', 0.036, 90.0, 2.5, 25000.0, 0, NULL, 'WH-001', 'WH-002', '2026-03-26 14:00:00', 600.0, 300.0, 0.35, 1);
-
--- Truck 3: Parked at WH-003
-INSERT INTO trucks (id, model, speed, is_valid, is_delivering, size, volume_current, volume_max, weight_current, weight_max, has_refrigeration, current_warehouse_id, fuel_capacity, fuel_current, fuel_consumption, truck_maintenance) VALUES
-('TRK-003', 'MAN TGX', 82.0, 1, 0, '13.6x2.5x2.7', 0.0, 90.0, 0.0, 25000.0, 1, 'WH-003', 550.0, 500.0, 0.32, 0);
-
--- Truck 4: Invalid/Maintenance
-INSERT INTO trucks (id, model, speed, is_valid, is_delivering, size, volume_current, volume_max, weight_current, weight_max, has_refrigeration, current_warehouse_id, fuel_capacity, fuel_current, fuel_consumption, truck_maintenance) VALUES
-('TRK-004', 'Iveco S-Way', 75.0, 0, 0, '12x2.4x2.5', 0.0, 72.0, 0.0, 18000.0, 0, 'WH-002', 400.0, 50.0, 0.28, 5);
+UPDATE trucks SET origin_warehouse_id = 'WH-001', destination_warehouse_id = 'WH-002', estimated_time = '2026-03-26 14:00:00' WHERE id = 'TRK-002';
 
 -- 6. Warehouses Stock (5 entries)
 INSERT INTO warehouses_stock (warehouse_id, product_id, quantity) VALUES
@@ -69,7 +60,7 @@ INSERT INTO orders (id, client_id, final_destination, time_limit, price, status,
 ('ORD-002', 'USR-005', '202 Buyer Rd, CT', '2026-03-28', 950.00, 'Shipped', 'SUP-001', 1),
 ('ORD-003', 'USR-004', '101 Customer Ave, PA', '2026-03-20', 15.00, 'Delivered', NULL, 1),
 ('ORD-004', 'USR-008', '555 Market St, TX', '2026-04-05', 2400.00, 'Pending', 'SUP-003', 0),
-('ORD-005', 'USR-009', '666 Cloud St, CA', '2026-04-02', 120.00, 'Cancelled', NULL, 1);
+('ORD-005', 'USR-009', '666 Cloud St, CA', '2026-04-02', 120.00, 'Canceled', NULL, 1);
 
 -- 8. Orders Items (8 entries)
 INSERT INTO orders_items (order_id, product_id, quantity) VALUES

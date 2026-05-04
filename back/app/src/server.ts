@@ -18,7 +18,7 @@ const server = Bun.serve({
       `;
       return Response.json(tables);
     }
-    if (path === "/other") {
+    if (path === "/db-name") {
       const dbName = await pg_conn`SELECT current_database()`;
       return Response.json(dbName[0]);
     }
@@ -71,8 +71,8 @@ const server = Bun.serve({
       return Response.json(await controller.suppliers.byId(id));
     }
     if (path === "/trucks" && method === "GET") {
-      const modelId = url.searchParams.get("modelId");
-      if (modelId) return Response.json(await controller.trucks.byModel(modelId));
+      const model = url.searchParams.get("model");
+      if (model) return Response.json(await controller.trucks.byModel(model));
       return Response.json(await controller.trucks.all());
     }
     if (path.startsWith("/trucks/") && method === "GET") {
@@ -90,18 +90,18 @@ const server = Bun.serve({
       const parts = path.split("/");
       const id = parts[2];
       if (parts[3] === "items") return Response.json(await controller.orders.items(id));
-      if (parts[3] === "routes") return Response.json(await controller.orders.routes(id));
-      if (parts[3] === "costs") return Response.json(await controller.orders.costs(id));
+      if (parts[3] === "route") return Response.json(await controller.orders.routes(id));
+      if (parts[3] === "cost") return Response.json(await controller.orders.costs(id));
       return Response.json(await controller.orders.byId(id));
     }
-    if (path === "/supplies-routes" && method === "GET") {
+    if (path === "/supplies-route" && method === "GET") {
       const orderId = url.searchParams.get("orderId");
       if (orderId) return Response.json(await controller.supplyRoutes.byOrder(orderId));
       const supplierId = url.searchParams.get("supplierId");
       if (supplierId) return Response.json(await controller.supplyRoutes.bySupplier(supplierId));
       return Response.json(await controller.supplyRoutes.all());
     }
-    if (path === "/freights-costs" && method === "GET") {
+    if (path === "/freight-cost" && method === "GET") {
       const orderId = url.searchParams.get("orderId");
       if (orderId) return Response.json(await controller.freightCosts.byOrder(orderId));
       return Response.json(await controller.freightCosts.all());
