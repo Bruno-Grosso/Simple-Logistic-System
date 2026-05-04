@@ -7,7 +7,7 @@ export async function handleRoutes(req: Request) {
 
   if (url.pathname === "/route" && req.method === "POST") {
     try {
-      const body = await req.json();
+      const body = await req.json() as { locations: any };
 
       // Note: This requires the motor started by setup_valhalla.sh to be running
       const valhallaRes = await fetch("http://localhost:8002/route", {

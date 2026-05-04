@@ -34,7 +34,10 @@ const server = Bun.serve({
     }
     if (path.startsWith("/users/") && method === "GET") {
       const id = path.split("/")[2];
-      return Response.json(await controller.users.byId(id));
+      if (!id) return new Response("User ID required", { status: 400 });
+      const result = await controller.users.byId(id);
+      if (!result || result.length === 0) return new Response("User not found", { status: 404 });
+      return Response.json(result);
     }
     if (path === "/online-users" && method === "GET") {
       const userId = url.searchParams.get("userId");
@@ -50,7 +53,10 @@ const server = Bun.serve({
     }
     if (path.startsWith("/products/") && method === "GET") {
       const id = path.split("/")[2];
-      return Response.json(await controller.products.byId(id));
+      if (!id) return new Response("Product ID required", { status: 400 });
+      const result = await controller.products.byId(id);
+      if (!result || result.length === 0) return new Response("Product not found", { status: 404 });
+      return Response.json(result);
     }
 
     // 3. INFRASTRUCTURE & FLEET LAYER
@@ -60,15 +66,23 @@ const server = Bun.serve({
     if (path.startsWith("/warehouses/") && method === "GET") {
       const parts = path.split("/");
       const id = parts[2];
+      if (!id) return new Response("Warehouse ID required", { status: 400 });
+      
       if (parts[3] === "stock") return Response.json(await controller.warehouses.stock(id));
-      return Response.json(await controller.warehouses.byId(id));
+      
+      const result = await controller.warehouses.byId(id);
+      if (!result || result.length === 0) return new Response("Warehouse not found", { status: 404 });
+      return Response.json(result);
     }
     if (path === "/suppliers" && method === "GET") {
       return Response.json(await controller.suppliers.all());
     }
     if (path.startsWith("/suppliers/") && method === "GET") {
       const id = path.split("/")[2];
-      return Response.json(await controller.suppliers.byId(id));
+      if (!id) return new Response("Supplier ID required", { status: 400 });
+      const result = await controller.suppliers.byId(id);
+      if (!result || result.length === 0) return new Response("Supplier not found", { status: 404 });
+      return Response.json(result);
     }
     if (path === "/trucks" && method === "GET") {
       const model = url.searchParams.get("model");
@@ -77,7 +91,10 @@ const server = Bun.serve({
     }
     if (path.startsWith("/trucks/") && method === "GET") {
       const id = path.split("/")[2];
-      return Response.json(await controller.trucks.byId(id));
+      if (!id) return new Response("Truck ID required", { status: 400 });
+      const result = await controller.trucks.byId(id);
+      if (!result || result.length === 0) return new Response("Truck not found", { status: 404 });
+      return Response.json(result);
     }
 
     // 4. TRANSACTION & ROUTING LAYER
@@ -89,10 +106,15 @@ const server = Bun.serve({
     if (path.startsWith("/orders/") && method === "GET") {
       const parts = path.split("/");
       const id = parts[2];
+      if (!id) return new Response("Order ID required", { status: 400 });
+      
       if (parts[3] === "items") return Response.json(await controller.orders.items(id));
       if (parts[3] === "route") return Response.json(await controller.orders.routes(id));
       if (parts[3] === "cost") return Response.json(await controller.orders.costs(id));
-      return Response.json(await controller.orders.byId(id));
+      
+      const result = await controller.orders.byId(id);
+      if (!result || result.length === 0) return new Response("Order not found", { status: 404 });
+      return Response.json(result);
     }
     if (path === "/supplies-route" && method === "GET") {
       const orderId = url.searchParams.get("orderId");

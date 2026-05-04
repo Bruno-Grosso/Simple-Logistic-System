@@ -8,7 +8,7 @@ import { pg_conn } from "./model";
 const createBaseRepo = (table: string) => ({
   all: () => pg_conn`SELECT * FROM ${pg_conn(table)}`,
   byId: (id: string) => pg_conn`SELECT * FROM ${pg_conn(table)} WHERE id = ${id}`,
-  byField: (field: string) => (value: any) => 
+  byField: (field: string) => (value: string | number | boolean) => 
     pg_conn`SELECT * FROM ${pg_conn(table)} WHERE ${pg_conn(field)} = ${value}`,
 });
 
@@ -38,7 +38,6 @@ export const warehouses = {
 
 export const trucks = {
   ...createBaseRepo("trucks"),
-  // Documentation says 'model' is a TEXT field in the 'trucks' table
   byModel: (model: string) => pg_conn`SELECT * FROM trucks WHERE model = ${model}`,
 };
 
