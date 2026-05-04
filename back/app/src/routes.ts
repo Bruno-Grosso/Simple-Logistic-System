@@ -1,3 +1,7 @@
+/*
+  Prototype file, ignore unless you are Bruno Sergio
+*/
+
 export async function handleRoutes(req: Request) {
   const url = new URL(req.url);
 
@@ -13,17 +17,18 @@ export async function handleRoutes(req: Request) {
           locations: body.locations,
           costing: "truck",
           units: "kilometers",
-          language: "en-US"
-        })
+          language: "en-US",
+        }),
       });
 
       if (!valhallaRes.ok) {
-        return new Response("Valhalla Engine Error", { status: valhallaRes.status });
+        return new Response("Valhalla Engine Error", {
+          status: valhallaRes.status,
+        });
       }
 
       const data = await valhallaRes.json();
       return Response.json(data);
-
     } catch (error) {
       console.error("Logistics Route Error:", error);
       return new Response("Internal Routing Server Error", { status: 500 });
