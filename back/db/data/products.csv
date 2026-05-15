@@ -1,4 +1,0 @@
-id,name,refrigeration,fragile,weight,length,width,height,volume,expire_date,price
-P1,livro,false,false,1,0.3,0.2,0.25,0.015,,50
-P2,notebook,false,true,2.5,0.5,0.4,0.32,0.064,,3499.99
-P3,peixe,true,false,10.3,1,0.3,0.25,0.075,2026-04-20,99.99
