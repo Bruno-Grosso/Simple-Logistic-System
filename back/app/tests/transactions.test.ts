@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 
 const BASE_URL = "http://localhost:8080";
 

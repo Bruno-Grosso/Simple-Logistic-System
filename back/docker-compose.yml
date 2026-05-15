@@ -10,7 +10,9 @@ services:
     ports:
       - $POSTGRESDB_LOCAL_PORT:$POSTGRESDB_DOCKER_PORT
     volumes:
-      - db:/var/lib/postgres
+      - db:/var/lib/postgresql/data
+      - ./db/db.sql:/docker-entrypoint-initdb.d/10-db.sql
+      - ./db/fill_mock_data.sql:/docker-entrypoint-initdb.d/20-data.sql
   app:
     depends_on:
       - postgresdb

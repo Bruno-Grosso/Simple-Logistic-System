@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 
 const BASE_URL = "http://localhost:8080";
 
@@ -21,7 +21,7 @@ test("Infrastructure: GET /warehouses/:id/stock", async () => {
   const res = await fetch(`${BASE_URL}/warehouses/WH-001/stock`);
   expect(res.status).toBe(200);
   const data = await res.json() as any[];
-  expect(data).toBeArray();
+  expect(Array.isArray(data)).toBe(true);
   // PROD-005 and PROD-001 are in WH-001
   expect(data.some(s => s.product_id === "PROD-005")).toBe(true);
   expect(data.find(s => s.product_id === "PROD-005").quantity).toBe(10);

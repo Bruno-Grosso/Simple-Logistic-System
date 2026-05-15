@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 
 const BASE_URL = "http://localhost:8080";
 
@@ -6,7 +6,7 @@ test("Inventory: GET /products returns all products", async () => {
   const res = await fetch(`${BASE_URL}/products`);
   expect(res.status).toBe(200);
   const data = await res.json() as any[];
-  expect(data).toBeArray();
+  expect(Array.isArray(data)).toBe(true);
   expect(data.length).toBeGreaterThanOrEqual(8);
 });
 
