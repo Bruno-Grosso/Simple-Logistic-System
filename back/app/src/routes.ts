@@ -14,7 +14,7 @@ export async function handleRoutes(req: Request) {
       const warehouseData = await warehouses.byId(body.warehouseId);
 
       if (orderData.length === 0 || warehouseData.length === 0) {
-        return new Response("Pedido ou Armazém não encontrados", { status: 404 });
+        return new Response("Order or Warehouse not found", { status: 404 });
       }
 
       const valhallaLocations = [
