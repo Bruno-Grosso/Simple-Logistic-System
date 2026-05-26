@@ -5,7 +5,7 @@ This directory contains the infrastructure required for the Valhalla routing eng
 ## How to Run
 
 1. **Prerequisites:**
-   - Ensure the .pbf map file of your region is placed inside this folder.
+   - Ensure the .pbf map file is placed inside this folder.
 
 2. **Configuration and Build:**
    The `setup_valhalla.sh` script automatically manages container creation and map data processing.
