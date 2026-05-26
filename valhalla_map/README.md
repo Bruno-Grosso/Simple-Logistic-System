@@ -20,7 +20,7 @@ This directory contains the infrastructure required for the Valhalla routing eng
 4. **Access:**
    The routing server will be available on port 8002.
 
-# Clean UP
+## Clean UP
 To remove the server and free up resources:
 
 ```bash
