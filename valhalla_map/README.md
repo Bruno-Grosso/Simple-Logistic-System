@@ -1,2 +1,4 @@
-# Valhalla Map Data
-Place your `regiao_serrana.osm.pbf` file in this directory before running the setup script.
+*Valhalla Routing Engine
+This directory contains the infrastructure required for the Valhalla routing engine.
+
+*How to Run
