@@ -23,9 +23,7 @@ docker run -dt \
     --name "$CONTAINER_NAME" \
     -p "$PORT":8002 \
     -v "$MAP_DIR":/custom_files \
-    --entrypoint valhalla_service \
-    "$IMAGE_NAME" \
-    /custom_files/valhalla.json 1
+    "$IMAGE_NAME" 
 
 echo "Success! Valhalla is running on http://localhost:$PORT"
 echo "To stop the server, use: docker stop $CONTAINER_NAME"
