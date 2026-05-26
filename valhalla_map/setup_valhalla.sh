@@ -3,7 +3,7 @@
 # Configuration
 CONTAINER_NAME="valhalla_server"
 IMAGE_NAME="ghcr.io/gis-ops/docker-valhalla/valhalla:latest"
-MAP_DIR="$(pwd)/Valhalla_map"
+MAP_DIR="$(pwd)"
 PORT=8002
 
 echo "-------------------------------------------------------"
