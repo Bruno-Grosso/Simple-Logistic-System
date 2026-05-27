@@ -90,7 +90,7 @@ export async function handleRoutes(req: Request) {
         routeCoordinates: decodedCoordinates
       };
       
-      return Response.json(data);
+      return Response.json(frontEndResponse);
     } catch (error) {
       console.error("Logistics Route Error:", error);
       return new Response("Internal Routing Server Error", { status: 500 });
