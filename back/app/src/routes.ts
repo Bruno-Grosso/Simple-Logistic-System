@@ -1,36 +1,5 @@
 import { orders, warehouses } from "./controller";
 
-function decodePolyline6(encoded: string): [number, number][] { //Function to decode the Valhalla shapefile (Polyline6)
-  let index = 0, len = encoded.length;
-  let lat = 0, lng = 0;
-  let coordinates: [number, number][] = [];
-
-  while (index < len) {
-    let b, shift = 0, result = 0;
-    do {
-      b = encoded.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-    let dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
-    lat += dlat;
-
-    shift = 0;
-    result = 0;
-    do {
-      b = encoded.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-    let dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
-    lng += dlng;
-
-    coordinates.push([lat / 1000000.0, lng / 1000000.0]);
-  }
-  return coordinates;
-}
-
-
 export async function handleRoutes(req: Request) {
   const url = new URL(req.url);
 
@@ -81,13 +50,11 @@ export async function handleRoutes(req: Request) {
 
       const data = await valhallaRes.json();
       
-      const encodedShape = data.trip.legs[0].shape;
-      const decodedCoordinates = decodePolyline6(encodedShape);
-
+      // Sending the Polyline6 string directly from Valhalla to the frontend.
       const frontEndResponse = {
         success: true,
         summary: data.trip.summary, 
-        routeCoordinates: decodedCoordinates
+        encodedShape: data.trip.legs[0].shape
       };
       
       return Response.json(frontEndResponse);

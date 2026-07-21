@@ -29,6 +29,18 @@ services:
       - DB_PORT=$POSTGRESDB_DOCKER_PORT
     stdin_open: true
     tty: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  valhalla_server:
+    image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+    container_name: valhalla_server
+    ports:
+      - "8002:8002"
+    volumes:
+      - ../valhalla_map:/custom_files
+    entrypoint: valhalla_service
+    command: /custom_files/valhalla.json 1
+    restart: unless-stopped
 
 volumes:
   db:
