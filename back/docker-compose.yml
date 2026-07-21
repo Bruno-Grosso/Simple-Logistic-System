@@ -35,7 +35,7 @@ services:
     image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
     container_name: valhalla_server
     ports:
-      - "8002:8002"
+      - "${VALHALLA_LOCAL_PORT}:${VALHALLA_DOCKER_PORT}"
     volumes:
       - ../valhalla_map:/custom_files
     entrypoint: valhalla_service
