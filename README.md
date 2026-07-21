@@ -6,7 +6,7 @@ This aims to be a simple implementation of a logistics system, built as a projec
 
 You will need to setup .env files under `back/` and `back/app` with the following definitions (values are examples):
 ```yaml
-NODE_LOCAL_PORT = 8080
+NODE_LOCAL_PORT = 8081
 NODE_DOCKER_PORT = 8080
 
 POSTGRESDB_USER = postgres
