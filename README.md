@@ -4,14 +4,39 @@ This aims to be a simple implementation of a logistics system, built as a projec
 
 > This is an updated branch after reconsidering our approach to the back-end infrastructure. To see where the previous iteration stopped, check the "legacy" branch.
 
+You will need to setup .env files under `back/` and `back/app` with the following definitions (values are examples):
+```yaml
+NODE_LOCAL_PORT = 8080
+NODE_DOCKER_PORT = 8080
+
+POSTGRESDB_USER = postgres
+POSTGRESDB_ROOT_PASSWORD = postgres
+POSTGRESDB_DATABASE = postgres
+POSTGRESDB_DOCKER_PORT = 5432
+```
+
+The front-end provides a sample `.env.example` file.
+
 ## Back-end
-
 ### To run:
-
+Setup (only on the first run):
 ```bash
-docker compose up
-# Or if you want to run it on background
-docker compose up -d
+cd back/app && npm install
+```
+
+You will need 2 windows, in 1 run:
+```bash
+cd back && docker compose up -d
+```
+
+On the other run:
+```bash
+cd back/app && npm run build && npm start
+```
+
+To run the tests (requires docker and the server to be running):
+```bash
+cd back/app && npm test
 ```
 
 ### To stop:
@@ -21,8 +46,14 @@ docker compose down
 ```
 
 ## Front-end
-TODO
+Setup (only on the first run):
 ```bash
+cd front && npm install
+```
+
+Then build and run:
+```bash
+cd front && npm run build && npm start
 ```
 
 **Under orientation of Dener dos Santos.**
