@@ -12,8 +12,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
-import { ORDERS, getUserById } from "@/lib/mock-data"
-import type { OrderStatus } from "@/types"
+import { api } from "@/lib/api"
+import type { OrderStatus, User } from "@/types"
 
 function parseDestination(raw: string | undefined): string {
   if (!raw) return "—"
@@ -44,7 +44,15 @@ function orderStatusBadge(status: OrderStatus) {
   }
 }
 
-export default function OrdersPage() {
+export default async function OrdersPage() {
+  const [orders, users] = await Promise.all([
+    api.orders.getAll(),
+    api.users.getAll(),
+  ])
+
+  const userMap = new Map<string, User>()
+  users.forEach((u) => userMap.set(u.id, u))
+
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -73,33 +81,21 @@ export default function OrdersPage() {
           <Table className="min-w-[700px]">
             <TableHeader>
               <TableRow>
-                <TableHead scope="col" className="px-4">
-                  Order
-                </TableHead>
-                <TableHead scope="col" className="px-4">
-                  Destination
-                </TableHead>
-                <TableHead scope="col" className="px-4">
-                  Client
-                </TableHead>
-                <TableHead scope="col" className="px-4">
-                  Status
-                </TableHead>
-                <TableHead scope="col" className="px-4">
-                  Deadline
-                </TableHead>
-                <TableHead scope="col" className="px-4 text-right tabular-nums">
-                  Value
-                </TableHead>
+                <TableHead scope="col" className="px-4">Order</TableHead>
+                <TableHead scope="col" className="px-4">Destination</TableHead>
+                <TableHead scope="col" className="px-4">Client</TableHead>
+                <TableHead scope="col" className="px-4">Status</TableHead>
+                <TableHead scope="col" className="px-4">Deadline</TableHead>
+                <TableHead scope="col" className="px-4 text-right tabular-nums">Value</TableHead>
                 <TableHead scope="col" className="w-12 px-4">
                   <span className="sr-only">Open order</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {ORDERS.map((order) => {
+              {orders.map((order) => {
                 const dest = parseDestination(order.final_destination)
-                const client = getUserById(order.client_id)
+                const client = userMap.get(order.client_id)
                 const deadline = order.time_limit ? new Date(order.time_limit) : null
                 const isOverdue =
                   deadline !== null &&
@@ -122,15 +118,10 @@ export default function OrdersPage() {
                     <TableCell className="max-w-[180px] truncate px-4 text-muted-foreground">
                       {dest}
                     </TableCell>
-                    <TableCell className="px-4">{client?.name ?? "—"}</TableCell>
+                    <TableCell className="px-4">{client?.name ?? `Client ${order.client_id}`}</TableCell>
                     <TableCell className="px-4">{orderStatusBadge(order.status)}</TableCell>
                     <TableCell className="px-4">
-                      <span
-                        className={cn(
-                          "tabular-nums",
-                          isOverdue && "font-medium text-destructive",
-                        )}
-                      >
+                      <span className={cn("tabular-nums", isOverdue && "font-medium text-destructive")}>
                         {order.time_limit ?? "—"}
                       </span>
                       {isOverdue && (

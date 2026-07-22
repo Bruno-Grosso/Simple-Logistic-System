@@ -47,11 +47,16 @@ export function SignOutMenuItem() {
       <form id={formId} action={logoutAction} className="hidden" aria-hidden="true" />
       <DropdownMenuItem
         variant="destructive"
+        nativeButton={true}
         render={
-          <button
-            type="submit"
-            form={formId}
-            className="w-full cursor-pointer border-0 bg-transparent text-left font-inherit"
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => {
+              const form = document.getElementById(formId) as HTMLFormElement | null
+              form?.requestSubmit()
+            }}
+            className="w-full cursor-pointer text-left font-inherit"
           />
         }
       >

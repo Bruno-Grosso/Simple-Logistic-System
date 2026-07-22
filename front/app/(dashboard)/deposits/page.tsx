@@ -11,21 +11,24 @@ import {
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
-import { DEPOSITS, TRUCKS, getDepositLabel, getStockByDeposit } from "@/lib/mock-data"
+import { api } from "@/lib/api"
+import { computeDepositUsage } from "@/lib/calculations"
 
-export default function DepositsPage() {
+export default async function DepositsPage() {
+  const [deposits, trucks] = await Promise.all([
+    api.warehouses.getAll(),
+    api.trucks.getAll(),
+  ])
+
   return (
     <PageShell>
       <PageHeader crumbs={[{ label: "Deposits" }]} />
       <div className="min-h-0 flex-1 overflow-auto">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {DEPOSITS.map((deposit) => {
-            const label = getDepositLabel(deposit)
-            const pct = deposit.volume_max
-              ? Math.round((deposit.volume_actual / deposit.volume_max) * 100)
-              : 0
-            const stockEntries = getStockByDeposit(deposit.id).length
-            const trucksParked = TRUCKS.filter(
+          {deposits.map((deposit) => {
+            const label = deposit.location || `Warehouse ${deposit.id}`
+            const { pct } = computeDepositUsage(deposit)
+            const trucksParked = trucks.filter(
               (t) => t.current_deposit_id === deposit.id,
             ).length
 
@@ -54,13 +57,7 @@ export default function DepositsPage() {
                         {deposit.volume_actual} m³ of {deposit.volume_max ?? "—"} m³
                       </p>
                     </div>
-                    <div className="grid grid-cols-3 gap-3 border-t border-border pt-4">
-                      <div className="text-center">
-                        <p className="text-lg font-semibold tabular-nums text-primary">
-                          {stockEntries}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">Stock entries</p>
-                      </div>
+                    <div className="grid grid-cols-2 gap-3 border-t border-border pt-4">
                       <div className="text-center">
                         <p className="text-lg font-semibold tabular-nums text-primary">
                           {trucksParked}
@@ -81,7 +78,9 @@ export default function DepositsPage() {
                               : "No refrigeration"
                           }
                         />
-                        <p className="text-[10px] text-muted-foreground">Refrigeration</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {deposit.has_refrigeration ? "Refrigerated" : "Ambient"}
+                        </p>
                       </div>
                     </div>
                   </CardContent>

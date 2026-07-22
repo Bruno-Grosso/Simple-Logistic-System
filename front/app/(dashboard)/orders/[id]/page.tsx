@@ -1,23 +1,16 @@
 import { notFound } from "next/navigation"
-import { CheckCircle2, RouteOff, Truck, Warehouse } from "lucide-react"
+import { CheckCircle2, RouteOff, Truck, Warehouse, DollarSign } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { PageShell } from "@/components/page-shell"
 import { InfoField } from "@/components/info-field"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { EmptyState } from "@/components/empty-state"
+import { RouteMap } from "@/components/route-map"
 import { cn } from "@/lib/utils"
-import {
-  getOrderById,
-  getUserById,
-  getOrderItems,
-  getOrderRoute,
-  getDepositById,
-  getTruckById,
-  getDepositLabel,
-  getProductById,
-} from "@/lib/mock-data"
-import type { OrderStatus } from "@/types"
+import { api } from "@/lib/api"
+import { calculateFreightEstimate } from "@/lib/calculations"
+import type { OrderStatus, User, Product, Deposit, Truck as TruckType } from "@/types"
 
 function parseDestination(raw: string | undefined): string {
   if (!raw) return "—"
@@ -61,13 +54,56 @@ type PageProps = {
 
 export default async function OrderDetailPage({ params }: PageProps) {
   const { id } = await params
-  const order = getOrderById(id)
+  const order = await api.orders.getById(id)
   if (!order) notFound()
 
-  const client = getUserById(order.client_id)
-  const receiver = order.receiver_id ? getUserById(order.receiver_id) : undefined
-  const items = getOrderItems(order.id)
-  const routeSteps = getOrderRoute(order.id)
+  const [
+    users,
+    items,
+    routeSteps,
+    costData,
+    products,
+    warehouses,
+    trucks,
+  ] = await Promise.all([
+    api.users.getAll(),
+    api.orders.getItems(order.id),
+    api.orders.getRoute(order.id),
+    api.orders.getCost(order.id),
+    api.products.getAll(),
+    api.warehouses.getAll(),
+    api.trucks.getAll(),
+  ])
+
+  const userMap = new Map<string, User>()
+  users.forEach((u) => userMap.set(u.id, u))
+
+  const productMap = new Map<string, Product>()
+  products.forEach((p) => productMap.set(p.id, p))
+
+  const depositMap = new Map<string, Deposit>()
+  warehouses.forEach((w) => depositMap.set(w.id, w))
+
+  const truckMap = new Map<string, TruckType>()
+  trucks.forEach((t) => truckMap.set(t.id, t))
+
+  const client = userMap.get(order.client_id)
+  const receiver = order.receiver_id ? userMap.get(order.receiver_id) : undefined
+
+  // Pick origin warehouse from first route step or first warehouse
+  const originWarehouseId = routeSteps[0]?.deposit_id || warehouses[0]?.id || "WH-001"
+  const originWarehouse = depositMap.get(originWarehouseId)
+
+  // Calculate Valhalla route map
+  const valhallaRoute = await api.routes.calculateRoute(order.id, originWarehouseId)
+
+  // Freight Cost calculation if not already recorded in DB
+  const freightCost = costData ?? calculateFreightEstimate(
+    valhallaRoute?.summary?.length || 120,
+    valhallaRoute?.summary?.time || 5400,
+    trucks[0],
+    5.89
+  )
 
   return (
     <PageShell>
@@ -86,7 +122,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <InfoField label="Client" value={client?.name ?? "—"} />
+                  <InfoField label="Client" value={client?.name ?? `Client ${order.client_id}`} />
                   <InfoField label="Receiver" value={receiver?.name ?? "—"} />
                   <div className="sm:col-span-2">
                     <InfoField
@@ -113,17 +149,26 @@ export default async function OrderDetailPage({ params }: PageProps) {
               </CardContent>
             </Card>
 
+            {/* Valhalla Route Map for Specific Order */}
+            <RouteMap
+              encodedShape={valhallaRoute?.encodedShape}
+              summary={valhallaRoute?.summary}
+              originLabel={originWarehouse?.location || "Warehouse"}
+              destinationLabel={parseDestination(order.final_destination)}
+              title={`Valhalla Map Route: Order #${order.id}`}
+            />
+
             <Card>
               <CardHeader>
                 <CardTitle className="font-display text-lg">Items</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {items.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No line items.</p>
+                  <p className="text-sm text-muted-foreground">No line items recorded for this order.</p>
                 ) : (
                   <ul className="space-y-3" aria-label="Order line items">
                     {items.map((line) => {
-                      const product = getProductById(line.product_id)
+                      const product = productMap.get(line.product_id)
                       const unit = product?.price ?? 0
                       const subtotal = unit * line.quantity
                       return (
@@ -135,21 +180,16 @@ export default async function OrderDetailPage({ params }: PageProps) {
                             <p className="font-medium leading-tight">{product?.name ?? line.product_id}</p>
                             <div className="flex flex-wrap gap-1.5">
                               {product?.is_cold && (
-                                <Badge variant="outline" className="text-xs">
-                                  Cold
-                                </Badge>
+                                <Badge variant="outline" className="text-xs">Cold</Badge>
                               )}
                               {product?.is_fragile && (
-                                <Badge variant="outline" className="text-xs">
-                                  Fragile
-                                </Badge>
+                                <Badge variant="outline" className="text-xs">Fragile</Badge>
                               )}
                             </div>
                           </div>
                           <div className="flex shrink-0 items-baseline gap-6 tabular-nums">
                             <span className="text-sm text-muted-foreground">
-                              Qty{" "}
-                              <span className="font-medium text-foreground">{line.quantity}</span>
+                              Qty <span className="font-medium text-foreground">{line.quantity}</span>
                             </span>
                             <span className="text-sm">
                               Subtotal{" "}
@@ -165,29 +205,62 @@ export default async function OrderDetailPage({ params }: PageProps) {
                 )}
               </CardContent>
             </Card>
+
+            {/* Freight Cost Calculations */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="font-display text-lg flex items-center gap-2">
+                  <DollarSign className="size-4 text-primary" />
+                  Freight Cost Breakdown
+                </CardTitle>
+                <Badge variant="outline" className="text-xs">
+                  {costData ? "Recorded in DB" : "Estimated"}
+                </Badge>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  <InfoField
+                    label="Fuel Cost"
+                    value={`R$ ${(freightCost.fuel_cost ?? 0).toLocaleString("pt-BR")}`}
+                  />
+                  <InfoField
+                    label="Labor Cost"
+                    value={`R$ ${(freightCost.labor_cost ?? 0).toLocaleString("pt-BR")}`}
+                  />
+                  <InfoField
+                    label="Maintenance"
+                    value={`R$ ${(freightCost.maintenance_cost ?? 0).toLocaleString("pt-BR")}`}
+                  />
+                  <InfoField
+                    label="Total Freight Cost"
+                    value={`R$ ${(freightCost.total_cost ?? 0).toLocaleString("pt-BR")}`}
+                  />
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           <div className="lg:col-span-1">
             <Card className="h-full">
               <CardHeader>
-                <CardTitle className="font-display text-lg">Route tracking</CardTitle>
+                <CardTitle className="font-display text-lg">Route tracking timeline</CardTitle>
               </CardHeader>
               <CardContent>
                 {routeSteps.length === 0 ? (
                   <EmptyState
                     icon={RouteOff}
-                    title="No route data"
-                    description="This order does not have route steps yet."
+                    title="No route steps"
+                    description="This order does not have route steps recorded yet."
                   />
                 ) : (
                   <ol className="relative ms-2 space-y-0 border-l border-border pl-6" aria-label="Route timeline">
                     {routeSteps.map((step, idx) => {
                       const completed = Boolean(step.arrived_at)
-                      const deposit = step.deposit_id ? getDepositById(step.deposit_id) : undefined
-                      const truck = step.truck_id ? getTruckById(step.truck_id) : undefined
+                      const deposit = step.deposit_id ? depositMap.get(step.deposit_id) : undefined
+                      const truck = step.truck_id ? truckMap.get(step.truck_id) : undefined
                       const label = deposit
-                        ? getDepositLabel(deposit)
-                        : truck?.model ?? "—"
+                        ? deposit.location
+                        : truck?.model ?? "On Route"
                       const isLast = idx === routeSteps.length - 1
 
                       return (

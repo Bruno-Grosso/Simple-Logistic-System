@@ -12,13 +12,9 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import {
-  TRUCKS,
-  getDepositById,
-  getDepositLabel,
-  getProductById,
-  getStockByDeposit,
-} from "@/lib/mock-data"
+import { api } from "@/lib/api"
+import { computeDepositUsage } from "@/lib/calculations"
+import type { Product } from "@/types"
 
 function formatDepositSize(size: string | undefined): string {
   if (!size) return "—"
@@ -39,16 +35,22 @@ export default async function DepositDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const deposit = getDepositById(id)
+  const deposit = await api.warehouses.getById(id)
   if (!deposit) notFound()
 
-  const name = getDepositLabel(deposit)
-  const pct = deposit.volume_max
-    ? Math.round((deposit.volume_actual / deposit.volume_max) * 100)
-    : 0
-  const stock = getStockByDeposit(deposit.id)
-  const parked = TRUCKS.filter((t) => t.current_deposit_id === deposit.id)
-  const inbound = TRUCKS.filter((t) => t.destination_deposit_id === deposit.id)
+  const [stock, trucks, products] = await Promise.all([
+    api.warehouses.getStock(deposit.id),
+    api.trucks.getAll(),
+    api.products.getAll(),
+  ])
+
+  const productMap = new Map<string, Product>()
+  products.forEach((p) => productMap.set(p.id, p))
+
+  const name = deposit.location || `Deposit ${deposit.id}`
+  const { pct } = computeDepositUsage(deposit)
+  const parked = trucks.filter((t) => t.current_deposit_id === deposit.id)
+  const inbound = trucks.filter((t) => t.destination_deposit_id === deposit.id)
 
   return (
     <PageShell>
@@ -92,37 +94,41 @@ export default async function DepositDetailPage({
                 <CardTitle>Inventory</CardTitle>
               </CardHeader>
               <CardContent>
-                <ul className="divide-y">
-                  {stock.map((item) => {
-                    const product = getProductById(item.product_id)
-                    return (
-                      <li
-                        key={item.id}
-                        className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
-                      >
-                        <div className="flex min-w-0 items-center gap-2">
-                          <Package
-                            className="size-4 shrink-0 text-muted-foreground"
-                            aria-hidden
-                          />
-                          <span className="font-medium">{product?.name ?? item.product_id}</span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-4 text-sm tabular-nums">
-                          <span className="text-muted-foreground">
-                            <span className="sr-only">Quantity </span>
-                            {item.quantity} units
-                          </span>
-                          <span className="text-muted-foreground">
-                            Arrived{" "}
-                            {new Date(item.arrived_at).toLocaleDateString(undefined, {
-                              dateStyle: "medium",
-                            })}
-                          </span>
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
+                {stock.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No stock items in this warehouse.</p>
+                ) : (
+                  <ul className="divide-y divide-border">
+                    {stock.map((item) => {
+                      const product = productMap.get(item.product_id)
+                      return (
+                        <li
+                          key={item.id}
+                          className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            <Package
+                              className="size-4 shrink-0 text-muted-foreground"
+                              aria-hidden
+                            />
+                            <span className="font-medium">{product?.name ?? item.product_id}</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-4 text-sm tabular-nums">
+                            <span className="text-muted-foreground">
+                              <span className="sr-only">Quantity </span>
+                              {item.quantity} units
+                            </span>
+                            <span className="text-muted-foreground">
+                              Arrived{" "}
+                              {new Date(item.arrived_at).toLocaleDateString(undefined, {
+                                dateStyle: "medium",
+                              })}
+                            </span>
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
               </CardContent>
             </Card>
           </div>

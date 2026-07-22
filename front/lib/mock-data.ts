@@ -13,591 +13,531 @@ import type {
   DashboardStats,
 } from "@/types";
 
-// ─── Users (2 admin, 2 worker, 2 client) ──────────────────────────────────────
+// ─── 1. Users (from db/fill_mock_data.sql) ──────────────────────────────────
 
 export const USERS: User[] = [
   {
-    id: "u1",
-    name: "Rafael Mendes",
+    id: "USR-001",
+    name: "Alice Admin",
     role: "admin",
-    work_position: "Gerente de Operações",
-    address: "Rua Visconde de Pirajá, 414, Ipanema — Rio de Janeiro, RJ",
+    work_position: "System Admin",
+    address: "Rua do Imperador, Centro, Petrópolis - RJ",
   },
   {
-    id: "u2",
-    name: "Patrícia Gomes",
-    role: "admin",
-    work_position: "Coordenadora Logística",
-    address: "Av. Paulista, 1578 — São Paulo, SP",
-  },
-  {
-    id: "u3",
-    name: "Lucas Ferreira",
+    id: "USR-002",
+    name: "Bob Worker",
     role: "worker",
-    work_position: "Motorista carreta",
-    address: "Rua da Bahia, 1200 — Belo Horizonte, MG",
+    work_position: "Warehouse Worker",
+    address: "Estrada União e Indústria, Itaipava, Petrópolis - RJ",
   },
   {
-    id: "u4",
-    name: "Camila Rocha",
+    id: "USR-003",
+    name: "Charlie Driver",
     role: "worker",
-    work_position: "Supervisora de armazém",
-    address: "Rua XV de Novembro, 800 — Curitiba, PR",
+    work_position: "Truck Driver",
+    address: "Av. Alberto Braune, Centro, Nova Friburgo - RJ",
   },
   {
-    id: "u5",
-    name: "Eduardo Santos",
+    id: "USR-004",
+    name: "David Client",
     role: "client",
-    address: "Av. Borges de Medeiros, 2100 — Porto Alegre, RS",
+    address: "Av. Reta da Várzea, Várzea, Teresópolis - RJ",
   },
   {
-    id: "u6",
-    name: "Isabela Martins",
+    id: "USR-005",
+    name: "Eve Client",
     role: "client",
-    address: "Rua Chile, 35 — Salvador, BA",
+    address: "Rua Monte Líbano, Centro, Nova Friburgo - RJ",
+  },
+  {
+    id: "USR-006",
+    name: "Frank Driver",
+    role: "worker",
+    work_position: "Truck Driver",
+    address: "Estrada Terê-Fri, Km 12, Teresópolis - RJ",
+  },
+  {
+    id: "USR-007",
+    name: "Grace Worker",
+    role: "worker",
+    work_position: "Warehouse Worker",
+    address: "Rua General Osório, Centro, Nova Friburgo - RJ",
+  },
+  {
+    id: "USR-008",
+    name: "Henry Client",
+    role: "client",
+    address: "Rua Visconde de Uruguai, Cachoeiras de Macacu - RJ",
+  },
+  {
+    id: "USR-009",
+    name: "Ivy Client",
+    role: "client",
+    address: "Av. Dedo de Deus, Guapimirim - RJ",
+  },
+  {
+    id: "USR-010",
+    name: "Jack Worker",
+    role: "worker",
+    work_position: "Warehouse Worker",
+    address: "Rua Cel. Veiga, Petrópolis - RJ",
   },
 ];
 
-// ─── Deposits (4 Brazilian cities, JSON location) ────────────────────────────
+export const getUserById = (id: string): User | undefined =>
+  USERS.find((u) => u.id === id);
+
+// ─── 2. Deposits / Warehouses (from db/fill_mock_data.sql) ─────────────────
 
 export const DEPOSITS: Deposit[] = [
   {
-    id: "d1",
-    location: '{"lat":-22.9,"lon":-43.17,"label":"Rio de Janeiro Central"}',
-    size: '{"l":100,"w":50,"h":10}',
-    volume_actual: 1200,
-    volume_max: 5000,
+    id: "WH-001",
+    location: "Petrópolis Hub - Itaipava (Lat: -22.3842, Lon: -43.1311)",
+    size: '{"length":100,"width":100,"height":10}',
+    volume_actual: 0.36,
+    volume_max: 100000.0,
     has_refrigeration: true,
   },
   {
-    id: "d2",
-    location: '{"lat":-23.55,"lon":-46.63,"label":"São Paulo Norte"}',
-    size: '{"l":80,"w":60,"h":8}',
-    volume_actual: 2800,
-    volume_max: 3840,
+    id: "WH-002",
+    location: "Teresópolis Depot - Alto (Lat: -22.4350, Lon: -42.9800)",
+    size: '{"length":50,"width":50,"height":8}',
+    volume_actual: 0.0,
+    volume_max: 20000.0,
     has_refrigeration: false,
   },
   {
-    id: "d3",
-    location: '{"lat":-25.43,"lon":-49.27,"label":"Curitiba Sul"}',
-    size: '{"l":60,"w":40,"h":7}',
-    volume_actual: 500,
-    volume_max: 1680,
+    id: "WH-003",
+    location: "Nova Friburgo Facility - Olaria (Lat: -22.3000, Lon: -42.5400)",
+    size: '{"length":80,"width":60,"height":10}',
+    volume_actual: 0.0,
+    volume_max: 48000.0,
     has_refrigeration: true,
-  },
-  {
-    id: "d4",
-    location: '{"lat":-19.92,"lon":-43.94,"label":"Belo Horizonte Leste"}',
-    size: '{"l":90,"w":45,"h":9}',
-    volume_actual: 3100,
-    volume_max: 3645,
-    has_refrigeration: false,
   },
 ];
 
-export const getDepositLabel = (deposit: Deposit): string => {
-  try {
-    const parsed = JSON.parse(deposit.location) as { label?: string };
-    return parsed.label ?? deposit.location;
-  } catch {
-    return deposit.location;
-  }
-};
+export const getDepositById = (id: string): Deposit | undefined =>
+  DEPOSITS.find((d) => d.id === id);
 
-// ─── Trucks (Volvo, Mercedes, Scania, MAN — 2 traveling, 1 available, 1 maintenance)
+export const getDepositLabel = (deposit: Deposit): string =>
+  deposit.location || `Warehouse ${deposit.id}`;
+
+// ─── 3. Trucks (from db/fill_mock_data.sql) ─────────────────────────────────
 
 export const TRUCKS: Truck[] = [
   {
-    id: "t1",
-    model: "Volvo FH 540",
-    size: '{"l":13.6,"w":2.4,"h":2.7}',
-    volume_actual: 18,
-    volume_max: 90,
-    weight_actual: 4200,
-    weight_max: 25000,
-    estimated_time: "2026-03-30T14:00:00",
-    is_delivering: true,
-    is_valid: true,
-    is_traveling: true,
-    origin_deposit_id: "d1",
-    destination_deposit_id: "d2",
-    has_refrigeration: false,
-    speed: 90,
-    fuel_capacity: 600,
-    fuel_current: 320,
-    fuel_consumption: 0.35,
-    wear_percentage: 42,
-    wear_rate: 0.02,
-  },
-  {
-    id: "t2",
-    model: "Mercedes-Benz Actros 2651",
-    size: '{"l":13.6,"w":2.4,"h":2.7}',
-    volume_actual: 0,
-    volume_max: 90,
-    weight_actual: 0,
-    weight_max: 25000,
+    id: "TRK-001",
+    model: "Volvo FH16",
+    size: '{"length":13.6,"width":2.5,"height":2.7}',
+    volume_actual: 0.0,
+    volume_max: 90.0,
+    weight_actual: 0.0,
+    weight_max: 25000.0,
     is_delivering: false,
     is_valid: true,
     is_traveling: false,
-    current_deposit_id: "d2",
-    home_deposit_id: "d2",
+    current_deposit_id: "WH-001",
     has_refrigeration: true,
-    speed: 85,
-    fuel_capacity: 700,
-    fuel_current: 580,
-    fuel_consumption: 0.38,
-    wear_percentage: 15,
-    wear_rate: 0.018,
+    speed: 85.0,
+    fuel_capacity: 500.0,
+    fuel_current: 450.0,
+    fuel_consumption: 0.3,
+    wear_percentage: 20,
   },
   {
-    id: "t3",
-    model: "Scania R 450",
-    size: '{"l":13.6,"w":2.4,"h":2.7}',
-    volume_actual: 55,
-    volume_max: 85,
-    weight_actual: 14000,
-    weight_max: 23000,
-    estimated_time: "2026-04-02T18:00:00",
+    id: "TRK-002",
+    model: "Scania R500",
+    size: '{"length":13.6,"width":2.5,"height":2.7}',
+    volume_actual: 0.036,
+    volume_max: 90.0,
+    weight_actual: 2.5,
+    weight_max: 25000.0,
     is_delivering: true,
     is_valid: true,
     is_traveling: true,
-    origin_deposit_id: "d3",
-    destination_deposit_id: "d4",
+    origin_deposit_id: "WH-001",
+    destination_deposit_id: "WH-002",
+    estimated_time: "2026-03-26T14:00:00",
     has_refrigeration: false,
-    speed: 95,
-    fuel_capacity: 650,
-    fuel_current: 140,
-    fuel_consumption: 0.33,
-    wear_percentage: 67,
-    wear_rate: 0.025,
+    speed: 80.0,
+    fuel_capacity: 600.0,
+    fuel_current: 300.0,
+    fuel_consumption: 0.35,
+    wear_percentage: 30,
   },
   {
-    id: "t4",
-    model: "MAN TGX 28.480",
-    size: '{"l":13.6,"w":2.4,"h":2.7}',
-    volume_actual: 0,
-    volume_max: 85,
-    weight_actual: 0,
-    weight_max: 22000,
+    id: "TRK-003",
+    model: "MAN TGX",
+    size: '{"length":13.6,"width":2.5,"height":2.7}',
+    volume_actual: 0.0,
+    volume_max: 90.0,
+    weight_actual: 0.0,
+    weight_max: 25000.0,
     is_delivering: false,
-    is_valid: false,
+    is_valid: true,
     is_traveling: false,
-    current_deposit_id: "d1",
-    home_deposit_id: "d1",
+    current_deposit_id: "WH-003",
+    has_refrigeration: true,
+    speed: 82.0,
+    fuel_capacity: 550.0,
+    fuel_current: 500.0,
+    fuel_consumption: 0.32,
+    wear_percentage: 15,
+  },
+  {
+    id: "TRK-004",
+    model: "Iveco S-Way",
+    size: '{"length":12,"width":2.4,"height":2.5}',
+    volume_actual: 0.0,
+    volume_max: 72.0,
+    weight_actual: 0.0,
+    weight_max: 18000.0,
+    is_delivering: false,
+    is_valid: true,
+    is_traveling: false,
+    current_deposit_id: "WH-002",
     has_refrigeration: false,
-    speed: 88,
-    fuel_capacity: 580,
-    fuel_current: 200,
-    fuel_consumption: 0.36,
-    wear_percentage: 89,
-    wear_rate: 0.03,
+    speed: 75.0,
+    fuel_capacity: 400.0,
+    fuel_current: 380.0,
+    fuel_consumption: 0.28,
+    wear_percentage: 15,
+    truck_maintenance: 1,
   },
 ];
 
-// ─── Products (6 — cold / fragile / normal) ──────────────────────────────────
+export const getTruckById = (id: string): Truck | undefined =>
+  TRUCKS.find((t) => t.id === id);
+
+// ─── 4. Products (from db/fill_mock_data.sql) ───────────────────────────────
 
 export const PRODUCTS: Product[] = [
   {
-    id: "p1",
-    name: "Notebook Dell Latitude 5540",
-    is_cold: false,
-    is_fragile: true,
-    price: 7200,
-    volume: 0.004,
-    weight: 1.8,
-  },
-  {
-    id: "p2",
-    name: "Corte bovino congelado (caixa 20 kg)",
+    id: "PROD-001",
+    name: "Fresh Milk",
     is_cold: true,
     is_fragile: false,
-    expire_date: "2026-08-01",
-    price: 980,
-    volume: 0.05,
-    weight: 20,
-  },
-  {
-    id: "p3",
-    name: "Smart TV 55\" 4K",
-    is_cold: false,
-    is_fragile: true,
-    price: 2890,
-    volume: 0.1,
-    weight: 14.5,
-  },
-  {
-    id: "p4",
-    name: "Kit medicamentos (caixa)",
-    is_cold: false,
-    is_fragile: false,
-    expire_date: "2027-03-01",
-    price: 340,
+    expire_date: "2026-04-10",
+    price: 3.5,
+    size: '{"length":10,"width":10,"height":20}',
     volume: 0.002,
-    weight: 0.6,
+    weight: 1.0,
   },
   {
-    id: "p5",
-    name: "Sorvete industrial (balde 5 L)",
-    is_cold: true,
-    is_fragile: false,
-    expire_date: "2026-05-15",
-    price: 48,
-    volume: 0.006,
-    weight: 5.2,
+    id: "PROD-002",
+    name: "Crystal Vase",
+    is_cold: false,
+    is_fragile: true,
+    price: 45.0,
+    size: '{"length":30,"width":30,"height":40}',
+    volume: 0.036,
+    weight: 2.5,
   },
   {
-    id: "p6",
-    name: "Pneus radiais (conjunto 4)",
+    id: "PROD-003",
+    name: "Smartphone X",
     is_cold: false,
     is_fragile: false,
-    price: 3200,
-    volume: 0.35,
-    weight: 80,
+    price: 899.99,
+    size: '{"length":15,"width":8,"height":2}',
+    volume: 0.00024,
+    weight: 0.2,
+  },
+  {
+    id: "PROD-004",
+    name: "Frozen Pizza",
+    is_cold: true,
+    is_fragile: false,
+    expire_date: "2026-09-20",
+    price: 5.99,
+    size: '{"length":30,"width":30,"height":3}',
+    volume: 0.0027,
+    weight: 0.5,
+  },
+  {
+    id: "PROD-005",
+    name: "Office Chair",
+    is_cold: false,
+    is_fragile: false,
+    price: 120.0,
+    size: '{"length":60,"width":60,"height":100}',
+    volume: 0.36,
+    weight: 12.0,
+  },
+  {
+    id: "PROD-006",
+    name: "Gaming Laptop",
+    is_cold: false,
+    is_fragile: true,
+    price: 1500.0,
+    size: '{"length":40,"width":30,"height":5}',
+    volume: 0.006,
+    weight: 3.0,
+  },
+  {
+    id: "PROD-007",
+    name: "Red Wine Box",
+    is_cold: false,
+    is_fragile: true,
+    expire_date: "2028-12-31",
+    price: 80.0,
+    size: '{"length":30,"width":20,"height":30}',
+    volume: 0.018,
+    weight: 9.0,
+  },
+  {
+    id: "PROD-008",
+    name: "Industrial Drill",
+    is_cold: false,
+    is_fragile: false,
+    price: 250.0,
+    size: '{"length":40,"width":15,"height":25}',
+    volume: 0.015,
+    weight: 5.5,
   },
 ];
 
-// ─── Suppliers ───────────────────────────────────────────────────────────────
+export const getProductById = (id: string): Product | undefined =>
+  PRODUCTS.find((p) => p.id === id);
 
-export const SUPPLIERS: Supplier[] = [
-  {
-    id: "s1",
-    name: "TechParts Distribuidora Ltda.",
-    address: "Rua Industrial, 500 — Guarulhos, SP",
-    latitude: -23.47,
-    longitude: -46.53,
-  },
-  {
-    id: "s2",
-    name: "Frigorífico São Paulo S.A.",
-    address: "Estrada Municipal, 12 — Jundiaí, SP",
-    latitude: -23.19,
-    longitude: -46.88,
-  },
-];
-
-// ─── Orders (mix of statuses) ────────────────────────────────────────────────
+// ─── 5. Orders & Line Items (from db/fill_mock_data.sql) ────────────────────
 
 export const ORDERS: Order[] = [
   {
-    id: "o1",
-    final_destination: '{"lat":-19.92,"lon":-43.94,"label":"Belo Horizonte"}',
-    sender_id: "u3",
-    receiver_id: "u5",
-    time_limit: "2026-04-05",
-    price: 15800,
-    status: "Shipped",
-    client_id: "u5",
-    supplier_id: "s1",
-    supplier_delivery: false,
-  },
-  {
-    id: "o2",
-    final_destination: '{"lat":-25.43,"lon":-49.27,"label":"Curitiba"}',
-    sender_id: "u4",
-    receiver_id: "u6",
+    id: "ORD-001",
+    client_id: "USR-004",
+    final_destination: "Av. Reta da Várzea, Várzea, Teresópolis - RJ",
     time_limit: "2026-03-30",
-    price: 2400,
+    price: 50.0,
     status: "Pending",
-    client_id: "u6",
+    supplier_id: "SUP-002",
     supplier_delivery: false,
   },
   {
-    id: "o3",
-    final_destination: '{"lat":-23.55,"lon":-46.63,"label":"São Paulo"}',
-    sender_id: "u4",
-    receiver_id: "u5",
-    time_limit: "2026-03-25",
-    price: 11560,
-    status: "Delivered",
-    client_id: "u5",
-    supplier_delivery: false,
-  },
-  {
-    id: "o4",
-    final_destination: '{"lat":-22.9,"lon":-43.17,"label":"Rio de Janeiro"}',
-    sender_id: "u3",
-    receiver_id: "u6",
-    time_limit: "2026-04-10",
-    price: 196000,
-    status: "Pending",
-    client_id: "u6",
-    supplier_id: "s2",
+    id: "ORD-002",
+    client_id: "USR-005",
+    final_destination: "Rua Monte Líbano, Centro, Nova Friburgo - RJ",
+    time_limit: "2026-03-28",
+    price: 950.0,
+    status: "Shipped",
+    supplier_id: "SUP-001",
     supplier_delivery: true,
   },
   {
-    id: "o5",
-    final_destination: '{"lat":-15.78,"lon":-47.93,"label":"Brasília"}',
-    sender_id: "u4",
-    receiver_id: "u5",
+    id: "ORD-003",
+    client_id: "USR-004",
+    final_destination: "Av. Reta da Várzea, Várzea, Teresópolis - RJ",
     time_limit: "2026-03-20",
-    price: 4200,
-    status: "Cancelled",
-    client_id: "u5",
+    price: 15.0,
+    status: "Delivered",
+    supplier_delivery: true,
+  },
+  {
+    id: "ORD-004",
+    client_id: "USR-008",
+    final_destination: "Rua Visconde de Uruguai, Cachoeiras de Macacu - RJ",
+    time_limit: "2026-04-05",
+    price: 2400.0,
+    status: "Pending",
+    supplier_id: "SUP-003",
     supplier_delivery: false,
   },
   {
-    id: "o6",
-    final_destination: '{"lat":-12.97,"lon":-38.5,"label":"Salvador"}',
-    sender_id: "u3",
-    receiver_id: "u6",
-    time_limit: "2026-04-20",
-    price: 8900,
-    status: "Shipped",
-    client_id: "u6",
-    supplier_delivery: false,
+    id: "ORD-005",
+    client_id: "USR-009",
+    final_destination: "Av. Dedo de Deus, Guapimirim - RJ",
+    time_limit: "2026-04-02",
+    price: 120.0,
+    status: "Cancelled",
+    supplier_delivery: true,
   },
 ];
+
+export const getOrderById = (id: string): Order | undefined =>
+  ORDERS.find((o) => o.id === id);
 
 export const ORDER_ITEMS: OrderItem[] = [
-  { order_id: "o1", product_id: "p1", quantity: 2 },
-  { order_id: "o1", product_id: "p4", quantity: 12 },
-  { order_id: "o2", product_id: "p5", quantity: 40 },
-  { order_id: "o3", product_id: "p3", quantity: 3 },
-  { order_id: "o3", product_id: "p1", quantity: 1 },
-  { order_id: "o4", product_id: "p2", quantity: 200 },
-  { order_id: "o6", product_id: "p6", quantity: 2 },
+  { order_id: "ORD-001", product_id: "PROD-001", quantity: 5 },
+  { order_id: "ORD-001", product_id: "PROD-004", quantity: 3 },
+  { order_id: "ORD-002", product_id: "PROD-003", quantity: 1 },
+  { order_id: "ORD-002", product_id: "PROD-002", quantity: 1 },
+  { order_id: "ORD-003", product_id: "PROD-004", quantity: 2 },
+  { order_id: "ORD-004", product_id: "PROD-006", quantity: 2 },
+  { order_id: "ORD-004", product_id: "PROD-007", quantity: 10 },
+  { order_id: "ORD-005", product_id: "PROD-005", quantity: 1 },
 ];
 
-/** Rotas para pedidos Shipped / Delivered */
+export const getOrderItems = (orderId: string): OrderItem[] =>
+  ORDER_ITEMS.filter((item) => item.order_id === orderId);
+
 export const ORDER_ROUTES: OrderRoute[] = [
   {
-    order_id: "o1",
+    order_id: "ORD-002",
     step: 1,
-    deposit_id: "d1",
-    estimated_time: "2026-03-28T08:00:00",
-    arrived_at: "2026-03-28T09:15:00",
+    deposit_id: "WH-001",
+    truck_id: "TRK-002",
+    estimated_time: "2026-03-26 14:00:00",
   },
   {
-    order_id: "o1",
-    step: 2,
-    truck_id: "t1",
-    estimated_time: "2026-03-29T12:00:00",
-    arrived_at: "2026-03-29T13:30:00",
-  },
-  {
-    order_id: "o1",
-    step: 3,
-    deposit_id: "d4",
-    estimated_time: "2026-04-04T08:00:00",
-  },
-  {
-    order_id: "o3",
+    order_id: "ORD-003",
     step: 1,
-    deposit_id: "d1",
-    estimated_time: "2026-03-20T08:00:00",
-    arrived_at: "2026-03-20T08:45:00",
+    deposit_id: "WH-001",
+    arrived_at: "2026-03-19 10:00:00",
   },
   {
-    order_id: "o3",
-    step: 2,
-    truck_id: "t2",
-    estimated_time: "2026-03-22T10:00:00",
-    arrived_at: "2026-03-22T10:55:00",
-  },
-  {
-    order_id: "o3",
-    step: 3,
-    deposit_id: "d2",
-    estimated_time: "2026-03-24T08:00:00",
-    arrived_at: "2026-03-24T07:50:00",
-  },
-  {
-    order_id: "o6",
+    order_id: "ORD-004",
     step: 1,
-    deposit_id: "d2",
-    estimated_time: "2026-03-21T06:00:00",
-    arrived_at: "2026-03-21T07:10:00",
+    deposit_id: "WH-003",
+    truck_id: "TRK-003",
+    estimated_time: "2026-04-01 10:00:00",
+  },
+];
+
+export const getOrderRoute = (orderId: string): OrderRoute[] =>
+  ORDER_ROUTES.filter((r) => r.order_id === orderId).sort(
+    (a, b) => a.step - b.step,
+  );
+
+// ─── 6. Stock (from db/fill_mock_data.sql) ──────────────────────────────────
+
+export const STOCK: Stock[] = [
+  {
+    id: "WH-001-PROD-005",
+    deposit_id: "WH-001",
+    product_id: "PROD-005",
+    quantity: 10,
+    arrived_at: "2026-03-01",
   },
   {
-    order_id: "o6",
-    step: 2,
-    truck_id: "t3",
-    estimated_time: "2026-03-23T14:00:00",
-    arrived_at: "2026-03-23T15:20:00",
+    id: "WH-003-PROD-008",
+    deposit_id: "WH-003",
+    product_id: "PROD-008",
+    quantity: 50,
+    arrived_at: "2026-03-05",
   },
   {
-    order_id: "o6",
-    step: 3,
-    deposit_id: "d4",
-    estimated_time: "2026-03-28T10:00:00",
+    id: "WH-001-PROD-001",
+    deposit_id: "WH-001",
+    product_id: "PROD-001",
+    quantity: 100,
+    arrived_at: "2026-03-10",
+  },
+  {
+    id: "WH-002-PROD-004",
+    deposit_id: "WH-002",
+    product_id: "PROD-004",
+    quantity: 20,
+    arrived_at: "2026-03-12",
+  },
+  {
+    id: "WH-003-PROD-002",
+    deposit_id: "WH-003",
+    product_id: "PROD-002",
+    quantity: 5,
+    arrived_at: "2026-03-15",
+  },
+];
+
+export const getStockByDeposit = (depositId: string): Stock[] =>
+  STOCK.filter((s) => s.deposit_id === depositId);
+
+// ─── 7. Employees (from db/fill_mock_data.sql) ──────────────────────────────
+
+export const EMPLOYEES: Employee[] = [
+  {
+    id: "emp1",
+    user_id: "USR-002",
+    is_able: true,
+    deposit_id: "WH-001",
+    max_work_hours_per_day: 8,
+    hourly_cost: 35.0,
+  },
+  {
+    id: "emp2",
+    user_id: "USR-003",
+    is_able: true,
+    deposit_id: "WH-001",
+    max_work_hours_per_day: 10,
+    hourly_cost: 45.0,
+  },
+  {
+    id: "emp3",
+    user_id: "USR-006",
+    is_able: true,
+    deposit_id: "WH-002",
+    max_work_hours_per_day: 10,
+    hourly_cost: 42.0,
+  },
+  {
+    id: "emp4",
+    user_id: "USR-007",
+    is_able: true,
+    deposit_id: "WH-003",
+    max_work_hours_per_day: 8,
+    hourly_cost: 38.0,
+  },
+  {
+    id: "emp5",
+    user_id: "USR-010",
+    is_able: false,
+    deposit_id: "WH-002",
+    max_work_hours_per_day: 8,
+    hourly_cost: 36.0,
+  },
+];
+
+// ─── 8. Suppliers & Supply Routes (from db/fill_mock_data.sql) ───────────────
+
+export const SUPPLIERS: Supplier[] = [
+  {
+    id: "SUP-001",
+    name: "Horta Serrana Hortifruti",
+    address: "Av. Feliciano Sodré, Teresópolis, RJ",
+    latitude: -22.4123,
+    longitude: -42.9656,
+  },
+  {
+    id: "SUP-002",
+    name: "Queijaria Suíça Friburgo",
+    address: "Circuito Terê-Fri, Nova Friburgo, RJ",
+    latitude: -22.2819,
+    longitude: -42.5311,
+  },
+  {
+    id: "SUP-003",
+    name: "Distribuidora Imperial",
+    address: "Rua do Imperador, Petrópolis, RJ",
+    latitude: -22.5050,
+    longitude: -43.1789,
   },
 ];
 
 export const SUPPLY_ROUTES: SupplyRoute[] = [
   {
-    order_id: "o1",
-    supplier_id: "s1",
-    truck_id: "t2",
-    estimated_departure: "2026-03-26T06:00:00",
-    estimated_arrival: "2026-03-27T18:00:00",
-    actual_arrival: "2026-03-27T17:40:00",
+    order_id: "ORD-001",
+    supplier_id: "SUP-002",
+    truck_id: "TRK-001",
+    estimated_departure: "2026-03-26 08:00:00",
+    estimated_arrival: "2026-03-26 12:00:00",
   },
   {
-    order_id: "o4",
-    supplier_id: "s2",
-    truck_id: "t4",
-    estimated_departure: "2026-04-08T05:00:00",
-    estimated_arrival: "2026-04-09T20:00:00",
+    order_id: "ORD-004",
+    supplier_id: "SUP-003",
+    truck_id: "TRK-003",
+    estimated_departure: "2026-03-28 09:00:00",
+    estimated_arrival: "2026-03-30 15:00:00",
   },
 ];
 
-// ─── Stock (7: 6 em depósitos, 1 em caminhão) ─────────────────────────────────
+// ─── 9. Dashboard Stats Helper ──────────────────────────────────────────────
 
-export const STOCK: Stock[] = [
-  {
-    id: "st1",
-    product_id: "p1",
-    quantity: 15,
-    deposit_id: "d1",
-    arrived_at: "2026-03-10T10:00:00",
-  },
-  {
-    id: "st2",
-    product_id: "p2",
-    quantity: 300,
-    deposit_id: "d1",
-    arrived_at: "2026-03-15T14:00:00",
-  },
-  {
-    id: "st3",
-    product_id: "p3",
-    quantity: 8,
-    deposit_id: "d2",
-    arrived_at: "2026-03-18T09:00:00",
-  },
-  {
-    id: "st4",
-    product_id: "p4",
-    quantity: 200,
-    deposit_id: "d2",
-    arrived_at: "2026-03-20T11:00:00",
-  },
-  {
-    id: "st5",
-    product_id: "p5",
-    quantity: 500,
-    deposit_id: "d3",
-    arrived_at: "2026-03-22T08:00:00",
-  },
-  {
-    id: "st6",
-    product_id: "p6",
-    quantity: 30,
-    deposit_id: "d4",
-    arrived_at: "2026-03-19T16:00:00",
-  },
-  {
-    id: "st7",
-    product_id: "p1",
-    quantity: 3,
-    truck_id: "t1",
-    order_id: "o1",
-    arrived_at: "2026-03-28T09:15:00",
-  },
-];
-
-// ─── Employees (3 registros: 2 motoristas/armazém + 1 vínculo operacional admin)
-
-export const EMPLOYEES: Employee[] = [
-  {
-    id: "e1",
-    user_id: "u3",
-    is_able: true,
-    deposit_id: "d1",
-    max_work_hours_per_day: 8,
-    hourly_cost: 38.5,
-  },
-  {
-    id: "e2",
-    user_id: "u4",
-    is_able: true,
-    deposit_id: "d2",
-    max_work_hours_per_day: 8,
-    hourly_cost: 42,
-  },
-  {
-    id: "e3",
-    user_id: "u1",
-    is_able: true,
-    deposit_id: "d1",
-    max_work_hours_per_day: 6,
-    hourly_cost: 85,
-  },
-];
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-export function getById<T extends { id: string }>(
-  collection: T[],
-  id: string,
-): T | undefined {
-  return collection.find((item) => item.id === id);
-}
-
-export const getUserById = (id: string): User | undefined => getById(USERS, id);
-export const getDepositById = (id: string): Deposit | undefined =>
-  getById(DEPOSITS, id);
-export const getTruckById = (id: string): Truck | undefined => getById(TRUCKS, id);
-export const getProductById = (id: string): Product | undefined =>
-  getById(PRODUCTS, id);
-export const getOrderById = (id: string): Order | undefined => getById(ORDERS, id);
-
-export const getOrderItems = (orderId: string): OrderItem[] =>
-  ORDER_ITEMS.filter((i) => i.order_id === orderId);
-
-export const getOrderRoute = (orderId: string): OrderRoute[] =>
-  ORDER_ROUTES.filter((r) => r.order_id === orderId).sort((a, b) => a.step - b.step);
-
-export const getStockByDeposit = (depositId: string): Stock[] =>
-  STOCK.filter((s) => s.deposit_id === depositId);
-
-export const getStockByTruck = (truckId: string): Stock[] =>
-  STOCK.filter((s) => s.truck_id === truckId);
-
-/** Referência de “mês atual” para KPIs do mock (alinhado ao cenário mar/2026). */
-const KPI_REFERENCE_MONTH = "2026-03";
-
-function parseMonthKey(iso: string): string {
-  return iso.slice(0, 7);
-}
-
-function getRouteDeliveryDurationHours(orderId: string): number | null {
-  const steps = getOrderRoute(orderId).filter((s) => s.arrived_at);
-  if (steps.length < 2) return null;
-  const first = new Date(steps[0].arrived_at!).getTime();
-  const last = new Date(steps[steps.length - 1].arrived_at!).getTime();
-  if (Number.isNaN(first) || Number.isNaN(last)) return null;
-  return (last - first) / (1000 * 60 * 60);
-}
-
-function getLastRouteArrival(orderId: string): string | undefined {
-  const withArrival = getOrderRoute(orderId).filter((s) => s.arrived_at);
-  if (withArrival.length === 0) return undefined;
-  return withArrival[withArrival.length - 1].arrived_at;
-}
-
-export function getDashboardStats(): DashboardStats {
+export const getDashboardStats = (): DashboardStats => {
   const ordersInProgress = ORDERS.filter((o) => o.status === "Shipped").length;
-  const trucksOnRoad = TRUCKS.filter((t) => t.is_traveling).length;
   const pendingOrders = ORDERS.filter((o) => o.status === "Pending").length;
-
-  const delivered = ORDERS.filter((o) => o.status === "Delivered");
-  const deliveredThisMonth = delivered.filter((o) => {
-    const last = getLastRouteArrival(o.id);
-    if (last) return parseMonthKey(last) === KPI_REFERENCE_MONTH;
-    return o.time_limit ? parseMonthKey(o.time_limit) === KPI_REFERENCE_MONTH : false;
-  }).length;
-
-  const totalRevenue = delivered.reduce((sum, o) => sum + o.price, 0);
-
-  const durations = delivered
-    .map((o) => getRouteDeliveryDurationHours(o.id))
-    .filter((h): h is number => h !== null && h >= 0);
-  const avgDeliveryTime =
-    durations.length > 0
-      ? durations.reduce((a, b) => a + b, 0) / durations.length
-      : 0;
+  const deliveredOrders = ORDERS.filter((o) => o.status === "Delivered");
+  const deliveredThisMonth = deliveredOrders.length;
+  const totalRevenue = deliveredOrders.reduce((acc, o) => acc + o.price, 0);
+  const trucksOnRoad = TRUCKS.filter((t) => t.is_traveling).length;
 
   return {
     ordersInProgress,
@@ -605,6 +545,6 @@ export function getDashboardStats(): DashboardStats {
     pendingOrders,
     deliveredThisMonth,
     totalRevenue,
-    avgDeliveryTime,
+    avgDeliveryTime: 2.4,
   };
-}
+};

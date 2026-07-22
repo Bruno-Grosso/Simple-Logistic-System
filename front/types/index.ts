@@ -38,7 +38,9 @@ export interface Truck {
   fuel_capacity?: number;
   fuel_current: number;
   fuel_consumption?: number;
-  wear_percentage: number;
+  truck_maintenance: number;
+  maintenance_count?: number;
+  wear_percentage?: number;
   wear_rate?: number;
 }
 

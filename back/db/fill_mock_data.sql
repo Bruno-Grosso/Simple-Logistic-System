@@ -14,35 +14,35 @@ INSERT INTO products (id, name, is_cold, is_fragile, expire_date, price, size, v
 
 -- 2. Suppliers (3 entries)
 INSERT INTO suppliers (id, name, location) VALUES
-('SUP-001', 'Global Tech Corp', '123 Tech Way, San Jose, CA'),
-('SUP-002', 'Fresh Farms Ltd', '456 Farm Road, Yakima, WA'),
-('SUP-003', 'Euro Imports', '789 Harbor Dr, Miami, FL');
+('SUP-001', 'Horta Serrana Hortifruti', 'Av. Feliciano Sodré, Teresópolis, RJ'),
+('SUP-002', 'Queijaria Suíça Friburgo', 'Circuito Terê-Fri, Nova Friburgo, RJ'),
+('SUP-003', 'Distribuidora Imperial', 'Rua do Imperador, Petrópolis, RJ');
 
 -- 3. Warehouses (3 entries)
 INSERT INTO warehouses (id, location, size, volume_current, volume_max, has_refrigeration, fuel_price) VALUES
-('WH-001', '{"latitude":40.7128,"longitude":-74.0060}', '{"length":100,"width":100,"height":10}', 0.36, 100000.0, 1, 1.25),
-('WH-002', '{"latitude":34.0522,"longitude":-118.2437}', '{"length":50,"width":50,"height":8}', 0.0, 20000.0, 0, 1.35),
-('WH-003', '{"latitude":41.8781,"longitude":-87.6298}', '{"length":80,"width":60,"height":10}', 0.0, 48000.0, 1, 1.30);
+('WH-001', '{"latitude":-22.3842,"longitude":-43.1311,"label":"Petrópolis Hub (Itaipava)"}', '{"length":100,"width":100,"height":10}', 0.36, 100000.0, 1, 5.89),
+('WH-002', '{"latitude":-22.4350,"longitude":-42.9800,"label":"Teresópolis Depot (Alto)"}', '{"length":50,"width":50,"height":8}', 0.0, 20000.0, 0, 5.89),
+('WH-003', '{"latitude":-22.3000,"longitude":-42.5400,"label":"Nova Friburgo Facility (Olaria)"}', '{"length":80,"width":60,"height":10}', 0.0, 48000.0, 1, 5.89);
 
 -- 4. Users (10 entries)
 INSERT INTO users (id, name, password, address, role) VALUES
-('USR-001', 'Alice Admin', 'admin123', '{"address": "123 Admin St, NY"}', 'admin'),
-('USR-002', 'Bob Worker', 'bobpass', '{"address": "456 Warehouse Ln, NY"}', 'warehouse_worker'),
-('USR-003', 'Charlie Driver', 'trucker1', '{"address": "789 Road Dr, NJ"}', 'truck_driver'),
-('USR-004', 'David Client', 'client789', '{"address": "101 Customer Ave, PA"}', 'client'),
-('USR-005', 'Eve Client', 'evepass', '{"address": "202 Buyer Rd, CT"}', 'client'),
-('USR-006', 'Frank Driver', 'frank123', '{"address": "333 Elm St, NY"}', 'truck_driver'),
-('USR-007', 'Grace Worker', 'gracepass', '{"address": "444 Oak St, IL"}', 'warehouse_worker'),
-('USR-008', 'Henry Client', 'henry789', '{"address": "555 Market St, TX"}', 'client'),
-('USR-009', 'Ivy Client', 'ivypass', '{"address": "666 Cloud St, CA"}', 'client'),
-('USR-010', 'Jack Worker', 'jackpass', '{"address": "777 Bolt Ave, CA"}', 'warehouse_worker');
+('USR-001', 'Alice Admin', 'admin123', '{"address": "Rua do Imperador, Centro, Petrópolis - RJ"}', 'admin'),
+('USR-002', 'Bob Worker', 'bobpass', '{"address": "Estrada União e Indústria, Itaipava, Petrópolis - RJ"}', 'warehouse_worker'),
+('USR-003', 'Charlie Driver', 'trucker1', '{"address": "Av. Alberto Braune, Centro, Nova Friburgo - RJ"}', 'truck_driver'),
+('USR-004', 'David Client', 'client789', '{"address": "Av. Reta da Várzea, Várzea, Teresópolis - RJ"}', 'client'),
+('USR-005', 'Eve Client', 'evepass', '{"address": "Rua Monte Líbano, Centro, Nova Friburgo - RJ"}', 'client'),
+('USR-006', 'Frank Driver', 'frank123', '{"address": "Estrada Terê-Fri, Km 12, Teresópolis - RJ"}', 'truck_driver'),
+('USR-007', 'Grace Worker', 'gracepass', '{"address": "Rua General Osório, Centro, Nova Friburgo - RJ"}', 'warehouse_worker'),
+('USR-008', 'Henry Client', 'henry789', '{"address": "Rua Visconde de Uruguai, Cachoeiras de Macacu - RJ"}', 'client'),
+('USR-009', 'Ivy Client', 'ivypass', '{"address": "Av. Dedo de Deus, Guapimirim - RJ"}', 'client'),
+('USR-010', 'Jack Worker', 'jackpass', '{"address": "Rua Cel. Veiga, Petrópolis - RJ"}', 'warehouse_worker');
 
 -- 5. Trucks (4 entries)
 INSERT INTO trucks (id, model, speed, is_valid, is_delivering, size, volume_current, volume_max, weight_current, weight_max, has_refrigeration, current_warehouse_id, fuel_capacity, fuel_current, fuel_consumption, truck_maintenance) VALUES
 ('TRK-001', 'Volvo FH16', 85.0, 1, 0, '{"length":13.6,"width":2.5,"height":2.7}', 0.0, 90.0, 0.0, 25000.0, 1, 'WH-001', 500.0, 450.0, 0.3, 2),
 ('TRK-002', 'Scania R500', 80.0, 1, 1, '{"length":13.6,"width":2.5,"height":2.7}', 0.036, 90.0, 2.5, 25000.0, 0, NULL, 600.0, 300.0, 0.35, 1),
 ('TRK-003', 'MAN TGX', 82.0, 1, 0, '{"length":13.6,"width":2.5,"height":2.7}', 0.0, 90.0, 0.0, 25000.0, 1, 'WH-003', 550.0, 500.0, 0.32, 0),
-('TRK-004', 'Iveco S-Way', 75.0, 0, 0, '{"length":12,"width":2.4,"height":2.5}', 0.0, 72.0, 0.0, 18000.0, 0, 'WH-002', 400.0, 50.0, 0.28, 5);
+('TRK-004', 'Iveco S-Way', 75.0, 1, 0, '{"length":12,"width":2.4,"height":2.5}', 0.0, 72.0, 0.0, 18000.0, 0, 'WH-002', 400.0, 380.0, 0.28, 1);
 
 UPDATE trucks SET origin_warehouse_id = 'WH-001', destination_warehouse_id = 'WH-002', estimated_time = '2026-03-26 14:00:00' WHERE id = 'TRK-002';
 
@@ -56,11 +56,11 @@ INSERT INTO warehouses_stock (warehouse_id, product_id, quantity) VALUES
 
 -- 7. Orders (5 entries)
 INSERT INTO orders (id, client_id, final_destination, time_limit, price, status, supplier_id, supplier_delivery) VALUES
-('ORD-001', 'USR-004', '101 Customer Ave, PA', '2026-03-30', 50.00, 'Pending', 'SUP-002', 0),
-('ORD-002', 'USR-005', '202 Buyer Rd, CT', '2026-03-28', 950.00, 'Shipped', 'SUP-001', 1),
-('ORD-003', 'USR-004', '101 Customer Ave, PA', '2026-03-20', 15.00, 'Delivered', NULL, 1),
-('ORD-004', 'USR-008', '555 Market St, TX', '2026-04-05', 2400.00, 'Pending', 'SUP-003', 0),
-('ORD-005', 'USR-009', '666 Cloud St, CA', '2026-04-02', 120.00, 'Canceled', NULL, 1);
+('ORD-001', 'USR-004', 'Av. Reta da Várzea, Várzea, Teresópolis - RJ', '2026-03-30', 50.00, 'Pending', 'SUP-002', 0),
+('ORD-002', 'USR-005', 'Rua Monte Líbano, Centro, Nova Friburgo - RJ', '2026-03-28', 950.00, 'Shipped', 'SUP-001', 1),
+('ORD-003', 'USR-004', 'Av. Reta da Várzea, Várzea, Teresópolis - RJ', '2026-03-20', 15.00, 'Delivered', NULL, 1),
+('ORD-004', 'USR-008', 'Rua Visconde de Uruguai, Cachoeiras de Macacu - RJ', '2026-04-05', 2400.00, 'Pending', 'SUP-003', 0),
+('ORD-005', 'USR-009', 'Av. Dedo de Deus, Guapimirim - RJ', '2026-04-02', 120.00, 'Canceled', NULL, 1);
 
 -- 8. Orders Items (8 entries)
 INSERT INTO orders_items (order_id, product_id, quantity) VALUES

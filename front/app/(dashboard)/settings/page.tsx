@@ -168,7 +168,7 @@ export default function SettingsPage() {
           </SettingRow>
           <SettingRow
             label="Maintenance alerts"
-            description="Warnings for trucks above 80% wear"
+            description="Warnings for trucks requiring maintenance (3+ recorded)"
           >
             <Toggle id="maint-alerts" checked={maintenanceAlerts} onChange={setMaintenanceAlerts} />
           </SettingRow>

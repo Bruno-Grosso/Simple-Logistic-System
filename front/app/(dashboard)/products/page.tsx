@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { PRODUCTS } from "@/lib/mock-data"
+import { api } from "@/lib/api"
 
 function isExpired(isoDate: string | undefined): boolean {
   if (!isoDate) return false
@@ -22,7 +22,9 @@ function isExpired(isoDate: string | undefined): boolean {
   return d < today
 }
 
-export default function ProductsPage() {
+export default async function ProductsPage() {
+  const products = await api.products.getAll()
+
   return (
     <PageShell>
       <PageHeader crumbs={[{ label: "Products" }]} />
@@ -46,7 +48,7 @@ export default function ProductsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {PRODUCTS.map((p) => {
+              {products.map((p) => {
                 const expired = p.expire_date ? isExpired(p.expire_date) : false
                 return (
                   <TableRow key={p.id}>
