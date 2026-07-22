@@ -38,8 +38,6 @@ services:
       - "${VALHALLA_LOCAL_PORT}:${VALHALLA_DOCKER_PORT}"
     volumes:
       - ../valhalla_map:/custom_files
-    entrypoint: valhalla_service
-    command: /custom_files/valhalla.json 1
     restart: unless-stopped
 
 volumes:
