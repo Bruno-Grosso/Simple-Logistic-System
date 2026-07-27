@@ -1,3 +1,6 @@
+import { orders, warehouses, orders_route, trucks } from "./controller";
+
+// Helper function from the other developer to safely parse location coordinates from various formats
 function parseLocationCoords(raw: any, defaultLat: number, defaultLon: number): { lat: number; lon: number } {
   if (!raw) return { lat: defaultLat, lon: defaultLon }
 
@@ -47,31 +50,51 @@ export async function handleRoutes(req: Request) {
       const warehouseData = await warehouses.byId(body.warehouseId);
 
       if (orderData.length === 0 || warehouseData.length === 0) {
-        return new Response("Pedido ou Armazém não encontrados no banco", { status: 404 });
+        return new Response("Order or Warehouse not found in the database", { status: 404 });
       }
 
       const order = orderData[0];
       const warehouse = warehouseData[0];
 
+      // --- TRUCK VERIFICATION LOGIC ---
+      const routeData = await orders_route.byOrder ? await orders_route.byOrder(body.orderId) : [];
+
+      if (!routeData || routeData.length === 0 || !routeData[0].truck_id) {
+        return new Response("Truck not found or not allocated to this order", { status: 404 });
+      }
+
+      const truckData = await trucks.byId(routeData[0].truck_id);
+      if (!truckData || truckData.length === 0) {
+        return new Response("Associated truck not found in the database", { status: 404 });
+      }
+
+      const truck = truckData[0];
+      const truckWeight = Number(truck.weight_current || truck.weight_max || 0);
+      // ---------------------------------------------
+
+      // Using parseLocationCoords from the other codebase for safe coordinate extraction
       const wCoords = parseLocationCoords(warehouse.location, -22.3842, -43.1311);
       const oCoords = parseLocationCoords(order.final_destination, -22.4123, -42.9656);
 
+      // Adding the 50m radius restriction to the locations array
       const valhallaLocations = [
-        { lat: wCoords.lat, lon: wCoords.lon },
-        { lat: oCoords.lat, lon: oCoords.lon }
+        { lat: wCoords.lat, lon: wCoords.lon, radius: 50 },
+        { lat: oCoords.lat, lon: oCoords.lon, radius: 50 }
       ];
 
+      // Combined URLs list: includes local docker server and environment fallback options
       const valhallaUrls = [
         process.env.VALHALLA_URL,
+        "http://valhalla_server:8002/route", 
         "http://localhost:8002/route",
         "http://127.0.0.1:8002/route",
         "http://host.docker.internal:8002/route",
       ].filter(Boolean) as string[];
 
       let valhallaRes: Response | null = null;
-      for (const url of valhallaUrls) {
+      for (const valhallaUrl of valhallaUrls) {
         try {
-          const res = await fetch(url, {
+          const res = await fetch(valhallaUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -79,19 +102,31 @@ export async function handleRoutes(req: Request) {
               costing: "truck",
               units: "kilometers",
               language: "en-US",
+              // --- TRUCK COSTING OPTIONS & WEIGHT INJECTION ---
+              costing_options: {
+                truck: {
+                  use_unpaved: 0.1,
+                  use_track: 0.05,
+                  weight: truckWeight
+                }
+              }
+              // ---------------------------------------------------
             }),
           });
-          if (res.ok) {
+          
+          // Captures successful responses or intentional motor errors (like status 400 for bad coordinates)
+          if (res.ok || res.status === 400) {
             valhallaRes = res;
-            break;
+            break; 
           }
         } catch {
           /* try next url */
         }
       }
 
+      // Merged error handling: preserves the actual engine status if reached, otherwise returns 502
       if (!valhallaRes || !valhallaRes.ok) {
-        return new Response("Valhalla Engine Error", { status: 502 });
+        return new Response("Valhalla Engine Error", { status: valhallaRes ? valhallaRes.status : 502 });
       }
 
       const data = await valhallaRes.json();
