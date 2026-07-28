@@ -89,7 +89,6 @@ coverage/
 # Valhalla archives
 valhalla_map/*.tar
 valhalla_map/valhalla_tiles/
-valhalla_map/valhalla.json
 valhalla_map/duplicateways.txt
 valhalla_map/file_hashes.txt
 
