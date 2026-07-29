@@ -112,6 +112,17 @@ export const api = {
       }
       return STOCK.filter((s) => s.deposit_id === id)
     },
+
+    async update(id: string, payload: {
+      location: any
+      size: any
+      volume_max: number
+      has_refrigeration: number
+      fuel_price: number
+    }): Promise<{ success: boolean; warehouse?: any }> {
+      const res = await apiClient.put<{ success: boolean; warehouse?: any }>(`/warehouses/${id}`, payload)
+      return res.data
+    },
   },
 
   trucks: {
@@ -138,6 +149,23 @@ export const api = {
       }
       return TRUCKS.find((t) => t.id === id)
     },
+
+    async update(id: string, payload: {
+      model: string
+      speed: number
+      is_valid: number
+      size: any
+      volume_max: number
+      weight_max: number
+      has_refrigeration: number
+      fuel_capacity: number
+      fuel_current: number
+      fuel_consumption: number
+      current_warehouse_id: string | null
+    }): Promise<{ success: boolean; truck?: any }> {
+      const res = await apiClient.put<{ success: boolean; truck?: any }>(`/trucks/${id}`, payload)
+      return res.data
+    },
   },
 
   products: {
@@ -163,6 +191,20 @@ export const api = {
         console.warn(`[API] GET /products/${id} fallback:`, err)
       }
       return PRODUCTS.find((p) => p.id === id)
+    },
+
+    async update(id: string, payload: {
+      name: string
+      price: number
+      is_cold: number
+      is_fragile: number
+      expire_date: string | null
+      size: any
+      volume: number
+      weight: number
+    }): Promise<{ success: boolean; product?: any }> {
+      const res = await apiClient.put<{ success: boolean; product?: any }>(`/products/${id}`, payload)
+      return res.data
     },
   },
 

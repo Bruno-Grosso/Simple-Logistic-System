@@ -45,6 +45,7 @@ export function adaptWarehouse(raw: any): Deposit {
     volume_actual: Number(raw.volume_current ?? raw.volume_actual ?? 0),
     volume_max: Number(raw.volume_max ?? 1000),
     has_refrigeration: Boolean(raw.has_refrigeration),
+    fuel_price: Number(raw.fuel_price ?? 0),
   }
 }
 

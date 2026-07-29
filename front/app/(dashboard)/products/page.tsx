@@ -2,6 +2,7 @@ import { Box } from "lucide-react"
 
 import { PageHeader } from "@/components/page-header"
 import { PageShell } from "@/components/page-shell"
+import { EditProductDialog } from "@/components/edit-product-dialog"
 import {
   Table,
   TableBody,
@@ -47,6 +48,9 @@ export default async function ProductsPage() {
                 <TableHead scope="col" className="text-right">
                   Weight
                 </TableHead>
+                <TableHead scope="col" className="text-right">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -65,7 +69,7 @@ export default async function ProductsPage() {
                         {p.is_cold && <Badge variant="default">cold</Badge>}
                         {p.is_fragile && <Badge variant="secondary">fragile</Badge>}
                         {!p.is_cold && !p.is_fragile && (
-                          <span className="text-muted-foreground">—</span>
+                           <span className="text-muted-foreground">—</span>
                         )}
                       </div>
                     </TableCell>
@@ -98,6 +102,9 @@ export default async function ProductsPage() {
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
                       {p.weight != null ? `${p.weight} kg` : "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <EditProductDialog product={p} />
                     </TableCell>
                   </TableRow>
                 )

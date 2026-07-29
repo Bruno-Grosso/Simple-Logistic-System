@@ -5,6 +5,7 @@ import { Package, Truck } from "lucide-react"
 import { InfoField } from "@/components/info-field"
 import { PageHeader } from "@/components/page-header"
 import { PageShell } from "@/components/page-shell"
+import { EditWarehouseDialog } from "@/components/edit-warehouse-dialog"
 import {
   Card,
   CardContent,
@@ -19,7 +20,10 @@ import type { Product } from "@/types"
 function formatDepositSize(size: string | undefined): string {
   if (!size) return "—"
   try {
-    const { l, w, h } = JSON.parse(size) as { l?: number; w?: number; h?: number }
+    const parsed = JSON.parse(size)
+    const l = parsed.l ?? parsed.length
+    const w = parsed.w ?? parsed.width
+    const h = parsed.h ?? parsed.height
     if (l != null && w != null && h != null) {
       return `${l} × ${w} × ${h} m`
     }
@@ -59,6 +63,7 @@ export default async function DepositDetailPage({
           { label: "Deposits", href: "/deposits" },
           { label: name },
         ]}
+        actions={<EditWarehouseDialog warehouse={deposit} />}
       />
       <div className="min-h-0 flex-1 overflow-auto">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">

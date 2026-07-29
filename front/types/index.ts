@@ -13,6 +13,7 @@ export interface Deposit {
   volume_actual: number;
   volume_max?: number;
   has_refrigeration: boolean;
+  fuel_price?: number;
 }
 
 // ─── 2. truck ─────────────────────────────────────────────────────────────────

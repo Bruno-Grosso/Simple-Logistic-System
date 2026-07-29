@@ -27,6 +27,25 @@ export const onlineUsers = {
 export const products = {
   ...createBaseRepo("products"),
   searchByName: (name: string) => pg_conn`SELECT * FROM products WHERE name ILIKE ${'%' + name + '%'}`,
+  update: (id: string, product: {
+    name: string;
+    price: number;
+    is_cold: number;
+    is_fragile: number;
+    expire_date: string | null;
+    size: any;
+    volume: number;
+    weight: number;
+  }) =>
+    pg_conn`
+      UPDATE products
+      SET name = ${product.name}, price = ${product.price}, is_cold = ${product.is_cold}, 
+          is_fragile = ${product.is_fragile}, expire_date = ${product.expire_date}, 
+          size = ${typeof product.size === 'string' ? product.size : JSON.stringify(product.size)}, 
+          volume = ${product.volume}, weight = ${product.weight}
+      WHERE id = ${id}
+      RETURNING *
+    `,
 };
 
 // 3. INFRASTRUCTURE & FLEET
@@ -34,11 +53,52 @@ export const warehouses = {
   ...createBaseRepo("warehouses"),
   stock: (warehouseId: string) => 
     pg_conn`SELECT * FROM warehouses_stock WHERE warehouse_id = ${warehouseId}`,
+  update: (id: string, warehouse: {
+    location: any;
+    size: any;
+    volume_max: number;
+    has_refrigeration: number;
+    fuel_price: number;
+  }) =>
+    pg_conn`
+      UPDATE warehouses
+      SET location = ${typeof warehouse.location === 'string' ? warehouse.location : JSON.stringify(warehouse.location)}, 
+          size = ${typeof warehouse.size === 'string' ? warehouse.size : JSON.stringify(warehouse.size)}, 
+          volume_max = ${warehouse.volume_max}, 
+          has_refrigeration = ${warehouse.has_refrigeration}, 
+          fuel_price = ${warehouse.fuel_price}
+      WHERE id = ${id}
+      RETURNING *
+    `,
 };
 
 export const trucks = {
   ...createBaseRepo("trucks"),
   byModel: (model: string) => pg_conn`SELECT * FROM trucks WHERE model = ${model}`,
+  update: (id: string, truck: {
+    model: string;
+    speed: number;
+    is_valid: number;
+    size: any;
+    volume_max: number;
+    weight_max: number;
+    has_refrigeration: number;
+    fuel_capacity: number;
+    fuel_current: number;
+    fuel_consumption: number;
+    current_warehouse_id: string | null;
+  }) =>
+    pg_conn`
+      UPDATE trucks
+      SET model = ${truck.model}, speed = ${truck.speed}, is_valid = ${truck.is_valid}, 
+          size = ${typeof truck.size === 'string' ? truck.size : JSON.stringify(truck.size)}, 
+          volume_max = ${truck.volume_max}, weight_max = ${truck.weight_max}, 
+          has_refrigeration = ${truck.has_refrigeration}, fuel_capacity = ${truck.fuel_capacity}, 
+          fuel_current = ${truck.fuel_current}, fuel_consumption = ${truck.fuel_consumption}, 
+          current_warehouse_id = ${truck.current_warehouse_id}
+      WHERE id = ${id}
+      RETURNING *
+    `,
 };
 
 export const suppliers = createBaseRepo("suppliers");

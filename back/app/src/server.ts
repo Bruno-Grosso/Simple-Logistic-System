@@ -56,6 +56,18 @@ const innerFetchHandler = async (req: Request) => {
     if (!result || result.length === 0) return new Response("Product not found", { status: 404 });
     return Response.json(result);
   }
+  if (path.startsWith("/products/") && method === "PUT") {
+    const id = path.split("/")[2];
+    if (!id) return new Response("Product ID required", { status: 400 });
+    try {
+      const body = await req.json();
+      const updated = await controller.products.update(id, body);
+      return Response.json({ success: true, product: updated[0] });
+    } catch (error: any) {
+      console.error("Error updating product:", error);
+      return new Response(error.message || "Internal Server Error", { status: 500 });
+    }
+  }
 
   // 3. INFRASTRUCTURE & FLEET LAYER
   if (path === "/warehouses" && method === "GET") {
@@ -71,6 +83,19 @@ const innerFetchHandler = async (req: Request) => {
     const result = await controller.warehouses.byId(id);
     if (!result || result.length === 0) return new Response("Warehouse not found", { status: 404 });
     return Response.json(result);
+  }
+  if (path.startsWith("/warehouses/") && method === "PUT") {
+    const parts = path.split("/");
+    const id = parts[2];
+    if (!id) return new Response("Warehouse ID required", { status: 400 });
+    try {
+      const body = await req.json();
+      const updated = await controller.warehouses.update(id, body);
+      return Response.json({ success: true, warehouse: updated[0] });
+    } catch (error: any) {
+      console.error("Error updating warehouse:", error);
+      return new Response(error.message || "Internal Server Error", { status: 500 });
+    }
   }
   if (path === "/suppliers" && method === "GET") {
     return Response.json(await controller.suppliers.all());
@@ -93,6 +118,18 @@ const innerFetchHandler = async (req: Request) => {
     const result = await controller.trucks.byId(id);
     if (!result || result.length === 0) return new Response("Truck not found", { status: 404 });
     return Response.json(result);
+  }
+  if (path.startsWith("/trucks/") && method === "PUT") {
+    const id = path.split("/")[2];
+    if (!id) return new Response("Truck ID required", { status: 400 });
+    try {
+      const body = await req.json();
+      const updated = await controller.trucks.update(id, body);
+      return Response.json({ success: true, truck: updated[0] });
+    } catch (error: any) {
+      console.error("Error updating truck:", error);
+      return new Response(error.message || "Internal Server Error", { status: 500 });
+    }
   }
 
   // 4. TRANSACTION & ROUTING LAYER

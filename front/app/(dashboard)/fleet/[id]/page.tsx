@@ -3,6 +3,7 @@ import { AlertTriangle, Wrench } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { PageShell } from "@/components/page-shell"
 import { InfoField } from "@/components/info-field"
+import { EditTruckDialog } from "@/components/edit-truck-dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
@@ -78,6 +79,7 @@ export default async function FleetDetailPage({ params }: PageProps) {
           { label: "Fleet", href: "/fleet" },
           { label: title },
         ]}
+        actions={<EditTruckDialog truck={truck} warehouses={deposits} />}
       />
       <div className="min-h-0 flex-1 overflow-auto">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
