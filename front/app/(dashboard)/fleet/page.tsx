@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
 import type { Truck, Deposit } from "@/types"
 
+export const dynamic = "force-dynamic"
+
 function fleetStatus(t: Truck) {
   if (!t.is_valid) return "Maintenance" as const
   if (t.is_traveling || t.is_delivering) return "Traveling" as const

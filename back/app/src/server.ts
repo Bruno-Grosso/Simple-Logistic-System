@@ -2,7 +2,7 @@ import { pg_conn } from "./model";
 import * as controller from "./controller";
 import { handleRoutes as prototypeRoutes } from "./routes";
 
-const fetchHandler = async (req: Request) => {
+const innerFetchHandler = async (req: Request) => {
   const url = new URL(req.url);
   const path = url.pathname;
   const method = req.method;
@@ -101,6 +101,47 @@ const fetchHandler = async (req: Request) => {
     if (clientId) return Response.json(await controller.orders.byClient(clientId));
     return Response.json(await controller.orders.all());
   }
+  if (path === "/orders" && method === "POST") {
+    try {
+      const body = await req.json() as {
+        id: string;
+        client_id: string;
+        final_destination: string;
+        time_limit: string;
+        price: number;
+        status?: string;
+        items?: Array<{ product_id: string; quantity: number }>;
+      };
+
+      if (!body.id || !body.client_id || !body.final_destination || !body.time_limit) {
+        return new Response("Missing required fields for order creation", { status: 400 });
+      }
+
+      const newOrder = await controller.orders.create({
+        id: body.id,
+        client_id: body.client_id,
+        final_destination: body.final_destination,
+        time_limit: body.time_limit,
+        price: body.price || 0,
+        status: body.status || "Pending"
+      });
+
+      if (body.items && Array.isArray(body.items)) {
+        for (const item of body.items) {
+          await controller.orders.addItem({
+            order_id: body.id,
+            product_id: item.product_id,
+            quantity: item.quantity
+          });
+        }
+      }
+
+      return Response.json({ success: true, order: newOrder[0] }, { status: 201 });
+    } catch (error: any) {
+      console.error("Error creating order:", error);
+      return new Response(error.message || "Internal Server Error", { status: 500 });
+    }
+  }
   if (path.startsWith("/orders/") && method === "GET") {
     const parts = path.split("/");
     const id = parts[2];
@@ -128,6 +169,31 @@ const fetchHandler = async (req: Request) => {
   }
 
   return new Response("Not found", { status: 404 });
+};
+
+const fetchHandler = async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      },
+    });
+  }
+
+  const res = await innerFetchHandler(req);
+  const headers = new Headers(res.headers);
+  headers.set("Access-Control-Allow-Origin", "*");
+  headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  return new Response(res.body, {
+    status: res.status,
+    statusText: res.statusText,
+    headers,
+  });
 };
 
 export { fetchHandler };

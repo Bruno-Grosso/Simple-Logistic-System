@@ -14,6 +14,8 @@ import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
 import { computeDepositUsage } from "@/lib/calculations"
 
+export const dynamic = "force-dynamic"
+
 export default async function DepositsPage() {
   const [deposits, trucks] = await Promise.all([
     api.warehouses.getAll(),

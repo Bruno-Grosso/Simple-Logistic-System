@@ -143,6 +143,7 @@ export const TRUCKS: Truck[] = [
     fuel_current: 450.0,
     fuel_consumption: 0.3,
     wear_percentage: 20,
+    truck_maintenance: 0,
   },
   {
     id: "TRK-002",
@@ -164,6 +165,7 @@ export const TRUCKS: Truck[] = [
     fuel_current: 300.0,
     fuel_consumption: 0.35,
     wear_percentage: 30,
+    truck_maintenance: 0,
   },
   {
     id: "TRK-003",
@@ -183,6 +185,7 @@ export const TRUCKS: Truck[] = [
     fuel_current: 500.0,
     fuel_consumption: 0.32,
     wear_percentage: 15,
+    truck_maintenance: 0,
   },
   {
     id: "TRK-004",

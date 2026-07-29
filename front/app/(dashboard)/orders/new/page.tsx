@@ -10,7 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
-import { PRODUCTS, USERS } from "@/lib/mock-data"
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { api } from "@/lib/api"
+import type { User, Product } from "@/types"
 
 const selectClassName = cn(
   "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none transition-colors",
@@ -21,30 +24,59 @@ const selectClassName = cn(
 type Line = { productId: string; quantity: number }
 
 export default function NewOrderPage() {
+  const router = useRouter()
   const formId = useId()
   const [destination, setDestination] = useState("")
   const [clientId, setClientId] = useState("")
   const [receiverId, setReceiverId] = useState("")
   const [deadline, setDeadline] = useState("")
-  const [lines, setLines] = useState<Line[]>([
-    { productId: PRODUCTS[0]?.id ?? "", quantity: 1 },
-  ])
+  const [products, setProducts] = useState<Product[]>([])
+  const [users, setUsers] = useState<User[]>([])
+  const [lines, setLines] = useState<Line[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadingData, setLoadingData] = useState(true)
 
-  const clients = useMemo(() => USERS.filter((u) => u.role === "client"), [])
+  useEffect(() => {
+    let active = true
+    async function loadData() {
+      try {
+        const [fetchedProducts, fetchedUsers] = await Promise.all([
+          api.products.getAll(),
+          api.users.getAll(),
+        ])
+        if (active) {
+          setProducts(fetchedProducts)
+          setUsers(fetchedUsers)
+          if (fetchedProducts.length > 0) {
+            setLines([{ productId: fetchedProducts[0].id, quantity: 1 }])
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load products/users:", err)
+      } finally {
+        if (active) setLoadingData(false)
+      }
+    }
+    loadData()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const clients = useMemo(() => users.filter((u) => u.role === "client"), [users])
 
   const total = useMemo(() => {
     return lines.reduce((sum, line) => {
-      const p = PRODUCTS.find((x) => x.id === line.productId)
+      const p = products.find((x) => x.id === line.productId)
       const price = p?.price ?? 0
       return sum + price * line.quantity
     }, 0)
-  }, [lines])
+  }, [lines, products])
 
   function addLine() {
     setLines((prev) => [
       ...prev,
-      { productId: PRODUCTS[0]?.id ?? prev[prev.length - 1]?.productId ?? "", quantity: 1 },
+      { productId: products[0]?.id ?? prev[prev.length - 1]?.productId ?? "", quantity: 1 },
     ])
   }
 
@@ -58,9 +90,35 @@ export default function NewOrderPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!clientId || !destination || !deadline) return
     setLoading(true)
-    await new Promise((r) => setTimeout(r, 900))
-    setLoading(false)
+    try {
+      const orderId = `ORD-${Date.now().toString().slice(-4)}${Math.floor(10 + Math.random() * 90)}`
+      const payload = {
+        id: orderId,
+        client_id: clientId,
+        final_destination: destination,
+        time_limit: deadline,
+        price: total,
+        status: "Pending" as const,
+        items: lines.map((line) => ({
+          product_id: line.productId,
+          quantity: line.quantity,
+        })),
+      }
+      const res = await api.orders.create(payload)
+      if (res.success) {
+        router.push("/orders")
+        router.refresh()
+      } else {
+        alert("Failed to create order")
+      }
+    } catch (err) {
+      console.error("Error creating order:", err)
+      alert("Error creating order")
+    } finally {
+      setLoading(false)
+    }
   }
 
   const destFieldId = `order-destination-${formId}`
@@ -127,7 +185,7 @@ export default function NewOrderPage() {
                     aria-label="Select receiver"
                   >
                     <option value="">Select receiver</option>
-                    {USERS.map((u) => (
+                    {users.map((u) => (
                       <option key={u.id} value={u.id}>
                         {u.name} ({u.role})
                       </option>
@@ -172,7 +230,7 @@ export default function NewOrderPage() {
                           onChange={(e) => updateLine(index, { productId: e.target.value })}
                           aria-label={`Product for line ${index + 1}`}
                         >
-                          {PRODUCTS.map((p) => (
+                          {products.map((p) => (
                             <option key={p.id} value={p.id}>
                               {p.name}
                             </option>

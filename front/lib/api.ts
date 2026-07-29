@@ -276,6 +276,19 @@ export const api = {
       }
       return undefined
     },
+
+    async create(payload: {
+      id: string
+      client_id: string
+      final_destination: string
+      time_limit: string
+      price: number
+      status?: string
+      items: Array<{ product_id: string; quantity: number }>
+    }): Promise<{ success: boolean; order?: any }> {
+      const res = await apiClient.post<{ success: boolean; order?: any }>("/orders", payload)
+      return res.data
+    },
   },
 
   routes: {

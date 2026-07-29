@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
 
+export const dynamic = "force-dynamic"
+
 function isExpired(isoDate: string | undefined): boolean {
   if (!isoDate) return false
   const d = new Date(isoDate)

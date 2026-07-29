@@ -50,6 +50,23 @@ export const orders = {
   items: (orderId: string) => pg_conn`SELECT * FROM orders_items WHERE order_id = ${orderId}`,
   routes: (orderId: string) => pg_conn`SELECT * FROM orders_route WHERE order_id = ${orderId}`,
   costs: (orderId: string) => pg_conn`SELECT * FROM freight_cost WHERE order_id = ${orderId}`,
+  create: (order: { id: string; client_id: string; final_destination: string; time_limit: string; price: number; status?: string }) =>
+    pg_conn`
+      INSERT INTO orders (id, client_id, final_destination, time_limit, price, status)
+      VALUES (${order.id}, ${order.client_id}, ${order.final_destination}, ${order.time_limit}, ${order.price}, ${order.status || 'Pending'})
+      RETURNING *
+    `,
+  addItem: (item: { order_id: string; product_id: string; quantity: number }) =>
+    pg_conn`
+      INSERT INTO orders_items (order_id, product_id, quantity)
+      VALUES (${item.order_id}, ${item.product_id}, ${item.quantity})
+      RETURNING *
+    `,
+};
+
+export const orders_route = {
+  ...createBaseRepo("orders_route"),
+  byOrder: (orderId: string) => pg_conn`SELECT * FROM orders_route WHERE order_id = ${orderId}`,
 };
 
 export const supplyRoutes = {

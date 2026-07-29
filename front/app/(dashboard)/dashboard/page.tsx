@@ -22,6 +22,8 @@ import { computeDashboardStats, computeDepositUsage } from "@/lib/calculations"
 import type { OrderStatus, Deposit, Truck } from "@/types"
 import { cn } from "@/lib/utils"
 
+export const dynamic = "force-dynamic"
+
 function destinationLabel(raw: string | undefined): string {
   if (!raw) return "—"
   try {

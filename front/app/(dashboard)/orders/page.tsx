@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
 import type { OrderStatus, User } from "@/types"
 
+export const dynamic = "force-dynamic"
+
 function parseDestination(raw: string | undefined): string {
   if (!raw) return "—"
   try {

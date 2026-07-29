@@ -14,6 +14,8 @@ import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
 import type { User, Deposit } from "@/types"
 
+export const dynamic = "force-dynamic"
+
 function initialsFromName(name: string): string {
   const parts = name.trim().split(/\s+/)
   if (parts.length >= 2) {
