@@ -33,7 +33,7 @@ import type {
   FreightCost,
 } from "@/types"
 
-const baseURL = (process.env.LOGISYS_BACKEND_URL ?? process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8848").replace(/\/$/, "")
+const baseURL = (process.env.LOGISYS_BACKEND_URL ?? process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080").replace(/\/$/, "")
 
 export const apiClient = axios.create({
   baseURL,
