@@ -12,39 +12,44 @@ declare global {
 }
 
 function decodePolyline6(str: string): [number, number][] {
-  let index = 0
-  let lat = 0
-  let lng = 0
-  const coordinates: [number, number][] = []
-  const factor = 1e6
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+  const coordinates: [number, number][] = [];
+  const factor = 1e6;
 
   while (index < str.length) {
-    let byte: number
-    let shift = 0
-    let result = 0
+    let byte;
+    let shift = 0;
+    let result = 0;
+
+    // Decode Latitude
     do {
-      byte = str.charCodeAt(index++) - 63
-      result |= (byte & 0x1f) << shift
-      shift += 5
-    } while (byte >= 0x20)
+      byte = str.charCodeAt(index++) - 63;
+  
+      result += (byte & 0x1f) * Math.pow(2, shift);
+      shift += 5;
+    } while (byte >= 0x20);
 
-    const deltaLat = result & 1 ? ~(result >> 1) : result >> 1
-    lat += deltaLat
+    const deltaLat = result & 1 ? ~(Math.floor(result / 2)) : Math.floor(result / 2);
+    lat += deltaLat;
 
-    shift = 0
-    result = 0
+    shift = 0;
+    result = 0;
+
+    // Decode Longitude
     do {
-      byte = str.charCodeAt(index++) - 63
-      result |= (byte & 0x1f) << shift
-      shift += 5
-    } while (byte >= 0x20)
+      byte = str.charCodeAt(index++) - 63;
+      result += (byte & 0x1f) * Math.pow(2, shift);
+      shift += 5;
+    } while (byte >= 0x20);
 
-    const deltaLng = result & 1 ? ~(result >> 1) : result >> 1
-    lng += deltaLng
+    const deltaLng = result & 1 ? ~(Math.floor(result / 2)) : Math.floor(result / 2);
+    lng += deltaLng;
 
-    coordinates.push([lat / factor, lng / factor])
+    coordinates.push([lat / factor, lng / factor]);
   }
-  return coordinates
+  return coordinates;
 }
 
 function generateFallbackPoints(originLabel?: string, destinationLabel?: string): [number, number][] {
