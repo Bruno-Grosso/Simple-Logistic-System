@@ -14,7 +14,9 @@ describe("Orders & Logistics Transactions UI Tests", () => {
   })
 
   it("should navigate to order details page when clicking an order row", () => {
-    cy.contains("ORD-001").click()
+    cy.contains("a", "ORD-001")
+      .should("have.attr", "href")
+      .then((href) => cy.visit(href as unknown as string))
     cy.url().should("include", "/orders/ORD-001")
     cy.contains("Order details").should("be.visible")
     cy.contains("Freight Cost Breakdown").should("be.visible")

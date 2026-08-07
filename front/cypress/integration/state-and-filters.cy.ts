@@ -18,7 +18,7 @@ describe("Integration Tests - User State & View Filtering", () => {
     cy.get("#warehouse-filter option")
       .eq(1)
       .then(($option) => {
-        cy.get("#warehouse-filter").select($option.val() as string, { force: true })
+        cy.get("#warehouse-filter").select($option.val() as string)
         cy.url({ timeout: 10_000 }).should("include", `warehouseId=${$option.val()}`)
       })
     cy.contains("Freight Costs Financial Breakdown").should("be.visible")

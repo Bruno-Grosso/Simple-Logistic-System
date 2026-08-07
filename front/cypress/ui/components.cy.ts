@@ -47,7 +47,7 @@ describe("UI Component Tests - Layouts, Cards, Badges & Dialogs", () => {
   describe("Modal Dialogs UI Components", () => {
     it("should render profile edit dialog UI elements when triggered", () => {
       cy.visit("/profile")
-      cy.contains("Edit Profile Information").click()
+      cy.get('[data-slot="dialog-trigger"]').click()
       cy.get('[data-slot="dialog-content"]').should("be.visible")
       cy.get('[data-slot="dialog-content"]').within(() => {
         cy.contains("Edit User Profile").should("be.visible")

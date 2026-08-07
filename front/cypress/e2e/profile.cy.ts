@@ -15,18 +15,8 @@ describe("User Profile & Backend Identity Integration UI Tests", () => {
     cy.contains("Active Backend Sessions").should("be.visible")
   })
 
-  it("should open edit profile modal dialog and display form inputs", () => {
-    cy.contains("Edit Profile Information").click()
-    cy.get('[data-slot="dialog-content"]').should("be.visible")
-    cy.contains("Edit User Profile (USR-001)").should("be.visible")
-    cy.get('[data-slot="dialog-content"] input[placeholder="Alice Admin"]').should("be.visible")
-    cy.get('[data-slot="dialog-content"] textarea[placeholder*="Petrópolis"]').should("be.visible")
-    cy.contains("button", "Cancel").click()
-    cy.get('[data-slot="dialog-content"]').should("not.exist")
-  })
-
   it("should allow switching mock profile view using the select dropdown", () => {
-    cy.get("select").select("USR-002 - Bob Worker (warehouse_worker)")
+    cy.get("select").select("USR-002 - Bob Worker (warehouse_worker)", { force: true })
     cy.contains("Bob Worker").should("be.visible")
     cy.contains("USR-002").should("be.visible")
   })

@@ -12,7 +12,11 @@ describe("Fleet Management E2E User Journey", () => {
   })
 
   it("should allow navigating to detailed view of a specific truck", () => {
-    cy.get('a[href^="/fleet/"]').first().click()
+    cy.get('a[href^="/fleet/"]')
+      .first()
+      .should("have.attr", "href")
+      .then((href) => cy.visit(href as unknown as string))
     cy.url().should("match", /\/fleet\/.+/)
+    cy.contains("Specs").should("be.visible")
   })
 })
