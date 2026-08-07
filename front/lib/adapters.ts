@@ -12,6 +12,7 @@ import type {
   Stock,
   UserRole,
   OrderStatus,
+  MonthlyPerformanceData,
 } from "@/types"
 
 export function adaptWarehouse(raw: any): Deposit {
@@ -213,3 +214,20 @@ export function adaptFreightCost(raw: any): FreightCost {
     calculated_at: raw.calculated_at || undefined,
   }
 }
+
+export function adaptMonthlyPerformance(raw: any): MonthlyPerformanceData {
+  return {
+    month: String(raw.month),
+    fullMonth: String(raw.full_month || raw.fullMonth || raw.month),
+    revenue: Number(raw.revenue ?? 0),
+    costs: Number(raw.costs ?? 0),
+    profit: Number(raw.profit ?? 0),
+    fuelCost: Number(raw.fuel_cost ?? raw.fuelCost ?? 0),
+    laborCost: Number(raw.labor_cost ?? raw.laborCost ?? 0),
+    maintenanceCost: Number(raw.maintenance_cost ?? raw.maintenanceCost ?? 0),
+    ordersCount: Number(raw.orders_count ?? raw.ordersCount ?? 0),
+    isPoi: Boolean(raw.is_poi ?? raw.isPoi),
+    poi: raw.poi || undefined,
+  }
+}
+

@@ -204,6 +204,9 @@ const innerFetchHandler = async (req: Request) => {
     if (orderId) return Response.json(await controller.freightCosts.byOrder(orderId));
     return Response.json(await controller.freightCosts.all());
   }
+  if (path === "/monthly-performance" && method === "GET") {
+    return Response.json(await controller.monthlyPerformance.all());
+  }
 
   return new Response("Not found", { status: 404 });
 };

@@ -7,6 +7,7 @@ import { StatCard } from "@/components/stat-card"
 import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ReportFilters } from "@/components/report-filters"
+import { PerformanceGraphs } from "@/components/performance-graphs"
 import { api } from "@/lib/api"
 import { computeDashboardStats } from "@/lib/calculations"
 
@@ -20,13 +21,14 @@ export default async function ReportsPage(props: ReportsPageProps) {
   const searchParams = await props.searchParams
   const warehouseId = searchParams?.warehouseId
 
-  const [rawOrders, rawTrucks, rawFreightCosts, users, products, warehouses] = await Promise.all([
+  const [rawOrders, rawTrucks, rawFreightCosts, users, products, warehouses, monthlyPerformance] = await Promise.all([
     api.orders.getAll(),
     api.trucks.getAll(),
     api.freightCost.getAll(),
     api.users.getAll(),
     api.products.getAll(),
     api.warehouses.getAll(),
+    api.reports.getMonthlyPerformance(),
   ])
 
   // Fetch routes for all orders to determine which warehouse they pass through
@@ -161,6 +163,9 @@ export default async function ReportsPage(props: ReportsPageProps) {
             description={`${orders.length} orders total`}
           />
         </div>
+
+        {/* Performance Graphs (Profit vs Costs Area Chart & Operational Breakdown) */}
+        <PerformanceGraphs warehouseId={warehouseId} monthlyPerformance={monthlyPerformance} />
 
         {/* Freight cost breakdown card */}
         <Card className="border border-border">

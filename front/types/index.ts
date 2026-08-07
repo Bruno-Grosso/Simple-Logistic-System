@@ -265,3 +265,20 @@ export interface DashboardStats {
   totalRevenue: number;
   avgDeliveryTime: number;
 }
+
+// ─── Monthly Performance Data ──────────────────────────────────────────────────
+
+export interface MonthlyPerformanceData {
+  month: string;
+  fullMonth: string;
+  revenue: number;
+  costs: number;
+  profit: number;
+  fuelCost: number;
+  laborCost: number;
+  maintenanceCost: number;
+  ordersCount: number;
+  poi?: string;
+  isPoi?: boolean;
+}
+
