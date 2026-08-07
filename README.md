@@ -60,4 +60,33 @@ Then build and run:
 cd front && npm run build && npm start
 ```
 
+### Tests
+
+The front-end test suite uses Cypress. Install front-end dependencies once, then
+start the front-end in one terminal:
+
+```bash
+cd front && npm run dev
+```
+
+Run tests from a second terminal:
+
+```bash
+cd front && npm test
+```
+
+Run a group only when needed:
+
+```bash
+cd front && npm run test:unit
+cd front && npm run test:ui
+cd front && npm run test:integration
+cd front && npm run test:e2e
+```
+
+Open Cypress interactive runner with `cd front && npm run cypress:open`.
+Tests use `http://localhost:3000` by default. Pages fall back to mock data if
+the back-end is unavailable; configure `front/.env.local` and run the back-end
+to test live API behavior.
+
 **Under orientation of Dener dos Santos.**

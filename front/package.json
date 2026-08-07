@@ -6,7 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
+    "test": "cypress run",
+    "test:unit": "cypress run --spec 'cypress/unit/**/*.cy.ts'",
+    "test:ui": "cypress run --spec 'cypress/ui/**/*.cy.ts'",
+    "test:integration": "cypress run --spec 'cypress/integration/**/*.cy.ts'",
+    "test:e2e": "cypress run --spec 'cypress/e2e/**/*.cy.ts'"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
@@ -34,6 +41,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cypress": "^15.20.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "tailwindcss": "^4",
