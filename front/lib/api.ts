@@ -235,6 +235,34 @@ export const api = {
       }
       return USERS.find((u) => u.id === id)
     },
+
+    async update(id: string, payload: {
+      name?: string
+      address?: string
+      password?: string
+      role?: string
+    }): Promise<{ success: boolean; user?: User }> {
+      try {
+        const res = await apiClient.put<{ success: boolean; user?: any }>(`/users/${id}`, payload)
+        if (res.data && res.data.success && res.data.user) {
+          return { success: true, user: adaptUser(res.data.user) }
+        }
+      } catch (err) {
+        console.error(`[API] PUT /users/${id} error:`, err)
+      }
+      return { success: false }
+    },
+
+    async getOnlineSessions(userId?: string): Promise<any[]> {
+      try {
+        const url = userId ? `/online-users?userId=${encodeURIComponent(userId)}` : "/online-users"
+        const res = await apiClient.get<any[]>(url)
+        if (Array.isArray(res.data)) return res.data
+      } catch (err) {
+        console.warn("[API] GET /online-users fallback:", err)
+      }
+      return []
+    },
   },
 
   suppliers: {

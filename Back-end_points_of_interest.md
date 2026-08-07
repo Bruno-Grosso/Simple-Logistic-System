@@ -8,10 +8,31 @@
 
 ---
 
+## 🔑 User Authentication & Mock Login Credentials Table
+
+All user credentials are seeded from [`back/db/fill_mock_data.sql`](file:///home/be/projects/web/Simple-Logistic-System/back/db/fill_mock_data.sql) into PostgreSQL database. Users can log in using either their **ID**, **Full Name**, or **Email Address** (e.g. `alice@logisys.com` / `USR-001`).
+
+| User ID | Full Name | Mock Email / Login ID | Password | System Role | Physical Address |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `USR-001` | **Alice Admin** | `alice@logisys.com` / `USR-001` | `admin123` | `admin` | Rua do Imperador, Centro, Petrópolis - RJ |
+| `USR-002` | **Bob Worker** | `bob@logisys.com` / `USR-002` | `bobpass` | `warehouse_worker` | Estrada União e Indústria, Itaipava, Petrópolis - RJ |
+| `USR-003` | **Charlie Driver** | `charlie@logisys.com` / `USR-003` | `trucker1` | `truck_driver` | Av. Alberto Braune, Centro, Nova Friburgo - RJ |
+| `USR-004` | **David Client** | `david@logisys.com` / `USR-004` | `client789` | `client` | Av. Reta da Várzea, Várzea, Teresópolis - RJ |
+| `USR-005` | **Eve Client** | `eve@logisys.com` / `USR-005` | `evepass` | `client` | Rua Monte Líbano, Centro, Nova Friburgo - RJ |
+| `USR-006` | **Frank Driver** | `frank@logisys.com` / `USR-006` | `frank123` | `truck_driver` | Estrada Terê-Fri, Km 12, Teresópolis - RJ |
+| `USR-007` | **Grace Worker** | `grace@logisys.com` / `USR-007` | `gracepass` | `warehouse_worker` | Rua General Osório, Centro, Nova Friburgo - RJ |
+| `USR-008` | **Henry Client** | `henry@logisys.com` / `USR-008` | `henry789` | `client` | Rua Visconde de Uruguai, Cachoeiras de Macacu - RJ |
+| `USR-009` | **Ivy Client** | `ivy@logisys.com` / `USR-009` | `ivypass` | `client` | Av. Dedo de Deus, Guapimirim - RJ |
+| `USR-010` | **Jack Worker** | `jack@logisys.com` / `USR-010` | `jackpass` | `warehouse_worker` | Rua Cel. Veiga, Petrópolis - RJ |
+
+---
+
 ## 🛰️ Backend Interaction Points & Endpoints Overview
 
 | Category | HTTP Method | Route Endpoint | Query Parameters | Description |
 | :--- | :---: | :--- | :--- | :--- |
+| **Auth / Login** | `POST` | `/login` | Payload `{ email, password }` | Authenticates against PostgreSQL `users` table & logs session in `online_users` |
+| **Auth / Register** | `POST` | `/clients` | Payload `{ id, name, email, password, address, role }` | Registers a new client/user in PostgreSQL `users` table |
 | **System** | `GET` | `/status` | None | Returns list of existing database tables |
 | **System** | `GET` | `/db-name` | None | Returns active PostgreSQL database name |
 | **Warehouses** | `GET` | `/warehouses` | None | Retrieves all warehouse / deposit locations |
@@ -26,7 +47,7 @@
 | **Products** | `PUT` | `/products/:id` | None | Updates product pricing, volume, weight, cold/fragile flags |
 | **Users / Access** | `GET` | `/users` | `?role=<role>` | Retrieves system users (`admin`, `warehouse_worker`, `truck_driver`, `client`) |
 | **Users / Access** | `GET` | `/users/:id` | None | Retrieves user profile by ID |
-| **Users / Access** | `GET` | `/online-users` | `?userId=<id>` | Retrieves active session logs |
+| **Users / Access** | `GET` | `/online-users` | `?userId=<id>` | Retrieves active session logs from `online_users` |
 | **Suppliers** | `GET` | `/suppliers` | None | Retrieves supplier entities |
 | **Suppliers** | `GET` | `/suppliers/:id` | None | Retrieves supplier details |
 | **Orders** | `GET` | `/orders` | `?clientId=<id>` | Retrieves logistics orders (optionally filtered by client) |
@@ -44,7 +65,31 @@
 
 ## 📊 Endpoints Detail & Database Schemas
 
-### 1. Warehouses (`/warehouses`)
+### 1. Login Endpoint (`POST /login`)
+- **Request Body**:
+  ```json
+  {
+    "email": "alice@logisys.com",
+    "password": "admin123"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "ok": true,
+    "success": true,
+    "token": "SESS-1785799196000",
+    "sessionToken": "SESS-1785799196000",
+    "user": {
+      "id": "USR-001",
+      "name": "Alice Admin",
+      "role": "admin",
+      "address": "Rua do Imperador, Centro, Petrópolis - RJ"
+    }
+  }
+  ```
+
+### 2. Warehouses (`/warehouses`)
 - **Table Name**: `warehouses`
 - **Data Schema**:
   ```json
@@ -59,7 +104,7 @@
   }
   ```
 
-### 2. Fleet Trucks (`/trucks`)
+### 3. Fleet Trucks (`/trucks`)
 - **Table Name**: `trucks`
 - **Data Schema**:
   ```json
@@ -83,7 +128,7 @@
   }
   ```
 
-### 3. Orders & Freight Costs (`/orders`, `/freight-cost`)
+### 4. Orders & Freight Costs (`/orders`, `/freight-cost`)
 - **Table Names**: `orders`, `orders_items`, `freight_cost`
 - **Data Schema**:
   ```json
@@ -99,7 +144,7 @@
   }
   ```
 
-### 4. Monthly Performance Analytics (`/monthly-performance`)
+### 5. Monthly Performance Analytics (`/monthly-performance`)
 - **Primary Feature**: Powers Reports page Profit (Green) vs Costs (Red) Area Chart & Milestone Cards
 - **Data Schema**:
   ```json
@@ -124,4 +169,5 @@
 
 - **Adapter Utility**: [`front/lib/adapters.ts`](file:///home/be/projects/web/Simple-Logistic-System/front/lib/adapters.ts)
 - **API Client**: [`front/lib/api.ts`](file:///home/be/projects/web/Simple-Logistic-System/front/lib/api.ts)
+- **Authentication Handlers**: [`front/lib/auth/verify-credentials.ts`](file:///home/be/projects/web/Simple-Logistic-System/front/lib/auth/verify-credentials.ts) & [`front/app/login/actions.ts`](file:///home/be/projects/web/Simple-Logistic-System/front/app/login/actions.ts)
 - **Reports Integration**: [`front/app/(dashboard)/reports/page.tsx`](file:///home/be/projects/web/Simple-Logistic-System/front/app/%28dashboard%29/reports/page.tsx) & [`front/components/performance-graphs.tsx`](file:///home/be/projects/web/Simple-Logistic-System/front/components/performance-graphs.tsx)

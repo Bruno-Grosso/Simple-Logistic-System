@@ -77,3 +77,23 @@ test("Identity: GET /online-users/ user filtering with no results", async () => 
   const data = await res.json() as any[];
   expect(data).toHaveLength(0);
 });
+
+test("Identity: PUT /users/:id updates profile", async () => {
+  const res = await fetch(`${BASE_URL}/users/USR-001`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "Alice Admin Updated", address: "Rua do Imperador 100, Petrópolis - RJ" }),
+  });
+  expect(res.status).toBe(200);
+  const data = await res.json() as any;
+  expect(data.success).toBe(true);
+  expect(data.user.name).toBe("Alice Admin Updated");
+
+  // Revert change
+  await fetch(`${BASE_URL}/users/USR-001`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "Alice Admin", address: "Rua do Imperador, Centro, Petrópolis - RJ" }),
+  });
+});
+

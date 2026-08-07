@@ -25,6 +25,37 @@ const innerFetchHandler = async (req: Request) => {
   if (protoRes) return protoRes;
 
   // 1. IDENTITY & ACCESS LAYER
+  if (path === "/login" && method === "POST") {
+    try {
+      const body = await req.json() as { email?: string; username?: string; id?: string; password?: string };
+      const identityInput = body.email || body.username || body.id || "";
+      const passwordInput = body.password || "";
+
+      if (!identityInput || !passwordInput) {
+        return Response.json({ ok: false, success: false, error: "Missing email/username or password" }, { status: 400 });
+      }
+
+      const loginResult = await controller.users.login(identityInput, passwordInput);
+      if (!loginResult) {
+        return Response.json({ ok: false, success: false, error: "Invalid credentials" }, { status: 401 });
+      }
+
+      return Response.json({ ok: true, success: true, ...loginResult });
+    } catch (error: any) {
+      console.error("Error during login:", error);
+      return Response.json({ ok: false, success: false, error: "Internal server error" }, { status: 500 });
+    }
+  }
+  if (path === "/clients" && method === "POST") {
+    try {
+      const body = await req.json();
+      const client = await controller.users.createClient(body);
+      return Response.json({ ok: true, success: true, client }, { status: 201 });
+    } catch (error: any) {
+      console.error("Error creating client:", error);
+      return Response.json({ ok: false, error: error.message || "Internal server error" }, { status: 500 });
+    }
+  }
   if (path === "/users" && method === "GET") {
     const role = url.searchParams.get("role");
     if (role) return Response.json(await controller.users.byRole(role));
@@ -36,6 +67,21 @@ const innerFetchHandler = async (req: Request) => {
     const result = await controller.users.byId(id);
     if (!result || result.length === 0) return new Response("User not found", { status: 404 });
     return Response.json(result);
+  }
+  if (path.startsWith("/users/") && method === "PUT") {
+    const id = path.split("/")[2];
+    if (!id) return new Response("User ID required", { status: 400 });
+    try {
+      const body = await req.json();
+      const updated = await controller.users.update(id, body);
+      if (!updated || updated.length === 0) {
+        return new Response("User not found", { status: 404 });
+      }
+      return Response.json({ success: true, user: updated[0] });
+    } catch (error: any) {
+      console.error("Error updating user:", error);
+      return new Response(error.message || "Internal Server Error", { status: 500 });
+    }
   }
   if (path === "/online-users" && method === "GET") {
     const userId = url.searchParams.get("userId");

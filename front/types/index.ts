@@ -64,9 +64,11 @@ export interface Product {
 export interface User {
   id: string;
   name: string;
+  email?: string;
   work_position?: string;
   address?: string;
   role: UserRole;
+  rawRole?: string;
 }
 
 // ─── 5. session ───────────────────────────────────────────────────────────────

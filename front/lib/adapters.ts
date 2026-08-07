@@ -116,12 +116,18 @@ export function adaptUser(raw: any): User {
     }
   }
 
+  const nameStr = raw.name || "User"
+  const firstName = nameStr.split(" ")[0].toLowerCase()
+  const derivedEmail = `${firstName}@logisys.com`
+
   return {
     id: String(raw.id),
-    name: raw.name || "User",
+    name: nameStr,
+    email: raw.email || derivedEmail,
     work_position: raw.work_position || (raw.role ? raw.role.replace("_", " ") : undefined),
     address: addressStr || undefined,
     role,
+    rawRole: raw.role || "client",
   }
 }
 

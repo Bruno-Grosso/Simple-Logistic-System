@@ -16,6 +16,89 @@ const createBaseRepo = (table: string) => ({
 export const users = {
   ...createBaseRepo("users"),
   byRole: (role: string) => pg_conn`SELECT * FROM users WHERE role = ${role}`,
+  login: async (identityInput: string, passwordInput: string) => {
+    const input = String(identityInput || "").trim().toLowerCase();
+    const cleanPrefix = input.includes("@") ? input.split("@")[0] : input;
+
+    const allUsers = await pg_conn`SELECT * FROM users`;
+    const matched = allUsers.find((u: any) => {
+      const uId = String(u.id).toLowerCase();
+      const uName = String(u.name).toLowerCase();
+      const firstName = uName.split(" ")[0];
+      const matchPass = String(u.password) === String(passwordInput);
+
+      const matchId = uId === input || uId === cleanPrefix;
+      const matchName = uName === input || firstName === cleanPrefix || uName.includes(cleanPrefix);
+
+      return matchPass && (matchId || matchName);
+    });
+
+    if (!matched) return null;
+
+    const sessionId = `SESS-${Date.now()}`;
+    const nowStr = new Date().toISOString().replace("T", " ").slice(0, 19);
+
+    try {
+      await pg_conn`
+        INSERT INTO online_users (session_id, user_id, login_time, last_activity)
+        VALUES (${sessionId}, ${matched.id}, ${nowStr}, ${nowStr})
+      `;
+    } catch {
+      /* ignore */
+    }
+
+    return {
+      sessionToken: sessionId,
+      token: sessionId,
+      user: {
+        id: matched.id,
+        name: matched.name,
+        email: matched.email || (matched.name ? `${matched.name.split(" ")[0].toLowerCase()}@logisys.com` : `${matched.id.toLowerCase()}@logisys.com`),
+        role: matched.role,
+        address: matched.address,
+      },
+    };
+  },
+  update: async (id: string, user: { name?: string; password?: string; address?: any; role?: string }) => {
+    let addressVal: string | null = null;
+    if (user.address !== undefined) {
+      if (typeof user.address === "object" && user.address !== null) {
+        addressVal = JSON.stringify(user.address);
+      } else if (typeof user.address === "string") {
+        addressVal = user.address.trim().startsWith("{")
+          ? user.address
+          : JSON.stringify({ address: user.address });
+      }
+    }
+
+    const setClauses: string[] = [];
+    if (user.name !== undefined) {
+      await pg_conn`UPDATE users SET name = ${user.name} WHERE id = ${id}`;
+    }
+    if (user.password !== undefined && user.password !== "") {
+      await pg_conn`UPDATE users SET password = ${user.password} WHERE id = ${id}`;
+    }
+    if (addressVal !== null) {
+      await pg_conn`UPDATE users SET address = ${addressVal} WHERE id = ${id}`;
+    }
+    if (user.role !== undefined) {
+      await pg_conn`UPDATE users SET role = ${user.role} WHERE id = ${id}`;
+    }
+
+    const updated = await pg_conn`SELECT * FROM users WHERE id = ${id}`;
+    return updated;
+  },
+  createClient: async (client: { id?: string; name: string; email?: string; password: string; address?: string; role?: string }) => {
+    const id = client.id || `USR-${Math.floor(100 + Math.random() * 900)}`;
+    const role = client.role || "client";
+    const addressJson = JSON.stringify({ address: client.address || "" });
+    const inserted = await pg_conn`
+      INSERT INTO users (id, name, password, address, role)
+      VALUES (${id}, ${client.name}, ${client.password}, ${addressJson}, ${role})
+      RETURNING id, name, address, role
+    `;
+    return inserted[0];
+  },
 };
 
 export const onlineUsers = {

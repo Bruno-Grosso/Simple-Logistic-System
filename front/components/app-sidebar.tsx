@@ -11,7 +11,9 @@ import {
   Users,
   Factory,
   BarChart3,
+  UserCircle,
 } from "lucide-react"
+import { useEffect, useState } from "react"
 import {
   Sidebar,
   SidebarHeader,
@@ -21,6 +23,7 @@ import {
 } from "@/components/ui/sidebar"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
+import { api } from "@/lib/api"
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -32,9 +35,26 @@ const navItems = [
   { title: "Employees", url: "/employees", icon: Users },
   { title: "Suppliers", url: "/suppliers", icon: Factory },
   { title: "Reports", url: "/reports", icon: BarChart3 },
+  { title: "Profile", url: "/profile", icon: UserCircle },
 ]
 
 export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
+  const [currentUser, setCurrentUser] = useState<{ name: string; role: string; email?: string } | undefined>(undefined)
+
+  useEffect(() => {
+    let isMounted = true
+    api.users.getById("USR-001").then((user) => {
+      if (isMounted && user) {
+        setCurrentUser({
+          name: user.name,
+          role: user.rawRole || user.role,
+          email: user.email,
+        })
+      }
+    }).catch(() => {})
+    return () => { isMounted = false }
+  }, [])
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className="border-b border-sidebar-border px-3 py-3">
@@ -52,7 +72,7 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
         <NavMain items={navItems} />
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
-        <NavUser user={{ name: "Rafael Mendes", role: "admin" }} />
+        <NavUser user={currentUser} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
