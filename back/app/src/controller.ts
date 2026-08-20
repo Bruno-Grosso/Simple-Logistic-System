@@ -205,6 +205,13 @@ export const orders = {
       VALUES (${item.order_id}, ${item.product_id}, ${item.quantity})
       RETURNING *
     `,
+  updateDistance: (orderId: string, distanceKm: number) =>
+    pg_conn`
+      UPDATE orders 
+      SET distance_km = ${distanceKm} 
+      WHERE id = ${orderId}
+      RETURNING *
+    `,
 };
 
 export const orders_route = {
