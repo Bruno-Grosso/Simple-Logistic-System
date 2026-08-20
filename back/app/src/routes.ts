@@ -135,7 +135,7 @@ export async function handleRoutes(req: Request) {
       if (typeof orders.updateDistance === 'function') {
         await orders.updateDistance(body.orderId, distanceKm);
       } else {
-        console.warn("Função updateDistance não encontrada no controller de orders.");
+        console.warn("Function updateDistance not found in the orders controller.");
       }
       
       // Sending the Polyline6 string directly from Valhalla to the frontend.
