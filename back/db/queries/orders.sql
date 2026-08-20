@@ -9,5 +9,5 @@ SELECT * FROM orders WHERE client_id = $1;
 
 -- Update order distance in km from Valhalla
 UPDATE orders 
-SET distance_km = $1 
-WHERE id = $2;
+SET distance_km = $2 
+WHERE id = $1;
