@@ -38,7 +38,7 @@ services:
       - "${VALHALLA_LOCAL_PORT}:${VALHALLA_DOCKER_PORT}"
     volumes:
       - ../valhalla_map:/custom_files
-      - ../valhalla_map/valhalla.json:/custom_files/valhalla.json:ro 
+      - ../valhalla_map/valhalla.json:/custom_files
     restart: unless-stopped
 
 volumes:
