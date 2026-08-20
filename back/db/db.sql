@@ -87,8 +87,8 @@ CREATE TABLE orders (
     price REAL NOT NULL DEFAULT 0,
     status TEXT CHECK(status IN ('Pending','Shipped','Delivered','Canceled')) DEFAULT 'Pending',
     supplier_id TEXT REFERENCES suppliers(id),
-    supplier_delivery INTEGER NOT NULL DEFAULT 0
-    distance_km REAL DEFAULT 0
+    supplier_delivery INTEGER NOT NULL DEFAULT 0,
+    distance_km NUMERIC(10, 2)
 );
 
 CREATE TABLE orders_items (
