@@ -130,12 +130,20 @@ export async function handleRoutes(req: Request) {
       }
 
       const data = await valhallaRes.json();
+      const distanceKm = parseFloat(data.trip.summary.length);
+
+      if (typeof orders.updateDistance === 'function') {
+        await orders.updateDistance(body.orderId, distanceKm);
+      } else {
+        console.warn("Função updateDistance não encontrada no controller de orders.");
+      }
       
       // Sending the Polyline6 string directly from Valhalla to the frontend.
       const frontEndResponse = {
         success: true,
         summary: data.trip.summary, 
-        encodedShape: data.trip.legs[0].shape
+        encodedShape: data.trip.legs[0].shape,
+        distance_km: distanceKm
       };
       
       return Response.json(frontEndResponse);
