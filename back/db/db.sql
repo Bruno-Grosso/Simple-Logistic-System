@@ -88,6 +88,7 @@ CREATE TABLE orders (
     status TEXT CHECK(status IN ('Pending','Shipped','Delivered','Canceled')) DEFAULT 'Pending',
     supplier_id TEXT REFERENCES suppliers(id),
     supplier_delivery INTEGER NOT NULL DEFAULT 0
+    distance_km REAL DEFAULT 0
 );
 
 CREATE TABLE orders_items (
