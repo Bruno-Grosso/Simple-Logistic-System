@@ -6,7 +6,7 @@ The information should be displayed in the warehouses.
 each warehouse should have an average gas price, and each driver a wage. The
 delivery cost should be calculated considering the wage of the worker and the
 average gas price in the warehouses they will go though.
-- [ ] Order ETA. Considering a minimum (smallest reasonalbe speed) and a maximum
+- [x] Order ETA. Considering a minimum (smallest reasonalbe speed) and a maximum
 speed the truck can go at + stop time (a driver can drive a max of 8 hours a day
 ), calculate the ETA and display in the order.
 - [ ] Reports. Include the dilivery cost in the report.

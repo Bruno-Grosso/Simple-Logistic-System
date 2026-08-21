@@ -2,18 +2,19 @@
 
 import { useId, useMemo, useState } from "react"
 import Link from "next/link"
-import { Loader2, Plus, Trash2 } from "lucide-react"
+import { Loader2, Plus, Trash2, Timer, Clock, Gauge, ShieldCheck, AlertTriangle } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { PageShell } from "@/components/page-shell"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
-import { computeDepositParkingUsage } from "@/lib/calculations"
+import { computeDepositParkingUsage, calculateOrderETA } from "@/lib/calculations"
 import type { User, Product, Deposit, Truck as TruckType } from "@/types"
 
 const selectClassName = cn(
@@ -79,6 +80,27 @@ export default function NewOrderPage() {
   const selectedWarehouse = useMemo(() => warehouses.find((w) => w.id === warehouseId), [warehouses, warehouseId])
   const selectedWhParkedTrucks = useMemo(() => trucks.filter((t) => t.current_deposit_id === warehouseId).length, [trucks, warehouseId])
   const selectedWhParking = useMemo(() => (selectedWarehouse ? computeDepositParkingUsage(selectedWarehouse, selectedWhParkedTrucks) : null), [selectedWarehouse, selectedWhParkedTrucks])
+
+  const selectedTruck = useMemo(() => {
+    return trucks.find((t) => t.current_deposit_id === warehouseId && !t.is_delivering) || trucks[0]
+  }, [trucks, warehouseId])
+
+  const estimatedDistance = useMemo(() => {
+    if (!destination) return 100
+    const lower = destination.toLowerCase()
+    if (lower.includes("friburgo")) return 140
+    if (lower.includes("teresópolis") || lower.includes("teresopolis")) return 95
+    if (lower.includes("petrópolis") || lower.includes("petropolis")) return 65
+    if (lower.includes("rio") || lower.includes("capital")) return 160
+    return 115
+  }, [destination])
+
+  const estimatedETA = useMemo(() => {
+    return calculateOrderETA(estimatedDistance, {
+      truck: selectedTruck,
+      timeLimit: deadline || undefined,
+    })
+  }, [estimatedDistance, selectedTruck, deadline])
 
   const total = useMemo(() => {
     return lines.reduce((sum, line) => {
@@ -273,6 +295,51 @@ export default function NewOrderPage() {
                   />
                 </div>
               </div>
+
+              {/* Real-time Order ETA Estimation Preview */}
+              {destination && (
+                <div className="rounded-lg border border-border/80 bg-muted/30 p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                      <Timer className="size-3.5 text-primary" />
+                      Estimated Transit & Arrival (ETA)
+                    </span>
+                    {deadline && (
+                      <div className="flex items-center gap-1.5">
+                        {estimatedETA.compliance_status === "on_time" ? (
+                          <Badge variant="outline" className="border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] gap-1 py-0">
+                            <ShieldCheck className="size-2.5" />
+                            Within Deadline
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive" className="text-[10px] gap-1 py-0">
+                            <AlertTriangle className="size-2.5" />
+                            Tight / Late Risk
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                    <div>
+                      <span className="text-muted-foreground block text-[10px] uppercase tracking-wider">Est. Duration</span>
+                      <span className="font-medium text-foreground">~{estimatedETA.formatted_duration_avg}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px] uppercase tracking-wider">Driving Window</span>
+                      <span className="font-medium text-foreground">{estimatedETA.driving_hours_min}h – {estimatedETA.driving_hours_max}h</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px] uppercase tracking-wider">Speed Range</span>
+                      <span className="font-medium text-foreground">{estimatedETA.min_speed_kmh} – {estimatedETA.max_speed_kmh} km/h</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px] uppercase tracking-wider">Rest Stops</span>
+                      <span className="font-medium text-foreground">{estimatedETA.rest_hours_avg}h (8h limit)</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {selectedWhParking?.isFull && (
                 <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">

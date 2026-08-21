@@ -13,6 +13,7 @@ import type {
   UserRole,
   OrderStatus,
   MonthlyPerformanceData,
+  OrderETA,
 } from "@/types"
 
 export function adaptWarehouse(raw: any): Deposit {
@@ -157,6 +158,39 @@ export function adaptOrder(raw: any): Order {
     client_id: String(raw.client_id || raw.client || ""),
     supplier_id: raw.supplier_id || undefined,
     supplier_delivery: Boolean(raw.supplier_delivery),
+    distance_km: raw.distance_km !== undefined ? Number(raw.distance_km) : undefined,
+    eta: raw.eta ? adaptOrderETA(raw.eta) : undefined,
+  }
+}
+
+export function adaptOrderETA(raw: any): OrderETA {
+  if (!raw) return {} as OrderETA
+  return {
+    order_id: String(raw.order_id || ""),
+    distance_km: Number(raw.distance_km ?? 0),
+    min_speed_kmh: Number(raw.min_speed_kmh ?? 40.0),
+    max_speed_kmh: Number(raw.max_speed_kmh ?? 85.0),
+    avg_speed_kmh: Number(raw.avg_speed_kmh ?? 62.5),
+    driving_hours_min: Number(raw.driving_hours_min ?? 0),
+    driving_hours_max: Number(raw.driving_hours_max ?? 0),
+    driving_hours_avg: Number(raw.driving_hours_avg ?? 0),
+    rest_hours_min: Number(raw.rest_hours_min ?? 0),
+    rest_hours_max: Number(raw.rest_hours_max ?? 0),
+    rest_hours_avg: Number(raw.rest_hours_avg ?? 0),
+    rest_periods_count: Number(raw.rest_periods_count ?? 0),
+    total_transit_hours_min: Number(raw.total_transit_hours_min ?? 0),
+    total_transit_hours_max: Number(raw.total_transit_hours_max ?? 0),
+    total_transit_hours_avg: Number(raw.total_transit_hours_avg ?? 0),
+    departure_time: raw.departure_time || undefined,
+    eta_min: raw.eta_min || undefined,
+    eta_max: raw.eta_max || undefined,
+    eta_expected: raw.eta_expected || undefined,
+    formatted_duration_min: raw.formatted_duration_min || undefined,
+    formatted_duration_max: raw.formatted_duration_max || undefined,
+    formatted_duration_avg: raw.formatted_duration_avg || undefined,
+    is_on_time: raw.is_on_time !== undefined ? Boolean(raw.is_on_time) : true,
+    compliance_status: raw.compliance_status || "on_time",
+    time_limit: raw.time_limit || undefined,
   }
 }
 

@@ -5,6 +5,8 @@ import {
   computeTruckLoad,
   computeRouteAverageGasPrice,
   calculateFreightEstimate,
+  calculateOrderETA,
+  formatDurationHours,
 } from "../../lib/calculations"
 import type { Order, Truck, Deposit } from "../../types"
 
@@ -166,5 +168,91 @@ describe("Unit Tests - Domain Calculations (lib/calculations.ts)", () => {
       expect(estimate.total_cost).to.equal(518.7)
     })
   })
+
+  describe("formatDurationHours", () => {
+    it("should format hours to human readable strings", () => {
+      expect(formatDurationHours(0)).to.equal("0h")
+      expect(formatDurationHours(2.5)).to.equal("2h 30m")
+      expect(formatDurationHours(26)).to.equal("1d 2h")
+      expect(formatDurationHours(50)).to.equal("2d 2h")
+    })
+  })
+
+  describe("calculateOrderETA", () => {
+    it("should calculate ETA range using min/max speeds for standard single-day trip (<8h)", () => {
+      const distanceKm = 120
+      const options = {
+        minSpeed: 40.0,
+        maxSpeed: 80.0,
+        avgSpeed: 60.0,
+        departureTime: "2026-03-25T08:00:00",
+        timeLimit: "2026-03-25T18:00:00",
+      }
+
+      const eta = calculateOrderETA(distanceKm, options)
+
+      // Fast: 120 km / 80 km/h = 1.5h driving, 0 rest breaks -> 1.5h total
+      expect(eta.driving_hours_min).to.equal(1.5)
+      expect(eta.total_transit_hours_min).to.equal(1.5)
+      expect(eta.rest_hours_min).to.equal(0)
+
+      // Slow: 120 km / 40 km/h = 3.0h driving, 0 rest breaks -> 3.0h total
+      expect(eta.driving_hours_max).to.equal(3.0)
+      expect(eta.total_transit_hours_max).to.equal(3.0)
+      expect(eta.rest_hours_max).to.equal(0)
+
+      // Avg: 120 km / 60 km/h = 2.0h
+      expect(eta.driving_hours_avg).to.equal(2.0)
+      expect(eta.total_transit_hours_avg).to.equal(2.0)
+      expect(eta.rest_periods_count).to.equal(0)
+
+      // Timestamps & compliance
+      expect(eta.eta_min).to.be.a("string")
+      expect(eta.eta_max).to.be.a("string")
+      expect(eta.eta_expected).to.be.a("string")
+      expect(eta.is_on_time).to.equal(true)
+      expect(eta.compliance_status).to.equal("on_time")
+    })
+
+    it("should incorporate mandatory 16-hour rest stops when driving duration exceeds 8 hours a day", () => {
+      // 800 km trip:
+      // At 80 km/h -> 10h driving -> exceeds 8h -> 1 rest period of 16h added -> total transit = 26h (1d 2h)
+      // At 40 km/h -> 20h driving -> floor((20-0.001)/8) = 2 rest periods of 16h = 32h rest -> total transit = 52h (2d 4h)
+      const distanceKm = 800
+      const options = {
+        minSpeed: 40.0,
+        maxSpeed: 80.0,
+        avgSpeed: 50.0,
+        departureTime: "2026-03-25T08:00:00",
+      }
+
+      const eta = calculateOrderETA(distanceKm, options)
+
+      expect(eta.driving_hours_min).to.equal(10)
+      expect(eta.rest_hours_min).to.equal(16)
+      expect(eta.total_transit_hours_min).to.equal(26) // 10 + 16
+
+      expect(eta.driving_hours_max).to.equal(20)
+      expect(eta.rest_hours_max).to.equal(32) // 2 * 16
+      expect(eta.total_transit_hours_max).to.equal(52) // 20 + 32
+
+      expect(eta.rest_periods_count).to.be.greaterThan(0)
+    })
+
+    it("should detect delay risk when expected arrival exceeds order deadline", () => {
+      const distanceKm = 600
+      const options = {
+        minSpeed: 40.0,
+        maxSpeed: 80.0,
+        departureTime: "2026-03-25T08:00:00",
+        timeLimit: "2026-03-25T12:00:00", // 4 hours deadline for a 600 km trip
+      }
+
+      const eta = calculateOrderETA(distanceKm, options)
+      expect(eta.is_on_time).to.equal(false)
+      expect(eta.compliance_status).to.equal("overdue")
+    })
+  })
 })
+
 

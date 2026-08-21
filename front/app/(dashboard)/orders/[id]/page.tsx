@@ -1,5 +1,17 @@
 import { notFound } from "next/navigation"
-import { CheckCircle2, RouteOff, Truck, Warehouse, DollarSign } from "lucide-react"
+import {
+  CheckCircle2,
+  RouteOff,
+  Truck,
+  Warehouse,
+  DollarSign,
+  Clock,
+  Timer,
+  Gauge,
+  ShieldCheck,
+  AlertTriangle,
+  Calendar,
+} from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { PageShell } from "@/components/page-shell"
 import { InfoField } from "@/components/info-field"
@@ -9,8 +21,8 @@ import { EmptyState } from "@/components/empty-state"
 import { RouteMap } from "@/components/route-map"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
-import { calculateFreightEstimate } from "@/lib/calculations"
-import type { OrderStatus, User, Product, Deposit, Truck as TruckType } from "@/types"
+import { calculateFreightEstimate, calculateOrderETA } from "@/lib/calculations"
+import type { OrderStatus, User, Product, Deposit, Truck as TruckType, OrderETA } from "@/types"
 
 function parseDestination(raw: string | undefined): string {
   if (!raw) return "—"
@@ -62,6 +74,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
     items,
     routeSteps,
     costData,
+    etaData,
     products,
     warehouses,
     trucks,
@@ -70,6 +83,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
     api.orders.getItems(order.id),
     api.orders.getRoute(order.id),
     api.orders.getCost(order.id),
+    api.orders.getETA(order.id),
     api.products.getAll(),
     api.warehouses.getAll(),
     api.trucks.getAll(),
@@ -126,6 +140,12 @@ export default async function OrderDetailPage({ params }: PageProps) {
     driverWage
   )
 
+  // Order ETA calculation considering min/max speeds and driver 8h/day max driving rule
+  const orderETA = etaData ?? calculateOrderETA(distanceKm, {
+    truck: assignedTruck,
+    timeLimit: order.time_limit,
+  })
+
   return (
     <PageShell>
       <PageHeader
@@ -165,6 +185,98 @@ export default async function OrderDetailPage({ params }: PageProps) {
                       Status
                     </p>
                     {orderStatusBadge(order.status)}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Order ETA & Transit Time Estimation Card */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="font-display text-lg flex items-center gap-2">
+                  <Timer className="size-4 text-primary" />
+                  Estimated Time of Arrival (ETA)
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  {orderETA.compliance_status === "on_time" && (
+                    <Badge variant="outline" className="border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 gap-1.5">
+                      <ShieldCheck className="size-3.5" />
+                      On Schedule
+                    </Badge>
+                  )}
+                  {orderETA.compliance_status === "at_risk" && (
+                    <Badge variant="outline" className="border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400 gap-1.5">
+                      <AlertTriangle className="size-3.5" />
+                      Tight Schedule
+                    </Badge>
+                  )}
+                  {orderETA.compliance_status === "overdue" && (
+                    <Badge variant="destructive" className="gap-1.5">
+                      <AlertTriangle className="size-3.5" />
+                      Delay Risk
+                    </Badge>
+                  )}
+                  <Badge variant={etaData ? "default" : "secondary"} className="text-xs">
+                    {etaData ? "Database ETA" : "Calculated ETA"}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-lg border border-border/80 bg-muted/40 p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Expected Arrival
+                      </p>
+                      <p className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+                        {formatDt(orderETA.eta_expected)}
+                      </p>
+                    </div>
+                    <div className="text-left sm:text-right">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                        <Clock className="size-3" />
+                        ~{orderETA.formatted_duration_avg || `${orderETA.total_transit_hours_avg}h`} total transit
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground border-t border-border/60 pt-2.5">
+                    <span>
+                      <strong className="text-foreground">Earliest (Max Speed):</strong> {formatDt(orderETA.eta_min)}
+                    </span>
+                    <span>•</span>
+                    <span>
+                      <strong className="text-foreground">Latest (Min Speed):</strong> {formatDt(orderETA.eta_max)}
+                    </span>
+                    <span>•</span>
+                    <span>
+                      <strong className="text-foreground">Deadline:</strong> {order.time_limit ?? "—"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  <InfoField
+                    label="Min Speed"
+                    value={`${orderETA.min_speed_kmh} km/h`}
+                  />
+                  <InfoField
+                    label="Truck Max Speed"
+                    value={`${orderETA.max_speed_kmh} km/h`}
+                  />
+                  <InfoField
+                    label="Pure Driving Time"
+                    value={`${orderETA.driving_hours_min}h – ${orderETA.driving_hours_max}h`}
+                  />
+                  <InfoField
+                    label="Mandatory Rest"
+                    value={`${orderETA.rest_hours_avg}h (${orderETA.rest_periods_count} stop${orderETA.rest_periods_count === 1 ? '' : 's'})`}
+                  />
+                </div>
+
+                <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
+                  <Gauge className="size-3.5 shrink-0 text-primary mt-0.5" />
+                  <div>
+                    <strong>Driver Rest Regulation:</strong> Complies with max 8 hours driving per 24h work day. Journeys exceeding 8h automatically schedule 16-hour mandatory rest intervals between driving shifts.
                   </div>
                 </div>
               </CardContent>

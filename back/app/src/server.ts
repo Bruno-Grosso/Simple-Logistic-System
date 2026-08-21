@@ -257,6 +257,14 @@ const innerFetchHandler = async (req: Request) => {
     if (parts[3] === "items") return Response.json(await controller.orders.items(id));
     if (parts[3] === "route") return Response.json(await controller.orders.routes(id));
     if (parts[3] === "cost") return Response.json(await controller.orders.costs(id));
+    if (parts[3] === "eta") {
+      try {
+        const eta = await controller.orders.calculateETA(id);
+        return Response.json({ success: true, ...eta });
+      } catch (error: any) {
+        return Response.json({ success: false, error: error.message || "Failed to calculate ETA" }, { status: 400 });
+      }
+    }
     
     const result = await controller.orders.byId(id);
     if (!result || result.length === 0) return new Response("Order not found", { status: 404 });
@@ -266,6 +274,24 @@ const innerFetchHandler = async (req: Request) => {
     const parts = path.split("/");
     const id = parts[2];
     if (!id) return new Response("Order ID required", { status: 400 });
+
+    if (parts[3] === "calculate-eta") {
+      try {
+        const body = (await req.json().catch(() => ({}))) as {
+          minSpeed?: number;
+          maxSpeed?: number;
+          avgSpeed?: number;
+          departureTime?: string;
+          originWarehouseId?: string;
+          truckId?: string;
+        };
+        const etaResult = await controller.orders.calculateETA(id, body);
+        return Response.json({ success: true, ...etaResult });
+      } catch (error: any) {
+        console.error("Error calculating order ETA:", error);
+        return Response.json({ success: false, error: error.message || "Failed to calculate ETA" }, { status: 400 });
+      }
+    }
 
     if (parts[3] === "calculate-cost") {
       try {

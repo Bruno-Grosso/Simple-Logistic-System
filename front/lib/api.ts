@@ -11,6 +11,7 @@ import {
   adaptStock,
   adaptFreightCost,
   adaptMonthlyPerformance,
+  adaptOrderETA,
 } from "./adapters"
 import {
   DEPOSITS,
@@ -34,6 +35,7 @@ import type {
   Stock,
   FreightCost,
   MonthlyPerformanceData,
+  OrderETA,
 } from "@/types"
 
 const baseURL = (process.env.LOGISYS_BACKEND_URL ?? process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080").replace(/\/$/, "")
@@ -406,6 +408,18 @@ export const api = {
       return undefined
     },
 
+    async getETA(id: string): Promise<OrderETA | undefined> {
+      try {
+        const res = await apiClient.get<any>(`/orders/${id}/eta`)
+        if (res.data && res.data.success) {
+          return adaptOrderETA(res.data)
+        }
+      } catch (err) {
+        console.warn(`[API] GET /orders/${id}/eta fallback:`, err)
+      }
+      return undefined
+    },
+
     async create(payload: {
       id: string
       client_id: string
@@ -417,6 +431,25 @@ export const api = {
     }): Promise<{ success: boolean; order?: any }> {
       const res = await apiClient.post<{ success: boolean; order?: any }>("/orders", payload)
       return res.data
+    },
+
+    async calculateETA(orderId: string, options?: {
+      minSpeed?: number
+      maxSpeed?: number
+      avgSpeed?: number
+      departureTime?: string
+      originWarehouseId?: string
+      truckId?: string
+    }): Promise<OrderETA | null> {
+      try {
+        const res = await apiClient.post<any>(`/orders/${orderId}/calculate-eta`, options || {})
+        if (res.data && res.data.success) {
+          return adaptOrderETA(res.data)
+        }
+      } catch (err) {
+        console.warn(`[API] POST /orders/${orderId}/calculate-eta fallback:`, err)
+      }
+      return null
     },
 
     async calculateCost(orderId: string, options?: {

@@ -86,7 +86,33 @@ export interface Session {
   is_active: boolean;
 }
 
-// ─── 6. orders ────────────────────────────────────────────────────────────────
+export interface OrderETA {
+  order_id: string;
+  distance_km: number;
+  min_speed_kmh: number;
+  max_speed_kmh: number;
+  avg_speed_kmh: number;
+  driving_hours_min: number;
+  driving_hours_max: number;
+  driving_hours_avg: number;
+  rest_hours_min: number;
+  rest_hours_max: number;
+  rest_hours_avg: number;
+  rest_periods_count: number;
+  total_transit_hours_min: number;
+  total_transit_hours_max: number;
+  total_transit_hours_avg: number;
+  departure_time?: string;
+  eta_min?: string;
+  eta_max?: string;
+  eta_expected?: string;
+  formatted_duration_min?: string;
+  formatted_duration_max?: string;
+  formatted_duration_avg?: string;
+  is_on_time?: boolean;
+  compliance_status?: "on_time" | "at_risk" | "overdue";
+  time_limit?: string;
+}
 
 export interface Order {
   id: string;
@@ -99,6 +125,8 @@ export interface Order {
   client_id: string;
   supplier_id?: string;
   supplier_delivery: boolean;
+  distance_km?: number;
+  eta?: OrderETA;
 }
 
 // ─── 7. order_items ───────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowUpRight, Package, Plus } from "lucide-react"
+import { ArrowUpRight, Package, Plus, Timer } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { PageShell } from "@/components/page-shell"
 import { Badge } from "@/components/ui/badge"
@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
-import type { OrderStatus, User } from "@/types"
+import { calculateOrderETA } from "@/lib/calculations"
+import type { OrderStatus, User, Deposit, Truck } from "@/types"
 
 export const dynamic = "force-dynamic"
 
@@ -47,9 +48,11 @@ function orderStatusBadge(status: OrderStatus) {
 }
 
 export default async function OrdersPage() {
-  const [orders, users] = await Promise.all([
+  const [orders, users, warehouses, trucks] = await Promise.all([
     api.orders.getAll(),
     api.users.getAll(),
+    api.warehouses.getAll(),
+    api.trucks.getAll(),
   ])
 
   const userMap = new Map<string, User>()
@@ -80,14 +83,14 @@ export default async function OrdersPage() {
       />
       <div className="min-h-0 flex-1 overflow-auto">
         <div className="overflow-x-auto rounded-lg border border-border">
-          <Table className="min-w-[700px]">
+          <Table className="min-w-[750px]">
             <TableHeader>
               <TableRow>
                 <TableHead scope="col" className="px-4">Order</TableHead>
                 <TableHead scope="col" className="px-4">Destination</TableHead>
                 <TableHead scope="col" className="px-4">Client</TableHead>
                 <TableHead scope="col" className="px-4">Status</TableHead>
-                <TableHead scope="col" className="px-4">Deadline</TableHead>
+                <TableHead scope="col" className="px-4">Deadline & ETA</TableHead>
                 <TableHead scope="col" className="px-4 text-right tabular-nums">Value</TableHead>
                 <TableHead scope="col" className="w-12 px-4">
                   <span className="sr-only">Open order</span>
@@ -104,6 +107,11 @@ export default async function OrdersPage() {
                   order.status !== "Delivered" &&
                   order.status !== "Cancelled" &&
                   deadline < today
+
+                const orderETA = order.eta ?? calculateOrderETA(order.distance_km || 120, {
+                  truck: trucks[0],
+                  timeLimit: order.time_limit,
+                })
 
                 return (
                   <TableRow key={order.id}>
@@ -123,14 +131,22 @@ export default async function OrdersPage() {
                     <TableCell className="px-4">{client?.name ?? `Client ${order.client_id}`}</TableCell>
                     <TableCell className="px-4">{orderStatusBadge(order.status)}</TableCell>
                     <TableCell className="px-4">
-                      <span className={cn("tabular-nums", isOverdue && "font-medium text-destructive")}>
-                        {order.time_limit ?? "—"}
-                      </span>
-                      {isOverdue && (
-                        <span className="ml-1.5 text-xs font-semibold text-destructive" aria-label="Late">
-                          LATE
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className={cn("tabular-nums text-sm", isOverdue && "font-medium text-destructive")}>
+                            {order.time_limit ?? "—"}
+                          </span>
+                          {isOverdue && (
+                            <span className="text-xs font-semibold text-destructive" aria-label="Late">
+                              LATE
+                            </span>
+                          )}
+                        </div>
+                        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <Timer className="size-3 text-primary/70" />
+                          ETA: ~{orderETA.formatted_duration_avg || `${orderETA.total_transit_hours_avg}h`}
                         </span>
-                      )}
+                      </div>
                     </TableCell>
                     <TableCell className="px-4 text-right tabular-nums">
                       R$ {order.price.toLocaleString("pt-BR")}

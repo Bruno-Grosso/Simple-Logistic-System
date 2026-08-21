@@ -461,6 +461,150 @@ export const orders = {
       WHERE id = ${orderId}
       RETURNING *
     `,
+  calculateETA: async (
+    orderId: string,
+    options?: {
+      minSpeed?: number;
+      maxSpeed?: number;
+      avgSpeed?: number;
+      departureTime?: string;
+      originWarehouseId?: string;
+      truckId?: string;
+    }
+  ) => {
+    const orderRes = await pg_conn`SELECT * FROM orders WHERE id = ${orderId}`;
+    if (!orderRes || orderRes.length === 0) throw new Error("Order not found");
+    const order = orderRes[0];
+
+    // Find route steps & origin warehouse
+    const routes = await pg_conn`SELECT * FROM orders_route WHERE order_id = ${orderId} ORDER BY step ASC`;
+    let originWhId = options?.originWarehouseId || routes[0]?.warehouse_id || "WH-001";
+    const whRes = await pg_conn`SELECT * FROM warehouses WHERE id = ${originWhId}`;
+    const warehouse = whRes && whRes.length > 0 ? whRes[0] : null;
+
+    // Find assigned truck
+    let truckId = options?.truckId || routes.find((r: any) => r.truck_id)?.truck_id;
+    let truckData: any = null;
+    if (truckId) {
+      const tRes = await pg_conn`SELECT * FROM trucks WHERE id = ${truckId}`;
+      if (tRes && tRes.length > 0) truckData = tRes[0];
+    }
+    if (!truckData) {
+      const allTrucks = await pg_conn`SELECT * FROM trucks LIMIT 1`;
+      truckData = allTrucks[0];
+    }
+
+    // 1. Determine Distance
+    let distanceKm = Number(order.distance_km || 0);
+    if (distanceKm <= 0) {
+      const wCoords = parseLocationCoords(warehouse?.location, -22.3842, -43.1311);
+      const oCoords = parseLocationCoords(order.final_destination, -22.4123, -42.9656);
+      distanceKm = await calculateDistanceInDb(wCoords.lat, wCoords.lon, oCoords.lat, oCoords.lon);
+      await orders.updateDistance(orderId, distanceKm);
+    }
+
+    // 2. Speed Limits
+    // Smallest reasonable speed (e.g. 40.0 km/h for heavy commercial trucks in regional/urban terrain)
+    const minSpeed = options?.minSpeed !== undefined ? Number(options.minSpeed) : 40.0;
+    // Maximum speed the truck can travel (from truck profile or 85.0 km/h)
+    const maxSpeed = options?.maxSpeed !== undefined ? Number(options.maxSpeed) : Number(truckData?.speed || 85.0);
+    // Nominal / Expected speed
+    const avgSpeed = options?.avgSpeed !== undefined ? Number(options.avgSpeed) : Math.round(((minSpeed + maxSpeed) / 2) * 10) / 10;
+
+    // 3. Driver Working Hours Regulation: Max 8 hours driving per day (Brazilian CLT / Transport Standard)
+    // For every 8 hours of driving time accumulated, a mandatory daily rest stop of 16 hours is incurred.
+    const computeTransitWithDriverRest = (speedKmH: number) => {
+      const effectiveSpeed = Math.max(1, speedKmH);
+      const drivingHours = distanceKm / effectiveSpeed;
+      
+      // Number of mandatory 16-hour rest periods triggered by exceeding 8h driving blocks
+      const full8HourBlocks = Math.floor((drivingHours - 0.001) / 8);
+      const restPeriodsCount = Math.max(0, full8HourBlocks);
+      const restHours = restPeriodsCount * 16;
+      const totalTransitHours = drivingHours + restHours;
+
+      return {
+        speed: speedKmH,
+        drivingHours: Math.round(drivingHours * 100) / 100,
+        restPeriodsCount,
+        restHours: Math.round(restHours * 100) / 100,
+        totalTransitHours: Math.round(totalTransitHours * 100) / 100,
+      };
+    };
+
+    const fastCase = computeTransitWithDriverRest(maxSpeed);     // Min transit time (max speed)
+    const slowCase = computeTransitWithDriverRest(minSpeed);     // Max transit time (min speed)
+    const avgCase = computeTransitWithDriverRest(avgSpeed);       // Expected transit time
+
+    // 4. Departure and Arrival Timestamps
+    const departureStr = options?.departureTime || new Date().toISOString();
+    const departureMs = new Date(departureStr).getTime();
+
+    const etaMinMs = departureMs + fastCase.totalTransitHours * 3600 * 1000;
+    const etaMaxMs = departureMs + slowCase.totalTransitHours * 3600 * 1000;
+    const etaAvgMs = departureMs + avgCase.totalTransitHours * 3600 * 1000;
+
+    const etaMin = new Date(etaMinMs).toISOString().replace("T", " ").slice(0, 19);
+    const etaMax = new Date(etaMaxMs).toISOString().replace("T", " ").slice(0, 19);
+    const etaExpected = new Date(etaAvgMs).toISOString().replace("T", " ").slice(0, 19);
+
+    // 5. Update order route step estimated_time with expected ETA if route exists
+    if (routes.length > 0) {
+      try {
+        await pg_conn`
+          UPDATE orders_route 
+          SET estimated_time = ${etaExpected}
+          WHERE order_id = ${orderId} AND step = ${routes[routes.length - 1].step}
+        `;
+      } catch {
+        /* ignore */
+      }
+    }
+
+    // 6. Check compliance against deadline (order.time_limit)
+    let isOnTime = true;
+    let complianceStatus: "on_time" | "at_risk" | "overdue" = "on_time";
+    if (order.time_limit) {
+      const deadlineMs = new Date(order.time_limit).getTime();
+      if (!isNaN(deadlineMs)) {
+        if (etaMaxMs <= deadlineMs) {
+          complianceStatus = "on_time";
+          isOnTime = true;
+        } else if (etaAvgMs <= deadlineMs) {
+          complianceStatus = "at_risk";
+          isOnTime = true;
+        } else {
+          complianceStatus = "overdue";
+          isOnTime = false;
+        }
+      }
+    }
+
+    return {
+      order_id: orderId,
+      distance_km: distanceKm,
+      min_speed_kmh: minSpeed,
+      max_speed_kmh: maxSpeed,
+      avg_speed_kmh: avgSpeed,
+      driving_hours_min: fastCase.drivingHours,
+      driving_hours_max: slowCase.drivingHours,
+      driving_hours_avg: avgCase.drivingHours,
+      rest_hours_min: fastCase.restHours,
+      rest_hours_max: slowCase.restHours,
+      rest_hours_avg: avgCase.restHours,
+      rest_periods_count: avgCase.restPeriodsCount,
+      total_transit_hours_min: fastCase.totalTransitHours,
+      total_transit_hours_max: slowCase.totalTransitHours,
+      total_transit_hours_avg: avgCase.totalTransitHours,
+      departure_time: departureStr,
+      eta_min: etaMin,
+      eta_max: etaMax,
+      eta_expected: etaExpected,
+      time_limit: order.time_limit,
+      is_on_time: isOnTime,
+      compliance_status: complianceStatus,
+    };
+  },
 };
 
 export const orders_route = {

@@ -10,6 +10,7 @@ import {
   adaptStock,
   adaptFreightCost,
   adaptMonthlyPerformance,
+  adaptOrderETA,
 } from "../../lib/adapters"
 
 describe("Unit Tests - Data Adapters (lib/adapters.ts)", () => {
@@ -237,5 +238,54 @@ describe("Unit Tests - Data Adapters (lib/adapters.ts)", () => {
       expect(adapted.isPoi).to.equal(true)
     })
   })
+
+  describe("adaptOrderETA", () => {
+    it("should correctly adapt backend order ETA response", () => {
+      const raw = {
+        order_id: "ORD-002",
+        distance_km: 120,
+        min_speed_kmh: 40.0,
+        max_speed_kmh: 80.0,
+        avg_speed_kmh: 60.0,
+        driving_hours_min: 1.5,
+        driving_hours_max: 3.0,
+        driving_hours_avg: 2.0,
+        rest_hours_min: 0,
+        rest_hours_max: 0,
+        rest_hours_avg: 0,
+        rest_periods_count: 0,
+        total_transit_hours_min: 1.5,
+        total_transit_hours_max: 3.0,
+        total_transit_hours_avg: 2.0,
+        departure_time: "2026-03-25T08:00:00",
+        eta_min: "2026-03-25 09:30:00",
+        eta_max: "2026-03-25 11:00:00",
+        eta_expected: "2026-03-25 10:00:00",
+        formatted_duration_min: "1h 30m",
+        formatted_duration_max: "3h",
+        formatted_duration_avg: "2h",
+        is_on_time: true,
+        compliance_status: "on_time",
+        time_limit: "2026-03-28",
+      }
+
+      const adapted = adaptOrderETA(raw)
+      expect(adapted.order_id).to.equal("ORD-002")
+      expect(adapted.distance_km).to.equal(120)
+      expect(adapted.min_speed_kmh).to.equal(40.0)
+      expect(adapted.max_speed_kmh).to.equal(80.0)
+      expect(adapted.driving_hours_min).to.equal(1.5)
+      expect(adapted.driving_hours_max).to.equal(3.0)
+      expect(adapted.total_transit_hours_avg).to.equal(2.0)
+      expect(adapted.is_on_time).to.equal(true)
+      expect(adapted.compliance_status).to.equal("on_time")
+      expect(adapted.eta_expected).to.equal("2026-03-25 10:00:00")
+    })
+
+    it("should handle empty fallback gracefully", () => {
+      expect(adaptOrderETA(null)).to.deep.equal({})
+    })
+  })
 })
+
 

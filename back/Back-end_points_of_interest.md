@@ -56,6 +56,8 @@ All user credentials are seeded from [`back/db/fill_mock_data.sql`](file:///home
 | **Orders** | `GET` | `/orders/:id/items` | None | Retrieves ordered product items and quantities |
 | **Orders** | `GET` | `/orders/:id/route` | None | Retrieves transit steps and warehouse stops |
 | **Orders** | `GET` | `/orders/:id/cost` | None | Retrieves calculated freight cost breakdown |
+| **Orders** | `GET` | `/orders/:id/eta` | None | Calculates & retrieves order ETA window with min/max speeds and driver rest regulation |
+| **Orders** | `POST` | `/orders/:id/calculate-eta` | Payload `{ minSpeed, maxSpeed, departureTime }` | Computes transit duration with 8h/day driver limit & updates route |
 | **Supplies** | `GET` | `/supplies-route` | `?orderId=<id>` / `?supplierId=<id>` | Retrieves supplier delivery routes |
 | **Costs** | `GET` | `/freight-cost` | `?orderId=<id>` | Retrieves freight cost logs across all orders |
 | **Valhalla Route** | `POST` | `/route` | Payload `{ orderId, warehouseId }` | Integrates with Valhalla engine to compute truck shape |

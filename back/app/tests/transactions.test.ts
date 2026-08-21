@@ -185,3 +185,42 @@ test("Transactions: POST /orders/:id/calculate-cost calculates & saves cost cons
   expect(savedCosts[0].total_cost).toBe(data.total_cost);
 });
 
+test("Transactions: GET /orders/:id/eta returns ETA window and transit calculation", async () => {
+  const res = await testFetch("/orders/ORD-002/eta");
+  expect(res.status).toBe(200);
+  const data = (await res.json()) as any;
+  expect(data.success).toBe(true);
+  expect(data.order_id).toBe("ORD-002");
+  expect(data.distance_km).toBeGreaterThan(0);
+  expect(data.min_speed_kmh).toBe(40.0);
+  expect(data.max_speed_kmh).toBeGreaterThanOrEqual(80.0);
+  expect(data.driving_hours_min).toBeLessThan(data.driving_hours_max);
+  expect(data.eta_min).toBeDefined();
+  expect(data.eta_max).toBeDefined();
+  expect(data.eta_expected).toBeDefined();
+});
+
+test("Transactions: POST /orders/:id/calculate-eta incorporates min/max speeds & driver 8h max driving rule", async () => {
+  // Test case 1: Long route (e.g. 800 km) -> At 80 km/h, 10h drive -> Exceeds 8h -> 1 rest period of 16h added -> 26h total transit
+  const resLong = await testFetch("/orders/ORD-001/calculate-eta", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      minSpeed: 50.0,
+      maxSpeed: 80.0,
+      departureTime: "2026-03-25T08:00:00",
+    }),
+  });
+  expect(resLong.status).toBe(200);
+  const dataLong = (await resLong.json()) as any;
+  expect(dataLong.success).toBe(true);
+  expect(dataLong.min_speed_kmh).toBe(50.0);
+  expect(dataLong.max_speed_kmh).toBe(80.0);
+  expect(dataLong.avg_speed_kmh).toBe(65.0);
+  expect(dataLong.eta_min).toBeDefined();
+  expect(dataLong.eta_max).toBeDefined();
+  expect(dataLong.eta_expected).toBeDefined();
+  expect(dataLong.compliance_status).toBeDefined();
+});
+
+
