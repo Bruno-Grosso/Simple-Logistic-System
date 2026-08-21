@@ -105,6 +105,11 @@
   **Example of activity**: If you want to calculate the cheapest refueling option for trucks near this warehouse, use this value.  
   **Example value**: `1.45`
 
+- **truck_capacity (INTEGER)**:  
+  This field defines the maximum number of trucks that can be parked or docked simultaneously at the warehouse.  
+  **Example of activity**: Before routing or assigning a truck to a warehouse, check if current parked + arriving trucks < `truck_capacity`.  
+  **Example value**: `5`
+
 ---
 
 # TABLE: warehouses_stock

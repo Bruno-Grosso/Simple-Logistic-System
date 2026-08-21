@@ -14,6 +14,10 @@ export interface Deposit {
   volume_max?: number;
   has_refrigeration: boolean;
   fuel_price?: number;
+  truck_capacity?: number;
+  parking_capacity?: number;
+  trucks_parked?: number;
+  parking_available?: number;
 }
 
 // ─── 2. truck ─────────────────────────────────────────────────────────────────

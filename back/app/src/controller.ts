@@ -136,52 +136,133 @@ export const warehouses = {
   ...createBaseRepo("warehouses"),
   stock: (warehouseId: string) => 
     pg_conn`SELECT * FROM warehouses_stock WHERE warehouse_id = ${warehouseId}`,
+  getParkingStatus: async (warehouseId: string) => {
+    const whRes = await pg_conn`SELECT * FROM warehouses WHERE id = ${warehouseId}`;
+    if (!whRes || whRes.length === 0) return null;
+    const warehouse = whRes[0];
+    const truckCapacity = Number(warehouse.truck_capacity ?? 5);
+
+    const parkedTrucks = await pg_conn`
+      SELECT * FROM trucks 
+      WHERE current_warehouse_id = ${warehouseId} AND is_delivering = 0
+    `;
+
+    const inboundTrucks = await pg_conn`
+      SELECT * FROM trucks 
+      WHERE destination_warehouse_id = ${warehouseId} AND is_delivering = 1
+    `;
+
+    const incomingRoutes = await pg_conn`
+      SELECT r.*, o.status as order_status FROM orders_route r
+      JOIN orders o ON r.order_id = o.id
+      WHERE r.destination_warehouse_id = ${warehouseId} AND r.arrived_at IS NULL AND o.status = 'Shipped'
+    `;
+
+    const parkedCount = parkedTrucks.length;
+    const inboundCount = inboundTrucks.length;
+    const occupiedSpots = parkedCount;
+    const availableSpots = Math.max(0, truckCapacity - occupiedSpots);
+    const isFull = occupiedSpots >= truckCapacity;
+
+    return {
+      warehouse_id: warehouseId,
+      truck_capacity: truckCapacity,
+      parked_count: parkedCount,
+      inbound_count: inboundCount,
+      occupied_spots: occupiedSpots,
+      available_spots: availableSpots,
+      is_full: isFull,
+      parked_trucks: parkedTrucks,
+      inbound_trucks: inboundTrucks,
+      incoming_routes: incomingRoutes,
+    };
+  },
+  checkParkingAvailable: async (warehouseId: string, truckId?: string) => {
+    const status = await warehouses.getParkingStatus(warehouseId);
+    if (!status) return { allowed: false, reason: "Warehouse not found" };
+
+    if (truckId) {
+      const alreadyParked = status.parked_trucks.some((t: any) => t.id === truckId);
+      if (alreadyParked) {
+        return { allowed: true, status };
+      }
+    }
+
+    if (status.is_full) {
+      return {
+        allowed: false,
+        reason: `Warehouse ${warehouseId} has reached maximum truck parking capacity (${status.parked_count}/${status.truck_capacity} spots occupied)`,
+        status,
+      };
+    }
+    return { allowed: true, status };
+  },
   update: (id: string, warehouse: {
-    location: any;
-    size: any;
-    volume_max: number;
-    has_refrigeration: number;
-    fuel_price: number;
-  }) =>
-    pg_conn`
+    location?: any;
+    size?: any;
+    volume_max?: number;
+    has_refrigeration?: number;
+    fuel_price?: number;
+    truck_capacity?: number;
+  }) => {
+    const capacity = warehouse.truck_capacity !== undefined ? Number(warehouse.truck_capacity) : 5;
+    return pg_conn`
       UPDATE warehouses
       SET location = ${typeof warehouse.location === 'string' ? warehouse.location : JSON.stringify(warehouse.location)}, 
           size = ${typeof warehouse.size === 'string' ? warehouse.size : JSON.stringify(warehouse.size)}, 
           volume_max = ${warehouse.volume_max}, 
           has_refrigeration = ${warehouse.has_refrigeration}, 
-          fuel_price = ${warehouse.fuel_price}
+          fuel_price = ${warehouse.fuel_price},
+          truck_capacity = ${capacity}
       WHERE id = ${id}
       RETURNING *
-    `,
+    `;
+  },
 };
 
 export const trucks = {
   ...createBaseRepo("trucks"),
   byModel: (model: string) => pg_conn`SELECT * FROM trucks WHERE model = ${model}`,
-  update: (id: string, truck: {
-    model: string;
-    speed: number;
-    is_valid: number;
-    size: any;
-    volume_max: number;
-    weight_max: number;
-    has_refrigeration: number;
-    fuel_capacity: number;
-    fuel_current: number;
-    fuel_consumption: number;
-    current_warehouse_id: string | null;
-  }) =>
-    pg_conn`
+  update: async (id: string, truck: {
+    model?: string;
+    speed?: number;
+    is_valid?: number;
+    size?: any;
+    volume_max?: number;
+    weight_max?: number;
+    has_refrigeration?: number;
+    fuel_capacity?: number;
+    fuel_current?: number;
+    fuel_consumption?: number;
+    current_warehouse_id?: string | null;
+    destination_warehouse_id?: string | null;
+    origin_warehouse_id?: string | null;
+  }) => {
+    // If moving truck to a new warehouse, verify parking capacity
+    if (truck.current_warehouse_id) {
+      const check = await warehouses.checkParkingAvailable(truck.current_warehouse_id, id);
+      if (!check.allowed) {
+        throw new Error(check.reason || "Warehouse parking is full");
+      }
+    }
+
+    return pg_conn`
       UPDATE trucks
-      SET model = ${truck.model}, speed = ${truck.speed}, is_valid = ${truck.is_valid}, 
-          size = ${typeof truck.size === 'string' ? truck.size : JSON.stringify(truck.size)}, 
-          volume_max = ${truck.volume_max}, weight_max = ${truck.weight_max}, 
-          has_refrigeration = ${truck.has_refrigeration}, fuel_capacity = ${truck.fuel_capacity}, 
-          fuel_current = ${truck.fuel_current}, fuel_consumption = ${truck.fuel_consumption}, 
-          current_warehouse_id = ${truck.current_warehouse_id}
+      SET model = COALESCE(${truck.model}, model), 
+          speed = COALESCE(${truck.speed}, speed), 
+          is_valid = COALESCE(${truck.is_valid}, is_valid), 
+          size = ${truck.size !== undefined ? (typeof truck.size === 'string' ? truck.size : JSON.stringify(truck.size)) : pg_conn`size`}, 
+          volume_max = COALESCE(${truck.volume_max}, volume_max), 
+          weight_max = COALESCE(${truck.weight_max}, weight_max), 
+          has_refrigeration = COALESCE(${truck.has_refrigeration}, has_refrigeration), 
+          fuel_capacity = COALESCE(${truck.fuel_capacity}, fuel_capacity), 
+          fuel_current = COALESCE(${truck.fuel_current}, fuel_current), 
+          fuel_consumption = COALESCE(${truck.fuel_consumption}, fuel_consumption), 
+          current_warehouse_id = ${truck.current_warehouse_id !== undefined ? truck.current_warehouse_id : pg_conn`current_warehouse_id`}
       WHERE id = ${id}
       RETURNING *
-    `,
+    `;
+  },
 };
 
 export const suppliers = createBaseRepo("suppliers");
@@ -216,7 +297,54 @@ export const orders = {
 
 export const orders_route = {
   ...createBaseRepo("orders_route"),
-  byOrder: (orderId: string) => pg_conn`SELECT * FROM orders_route WHERE order_id = ${orderId}`,
+  byOrder: (orderId: string) => pg_conn`SELECT * FROM orders_route WHERE order_id = ${orderId} ORDER BY step ASC`,
+  create: async (routeStep: {
+    order_id: string;
+    step: number;
+    warehouse_id?: string | null;
+    truck_id?: string | null;
+    destination_warehouse_id?: string | null;
+    estimated_time?: string | null;
+    arrived_at?: string | null;
+  }) => {
+    if (routeStep.destination_warehouse_id) {
+      const check = await warehouses.checkParkingAvailable(routeStep.destination_warehouse_id, routeStep.truck_id || undefined);
+      if (!check.allowed) {
+        throw new Error(check.reason || "Destination warehouse parking is full");
+      }
+    }
+    return pg_conn`
+      INSERT INTO orders_route (order_id, step, warehouse_id, truck_id, destination_warehouse_id, estimated_time, arrived_at)
+      VALUES (${routeStep.order_id}, ${routeStep.step}, ${routeStep.warehouse_id || null}, ${routeStep.truck_id || null}, ${routeStep.destination_warehouse_id || null}, ${routeStep.estimated_time || null}, ${routeStep.arrived_at || null})
+      RETURNING *
+    `;
+  },
+  update: async (orderId: string, step: number, routeStep: {
+    warehouse_id?: string | null;
+    truck_id?: string | null;
+    destination_warehouse_id?: string | null;
+    estimated_time?: string | null;
+    arrived_at?: string | null;
+  }) => {
+    if (routeStep.destination_warehouse_id) {
+      const check = await warehouses.checkParkingAvailable(routeStep.destination_warehouse_id, routeStep.truck_id || undefined);
+      if (!check.allowed) {
+        throw new Error(check.reason || "Destination warehouse parking is full");
+      }
+    }
+    return pg_conn`
+      UPDATE orders_route
+      SET warehouse_id = ${routeStep.warehouse_id !== undefined ? routeStep.warehouse_id : pg_conn`warehouse_id`},
+          truck_id = ${routeStep.truck_id !== undefined ? routeStep.truck_id : pg_conn`truck_id`},
+          destination_warehouse_id = ${routeStep.destination_warehouse_id !== undefined ? routeStep.destination_warehouse_id : pg_conn`destination_warehouse_id`},
+          estimated_time = ${routeStep.estimated_time !== undefined ? routeStep.estimated_time : pg_conn`estimated_time`},
+          arrived_at = ${routeStep.arrived_at !== undefined ? routeStep.arrived_at : pg_conn`arrived_at`}
+      WHERE order_id = ${orderId} AND step = ${step}
+      RETURNING *
+    `;
+  },
+  delete: (orderId: string, step: number) =>
+    pg_conn`DELETE FROM orders_route WHERE order_id = ${orderId} AND step = ${step} RETURNING *`,
 };
 
 export const supplyRoutes = {

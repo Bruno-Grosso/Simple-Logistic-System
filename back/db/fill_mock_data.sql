@@ -19,10 +19,10 @@ INSERT INTO suppliers (id, name, location) VALUES
 ('SUP-003', 'Distribuidora Imperial', 'Rua do Imperador, Petrópolis, RJ');
 
 -- 3. Warehouses (3 entries)
-INSERT INTO warehouses (id, location, size, volume_current, volume_max, has_refrigeration, fuel_price) VALUES
-('WH-001', '{"latitude":-22.3842,"longitude":-43.1311,"label":"Petrópolis Hub (Itaipava)"}', '{"length":100,"width":100,"height":10}', 0.36, 100000.0, 1, 5.89),
-('WH-002', '{"latitude":-22.4350,"longitude":-42.9800,"label":"Teresópolis Depot (Alto)"}', '{"length":50,"width":50,"height":8}', 0.0, 20000.0, 0, 5.89),
-('WH-003', '{"latitude":-22.3000,"longitude":-42.5400,"label":"Nova Friburgo Facility (Olaria)"}', '{"length":80,"width":60,"height":10}', 0.0, 48000.0, 1, 5.89);
+INSERT INTO warehouses (id, location, size, volume_current, volume_max, has_refrigeration, fuel_price, truck_capacity) VALUES
+('WH-001', '{"latitude":-22.3842,"longitude":-43.1311,"label":"Petrópolis Hub (Itaipava)"}', '{"length":100,"width":100,"height":10}', 0.36, 100000.0, 1, 5.89, 5),
+('WH-002', '{"latitude":-22.4350,"longitude":-42.9800,"label":"Teresópolis Depot (Alto)"}', '{"length":50,"width":50,"height":8}', 0.0, 20000.0, 0, 5.89, 2),
+('WH-003', '{"latitude":-22.3000,"longitude":-42.5400,"label":"Nova Friburgo Facility (Olaria)"}', '{"length":80,"width":60,"height":10}', 0.0, 48000.0, 1, 5.89, 4);
 
 -- 4. Users (10 entries)
 INSERT INTO users (id, name, password, address, role) VALUES

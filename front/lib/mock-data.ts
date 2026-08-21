@@ -98,6 +98,8 @@ export const DEPOSITS: Deposit[] = [
     volume_actual: 0.36,
     volume_max: 100000.0,
     has_refrigeration: true,
+    truck_capacity: 5,
+    parking_capacity: 5,
   },
   {
     id: "WH-002",
@@ -106,6 +108,8 @@ export const DEPOSITS: Deposit[] = [
     volume_actual: 0.0,
     volume_max: 20000.0,
     has_refrigeration: false,
+    truck_capacity: 2,
+    parking_capacity: 2,
   },
   {
     id: "WH-003",
@@ -114,6 +118,8 @@ export const DEPOSITS: Deposit[] = [
     volume_actual: 0.0,
     volume_max: 48000.0,
     has_refrigeration: true,
+    truck_capacity: 4,
+    parking_capacity: 4,
   },
 ];
 

@@ -125,10 +125,26 @@ const innerFetchHandler = async (req: Request) => {
     if (!id) return new Response("Warehouse ID required", { status: 400 });
     
     if (parts[3] === "stock") return Response.json(await controller.warehouses.stock(id));
+    if (parts[3] === "parking") {
+      const parkingStatus = await controller.warehouses.getParkingStatus(id);
+      if (!parkingStatus) return new Response("Warehouse not found", { status: 404 });
+      return Response.json(parkingStatus);
+    }
     
     const result = await controller.warehouses.byId(id);
     if (!result || result.length === 0) return new Response("Warehouse not found", { status: 404 });
     return Response.json(result);
+  }
+  if (path.startsWith("/warehouses/") && method === "POST") {
+    const parts = path.split("/");
+    const id = parts[2];
+    if (!id) return new Response("Warehouse ID required", { status: 400 });
+
+    if (parts[3] === "check-parking") {
+      const body = (await req.json().catch(() => ({}))) as { truck_id?: string };
+      const check = await controller.warehouses.checkParkingAvailable(id, body.truck_id);
+      return Response.json(check, { status: check.allowed ? 200 : 400 });
+    }
   }
   if (path.startsWith("/warehouses/") && method === "PUT") {
     const parts = path.split("/");
@@ -237,6 +253,69 @@ const innerFetchHandler = async (req: Request) => {
     const result = await controller.orders.byId(id);
     if (!result || result.length === 0) return new Response("Order not found", { status: 404 });
     return Response.json(result);
+  }
+  if (path.startsWith("/orders/") && method === "POST") {
+    const parts = path.split("/");
+    const id = parts[2];
+    if (!id) return new Response("Order ID required", { status: 400 });
+
+    if (parts[3] === "route") {
+      try {
+        const body = await req.json();
+        const step = body.step !== undefined ? Number(body.step) : 1;
+        const newRoute = await controller.orders_route.create({
+          order_id: id,
+          step,
+          warehouse_id: body.warehouse_id,
+          truck_id: body.truck_id,
+          destination_warehouse_id: body.destination_warehouse_id,
+          estimated_time: body.estimated_time,
+          arrived_at: body.arrived_at,
+        });
+        return Response.json({ success: true, route: newRoute[0] }, { status: 201 });
+      } catch (error: any) {
+        console.error("Error creating order route:", error);
+        return Response.json({ success: false, error: error.message || "Failed to create route" }, { status: 400 });
+      }
+    }
+  }
+  if (path.startsWith("/orders/") && method === "PUT") {
+    const parts = path.split("/");
+    const id = parts[2];
+    if (!id) return new Response("Order ID required", { status: 400 });
+
+    if (parts[3] === "route") {
+      const step = Number(parts[4] || 1);
+      try {
+        const body = await req.json();
+        const updated = await controller.orders_route.update(id, step, body);
+        return Response.json({ success: true, route: updated[0] });
+      } catch (error: any) {
+        console.error("Error updating order route:", error);
+        return Response.json({ success: false, error: error.message || "Failed to update route" }, { status: 400 });
+      }
+    }
+  }
+  if (path.startsWith("/orders/") && method === "DELETE") {
+    const parts = path.split("/");
+    const id = parts[2];
+    if (!id) return new Response("Order ID required", { status: 400 });
+
+    if (parts[3] === "route") {
+      const step = Number(parts[4] || 1);
+      try {
+        await controller.orders_route.delete(id, step);
+        return Response.json({ success: true });
+      } catch (error: any) {
+        console.error("Error deleting order route:", error);
+        return Response.json({ success: false, error: error.message || "Failed to delete route" }, { status: 400 });
+      }
+    }
+  }
+  if (path === "/orders-route" && method === "GET") {
+    const orderId = url.searchParams.get("orderId");
+    if (orderId) return Response.json(await controller.orders_route.byOrder(orderId));
+    return Response.json(await controller.orders_route.all());
   }
   if (path === "/supplies-route" && method === "GET") {
     const orderId = url.searchParams.get("orderId");

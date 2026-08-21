@@ -25,7 +25,8 @@ CREATE TABLE warehouses (
     volume_current REAL NOT NULL DEFAULT 0,
     volume_max REAL NOT NULL,
     has_refrigeration INTEGER NOT NULL DEFAULT 0,
-    fuel_price REAL NOT NULL DEFAULT 0
+    fuel_price REAL NOT NULL DEFAULT 0,
+    truck_capacity INTEGER NOT NULL DEFAULT 5
 );
 
 CREATE TABLE warehouses_stock (

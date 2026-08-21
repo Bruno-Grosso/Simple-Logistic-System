@@ -70,6 +70,14 @@ export async function handleRoutes(req: Request) {
 
       const truck = truckData[0];
       const truckWeight = Number(truck.weight_current || truck.weight_max || 0);
+
+      // --- WAREHOUSE PARKING VALIDATION ---
+      if (routeData[0]?.destination_warehouse_id) {
+        const parkingCheck = await warehouses.checkParkingAvailable(routeData[0].destination_warehouse_id, truck.id);
+        if (!parkingCheck.allowed) {
+          return new Response(parkingCheck.reason || "Destination warehouse parking capacity exceeded", { status: 400 });
+        }
+      }
       // ---------------------------------------------
 
       // Using parseLocationCoords from the other codebase for safe coordinate extraction

@@ -278,7 +278,14 @@ export default async function OrderDetailPage({ params }: PageProps) {
                             )}
                           </span>
                           <div className="space-y-1">
-                            <p className="font-medium leading-snug">{label}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium leading-snug">{label}</p>
+                              {deposit && (
+                                <Badge variant="outline" className="text-[10px]">
+                                  {trucks.filter((t) => t.current_deposit_id === deposit.id).length}/{deposit.truck_capacity ?? 5} parking
+                                </Badge>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground">
                               ETA: {formatDt(step.estimated_time)}
                             </p>

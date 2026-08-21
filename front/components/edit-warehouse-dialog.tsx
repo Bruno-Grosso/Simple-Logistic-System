@@ -66,6 +66,7 @@ export function EditWarehouseDialog({ warehouse }: EditWarehouseDialogProps) {
   const [height, setHeight] = useState(initialHeight)
   const [volumeMax, setVolumeMax] = useState(warehouse.volume_max ?? 1000)
   const [fuelPrice, setFuelPrice] = useState(warehouse.fuel_price ?? 0)
+  const [truckCapacity, setTruckCapacity] = useState(warehouse.truck_capacity ?? warehouse.parking_capacity ?? 5)
   const [hasRefrigeration, setHasRefrigeration] = useState(warehouse.has_refrigeration ? "1" : "0")
 
   async function onSubmit(e: React.FormEvent) {
@@ -94,6 +95,7 @@ export function EditWarehouseDialog({ warehouse }: EditWarehouseDialogProps) {
         volume_max: Number(volumeMax),
         fuel_price: Number(fuelPrice),
         has_refrigeration: Number(hasRefrigeration),
+        truck_capacity: Number(truckCapacity),
       })
 
       if (res.success) {
@@ -223,17 +225,31 @@ export function EditWarehouseDialog({ warehouse }: EditWarehouseDialogProps) {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="has-refrigeration">Refrigeration Capability</Label>
-              <select
-                id="has-refrigeration"
-                value={hasRefrigeration}
-                onChange={(e) => setHasRefrigeration(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="1">Refrigerated (Cold Storage)</option>
-                <option value="0">Ambient Storage Only</option>
-              </select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="truck-capacity">Truck Parking Capacity (spots)</Label>
+                <Input
+                  id="truck-capacity"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={truckCapacity}
+                  onChange={(e) => setTruckCapacity(Number(e.target.value))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="has-refrigeration">Refrigeration Capability</Label>
+                <select
+                  id="has-refrigeration"
+                  value={hasRefrigeration}
+                  onChange={(e) => setHasRefrigeration(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="1">Refrigerated (Cold Storage)</option>
+                  <option value="0">Ambient Storage Only</option>
+                </select>
+              </div>
             </div>
           </div>
 

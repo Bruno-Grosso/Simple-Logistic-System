@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Warehouse } from "lucide-react"
+import { Warehouse, Truck } from "lucide-react"
 
 import { PageHeader } from "@/components/page-header"
 import { PageShell } from "@/components/page-shell"
@@ -10,9 +10,10 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
+import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
-import { computeDepositUsage } from "@/lib/calculations"
+import { computeDepositUsage, computeDepositParkingUsage } from "@/lib/calculations"
 
 export const dynamic = "force-dynamic"
 
@@ -33,6 +34,7 @@ export default async function DepositsPage() {
             const trucksParked = trucks.filter(
               (t) => t.current_deposit_id === deposit.id,
             ).length
+            const parking = computeDepositParkingUsage(deposit, trucksParked)
 
             return (
               <Link key={deposit.id} href={`/deposits/${deposit.id}`} className="block">
@@ -42,27 +44,57 @@ export default async function DepositsPage() {
                       <Warehouse className="size-5 text-primary" aria-hidden />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <CardTitle className="truncate text-base">{label}</CardTitle>
+                      <div className="flex items-center justify-between gap-2">
+                        <CardTitle className="truncate text-base">{label}</CardTitle>
+                        <Badge
+                          variant={parking.isFull ? "destructive" : parking.isNearCapacity ? "secondary" : "outline"}
+                          className="text-[10px] shrink-0"
+                        >
+                          {parking.isFull ? "Parking Full" : `${parking.available} spots left`}
+                        </Badge>
+                      </div>
                       <p className="mt-0.5 font-mono text-xs text-muted-foreground">
                         {deposit.id}
                       </p>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div>
-                      <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
-                        <span>Capacity</span>
-                        <span className="tabular-nums">{pct}%</span>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
+                          <span>Storage Volume</span>
+                          <span className="tabular-nums">{pct}%</span>
+                        </div>
+                        <Progress value={pct} />
+                        <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">
+                          {deposit.volume_actual} m³ of {deposit.volume_max ?? "—"} m³
+                        </p>
                       </div>
-                      <Progress value={pct} />
-                      <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">
-                        {deposit.volume_actual} m³ of {deposit.volume_max ?? "—"} m³
-                      </p>
+
+                      <div>
+                        <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Truck className="size-3" />
+                            Truck Parking
+                          </span>
+                          <span className="tabular-nums">
+                            {parking.parked} / {parking.capacity} spots ({parking.pct}%)
+                          </span>
+                        </div>
+                        <Progress
+                          value={parking.pct}
+                          className={cn(
+                            parking.isFull && "[&>div]:bg-destructive",
+                            parking.isNearCapacity && "[&>div]:bg-amber-500"
+                          )}
+                        />
+                      </div>
                     </div>
+
                     <div className="grid grid-cols-2 gap-3 border-t border-border pt-4">
                       <div className="text-center">
                         <p className="text-lg font-semibold tabular-nums text-primary">
-                          {trucksParked}
+                          {parking.parked} <span className="text-xs font-normal text-muted-foreground">/ {parking.capacity}</span>
                         </p>
                         <p className="text-[10px] text-muted-foreground">Trucks parked</p>
                       </div>

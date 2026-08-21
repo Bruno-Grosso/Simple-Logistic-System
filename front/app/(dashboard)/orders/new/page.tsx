@@ -13,7 +13,8 @@ import { cn } from "@/lib/utils"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
-import type { User, Product } from "@/types"
+import { computeDepositParkingUsage } from "@/lib/calculations"
+import type { User, Product, Deposit, Truck as TruckType } from "@/types"
 
 const selectClassName = cn(
   "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none transition-colors",
@@ -29,9 +30,12 @@ export default function NewOrderPage() {
   const [destination, setDestination] = useState("")
   const [clientId, setClientId] = useState("")
   const [receiverId, setReceiverId] = useState("")
+  const [warehouseId, setWarehouseId] = useState("")
   const [deadline, setDeadline] = useState("")
   const [products, setProducts] = useState<Product[]>([])
   const [users, setUsers] = useState<User[]>([])
+  const [warehouses, setWarehouses] = useState<Deposit[]>([])
+  const [trucks, setTrucks] = useState<TruckType[]>([])
   const [lines, setLines] = useState<Line[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
@@ -40,19 +44,26 @@ export default function NewOrderPage() {
     let active = true
     async function loadData() {
       try {
-        const [fetchedProducts, fetchedUsers] = await Promise.all([
+        const [fetchedProducts, fetchedUsers, fetchedWarehouses, fetchedTrucks] = await Promise.all([
           api.products.getAll(),
           api.users.getAll(),
+          api.warehouses.getAll(),
+          api.trucks.getAll(),
         ])
         if (active) {
           setProducts(fetchedProducts)
           setUsers(fetchedUsers)
+          setWarehouses(fetchedWarehouses)
+          setTrucks(fetchedTrucks)
+          if (fetchedWarehouses.length > 0) {
+            setWarehouseId(fetchedWarehouses[0].id)
+          }
           if (fetchedProducts.length > 0) {
             setLines([{ productId: fetchedProducts[0].id, quantity: 1 }])
           }
         }
       } catch (err) {
-        console.error("Failed to load products/users:", err)
+        console.error("Failed to load initial data:", err)
       } finally {
         if (active) setLoadingData(false)
       }
@@ -64,6 +75,10 @@ export default function NewOrderPage() {
   }, [])
 
   const clients = useMemo(() => users.filter((u) => u.role === "client"), [users])
+
+  const selectedWarehouse = useMemo(() => warehouses.find((w) => w.id === warehouseId), [warehouses, warehouseId])
+  const selectedWhParkedTrucks = useMemo(() => trucks.filter((t) => t.current_deposit_id === warehouseId).length, [trucks, warehouseId])
+  const selectedWhParking = useMemo(() => (selectedWarehouse ? computeDepositParkingUsage(selectedWarehouse, selectedWhParkedTrucks) : null), [selectedWarehouse, selectedWhParkedTrucks])
 
   const total = useMemo(() => {
     return lines.reduce((sum, line) => {
@@ -108,6 +123,16 @@ export default function NewOrderPage() {
       }
       const res = await api.orders.create(payload)
       if (res.success) {
+        if (warehouseId) {
+          const firstAvailTruck = trucks.find((t) => t.current_deposit_id === warehouseId && !t.is_delivering)
+          await api.orders.addRouteStep(orderId, {
+            step: 1,
+            warehouse_id: warehouseId,
+            truck_id: firstAvailTruck?.id || trucks[0]?.id || "TRK-001",
+            destination_warehouse_id: null,
+            estimated_time: deadline,
+          }).catch(() => {/* ignore if optional */})
+        }
         router.push("/orders")
         router.refresh()
       } else {
@@ -193,17 +218,67 @@ export default function NewOrderPage() {
                   </select>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor={deadlineFieldId}>Deadline</Label>
-                <Input
-                  id={deadlineFieldId}
-                  name="deadline"
-                  type="date"
-                  value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
-                  required
-                />
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="order-warehouse">Dispatch Warehouse</Label>
+                    {selectedWhParking && (
+                      <span
+                        className={cn(
+                          "text-xs font-medium",
+                          selectedWhParking.isFull
+                            ? "text-destructive"
+                            : selectedWhParking.isNearCapacity
+                            ? "text-amber-500"
+                            : "text-emerald-500"
+                        )}
+                      >
+                        {selectedWhParking.isFull
+                          ? "Parking Full"
+                          : `${selectedWhParking.available} spots open`}
+                      </span>
+                    )}
+                  </div>
+                  <select
+                    id="order-warehouse"
+                    name="warehouse"
+                    className={selectClassName}
+                    value={warehouseId}
+                    onChange={(e) => setWarehouseId(e.target.value)}
+                    required
+                    aria-label="Select dispatch warehouse"
+                  >
+                    <option value="">Select dispatch warehouse</option>
+                    {warehouses.map((w) => {
+                      const parkedCount = trucks.filter((t) => t.current_deposit_id === w.id).length
+                      const p = computeDepositParkingUsage(w, parkedCount)
+                      return (
+                        <option key={w.id} value={w.id}>
+                          {w.location || `Warehouse ${w.id}`} ({p.parked}/{p.capacity} trucks)
+                        </option>
+                      )
+                    })}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={deadlineFieldId}>Deadline</Label>
+                  <Input
+                    id={deadlineFieldId}
+                    name="deadline"
+                    type="date"
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
+                    required
+                  />
+                </div>
               </div>
+
+              {selectedWhParking?.isFull && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                  <strong>Warning:</strong> Selected warehouse parking is at full capacity ({selectedWhParking.parked}/{selectedWhParking.capacity} trucks).
+                </div>
+              )}
             </CardContent>
           </Card>
 

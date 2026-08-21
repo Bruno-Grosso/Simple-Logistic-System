@@ -116,12 +116,42 @@ export const api = {
       return STOCK.filter((s) => s.deposit_id === id)
     },
 
+    async getParking(id: string): Promise<{
+      warehouse_id: string
+      truck_capacity: number
+      parked_count: number
+      inbound_count: number
+      occupied_spots: number
+      available_spots: number
+      is_full: boolean
+      parked_trucks: any[]
+      inbound_trucks: any[]
+    } | null> {
+      try {
+        const res = await apiClient.get<any>(`/warehouses/${id}/parking`)
+        if (res.data) return res.data
+      } catch (err) {
+        console.warn(`[API] GET /warehouses/${id}/parking fallback:`, err)
+      }
+      return null
+    },
+
+    async checkParking(id: string, truckId?: string): Promise<{ allowed: boolean; reason?: string; status?: any }> {
+      try {
+        const res = await apiClient.post<any>(`/warehouses/${id}/check-parking`, { truck_id: truckId })
+        return res.data
+      } catch (err: any) {
+        return { allowed: false, reason: err.response?.data?.reason || "Warehouse parking full or unavailable" }
+      }
+    },
+
     async update(id: string, payload: {
       location: any
       size: any
       volume_max: number
       has_refrigeration: number
       fuel_price: number
+      truck_capacity?: number
     }): Promise<{ success: boolean; warehouse?: any }> {
       const res = await apiClient.put<{ success: boolean; warehouse?: any }>(`/warehouses/${id}`, payload)
       return res.data
@@ -361,6 +391,37 @@ export const api = {
     }): Promise<{ success: boolean; order?: any }> {
       const res = await apiClient.post<{ success: boolean; order?: any }>("/orders", payload)
       return res.data
+    },
+
+    async addRouteStep(orderId: string, payload: {
+      step: number
+      warehouse_id?: string | null
+      truck_id?: string | null
+      destination_warehouse_id?: string | null
+      estimated_time?: string | null
+      arrived_at?: string | null
+    }): Promise<{ success: boolean; route?: any; error?: string }> {
+      try {
+        const res = await apiClient.post<{ success: boolean; route?: any }>(`/orders/${orderId}/route`, payload)
+        return res.data
+      } catch (err: any) {
+        return { success: false, error: err.response?.data?.error || err.message }
+      }
+    },
+
+    async updateRouteStep(orderId: string, step: number, payload: {
+      warehouse_id?: string | null
+      truck_id?: string | null
+      destination_warehouse_id?: string | null
+      estimated_time?: string | null
+      arrived_at?: string | null
+    }): Promise<{ success: boolean; route?: any; error?: string }> {
+      try {
+        const res = await apiClient.put<{ success: boolean; route?: any }>(`/orders/${orderId}/route/${step}`, payload)
+        return res.data
+      } catch (err: any) {
+        return { success: false, error: err.response?.data?.error || err.message }
+      }
     },
   },
 

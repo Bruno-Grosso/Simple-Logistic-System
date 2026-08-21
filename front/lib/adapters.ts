@@ -47,6 +47,8 @@ export function adaptWarehouse(raw: any): Deposit {
     volume_max: Number(raw.volume_max ?? 1000),
     has_refrigeration: Boolean(raw.has_refrigeration),
     fuel_price: Number(raw.fuel_price ?? 0),
+    truck_capacity: Number(raw.truck_capacity ?? raw.parking_capacity ?? 5),
+    parking_capacity: Number(raw.truck_capacity ?? raw.parking_capacity ?? 5),
   }
 }
 

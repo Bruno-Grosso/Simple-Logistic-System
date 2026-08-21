@@ -28,6 +28,34 @@ export function computeDepositUsage(deposit: Deposit): { pct: number; isHighUsag
   }
 }
 
+export function computeDepositParkingUsage(deposit: Deposit, parkedCount: number): {
+  capacity: number
+  parked: number
+  available: number
+  pct: number
+  isFull: boolean
+  isNearCapacity: boolean
+  statusLabel: string
+} {
+  const capacity = deposit.truck_capacity && deposit.truck_capacity > 0 ? deposit.truck_capacity : 5
+  const parked = Math.max(0, parkedCount)
+  const available = Math.max(0, capacity - parked)
+  const pct = Math.min(100, Math.round((parked / capacity) * 100))
+  const isFull = parked >= capacity
+  const isNearCapacity = !isFull && pct >= 75
+  const statusLabel = isFull ? "Full" : isNearCapacity ? "Near Capacity" : "Available"
+
+  return {
+    capacity,
+    parked,
+    available,
+    pct,
+    isFull,
+    isNearCapacity,
+    statusLabel,
+  }
+}
+
 export function computeTruckLoad(truck: Truck): { volumePct: number; weightPct: number } {
   const volMax = truck.volume_max && truck.volume_max > 0 ? truck.volume_max : 1
   const weightMax = truck.weight_max && truck.weight_max > 0 ? truck.weight_max : 1

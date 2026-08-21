@@ -83,3 +83,58 @@ test("Infrastructure: GET /trucks model filtering with no results", async () => 
   const data = (await res.json()) as any[];
   expect(data).toHaveLength(0);
 });
+
+test("Infrastructure: GET /warehouses/:id/parking returns parking capacity and status", async () => {
+  const res = await testFetch("/warehouses/WH-001/parking");
+  expect(res.status).toBe(200);
+  const data = await res.json() as any;
+  expect(data.warehouse_id).toBe("WH-001");
+  expect(data.truck_capacity).toBeGreaterThanOrEqual(5);
+  expect(typeof data.parked_count).toBe("number");
+  expect(typeof data.available_spots).toBe("number");
+  expect(typeof data.is_full).toBe("boolean");
+});
+
+test("Infrastructure: POST /warehouses/:id/check-parking returns allowed status", async () => {
+  const res = await testFetch("/warehouses/WH-001/check-parking", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ truck_id: "TRK-001" }),
+  });
+  expect(res.status).toBe(200);
+  const data = await res.json() as any;
+  expect(data.allowed).toBe(true);
+});
+
+test("Infrastructure: PUT /warehouses/:id updates truck_capacity", async () => {
+  const res = await testFetch("/warehouses/WH-001", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: '{"latitude":-22.3842,"longitude":-43.1311,"label":"Petrópolis Hub (Itaipava)"}',
+      size: '{"length":100,"width":100,"height":10}',
+      volume_max: 100000,
+      has_refrigeration: 1,
+      fuel_price: 5.89,
+      truck_capacity: 6,
+    }),
+  });
+  expect(res.status).toBe(200);
+  const data = await res.json() as any;
+  expect(data.warehouse.truck_capacity).toBe(6);
+
+  // Restore back to 5
+  await testFetch("/warehouses/WH-001", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: '{"latitude":-22.3842,"longitude":-43.1311,"label":"Petrópolis Hub (Itaipava)"}',
+      size: '{"length":100,"width":100,"height":10}',
+      volume_max: 100000,
+      has_refrigeration: 1,
+      fuel_price: 5.89,
+      truck_capacity: 5,
+    }),
+  });
+});
+
