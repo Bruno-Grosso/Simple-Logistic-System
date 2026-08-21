@@ -323,3 +323,46 @@ export interface MonthlyPerformanceData {
   isPoi?: boolean;
 }
 
+// ─── Delivery Cost Analytics Report ────────────────────────────────────────────
+
+export interface OrderDeliveryCostItem {
+  order_id: string;
+  client_id: string;
+  client_name: string;
+  destination?: string;
+  origin_warehouse_id?: string;
+  origin_warehouse_label?: string;
+  distance_km: number;
+  status: OrderStatus;
+  revenue: number;
+  fuel_cost: number;
+  labor_cost: number;
+  maintenance_cost: number;
+  total_delivery_cost: number;
+  net_margin: number;
+  margin_percent: number;
+  calculated_at?: string;
+}
+
+export interface DeliveryCostSummary {
+  total_orders_analyzed: number;
+  total_delivered_revenue: number;
+  total_all_revenue: number;
+  total_delivery_cost: number;
+  total_fuel_cost: number;
+  total_labor_cost: number;
+  total_maintenance_cost: number;
+  net_operating_profit: number;
+  cost_to_revenue_ratio: number;
+  avg_delivery_cost_per_order: number;
+  avg_cost_per_km: number;
+  total_distance_km: number;
+}
+
+export interface DeliveryCostReport {
+  warehouse_id?: string | null;
+  summary: DeliveryCostSummary;
+  orders: OrderDeliveryCostItem[];
+}
+
+

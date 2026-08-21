@@ -394,6 +394,10 @@ const innerFetchHandler = async (req: Request) => {
   if (path === "/monthly-performance" && method === "GET") {
     return Response.json(await controller.monthlyPerformance.all());
   }
+  if (path === "/reports/delivery-costs" && method === "GET") {
+    const warehouseId = url.searchParams.get("warehouseId") || undefined;
+    return Response.json(await controller.reports.getDeliveryCostReport(warehouseId));
+  }
 
   return new Response("Not found", { status: 404 });
 };

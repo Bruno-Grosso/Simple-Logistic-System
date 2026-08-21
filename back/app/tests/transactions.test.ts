@@ -201,7 +201,6 @@ test("Transactions: GET /orders/:id/eta returns ETA window and transit calculati
 });
 
 test("Transactions: POST /orders/:id/calculate-eta incorporates min/max speeds & driver 8h max driving rule", async () => {
-  // Test case 1: Long route (e.g. 800 km) -> At 80 km/h, 10h drive -> Exceeds 8h -> 1 rest period of 16h added -> 26h total transit
   const resLong = await testFetch("/orders/ORD-001/calculate-eta", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -222,5 +221,38 @@ test("Transactions: POST /orders/:id/calculate-eta incorporates min/max speeds &
   expect(dataLong.eta_expected).toBeDefined();
   expect(dataLong.compliance_status).toBeDefined();
 });
+
+test("Transactions: GET /reports/delivery-costs returns aggregated summary and per-order delivery cost breakdown", async () => {
+  const res = await testFetch("/reports/delivery-costs");
+  expect(res.status).toBe(200);
+  const data = (await res.json()) as any;
+  expect(data.summary).toBeDefined();
+  expect(data.summary.total_orders_analyzed).toBeGreaterThanOrEqual(1);
+  expect(data.summary.total_delivery_cost).toBeGreaterThan(0);
+  expect(data.summary.total_fuel_cost).toBeGreaterThan(0);
+  expect(data.summary.total_labor_cost).toBeGreaterThan(0);
+  expect(data.summary.total_maintenance_cost).toBeGreaterThan(0);
+  expect(data.summary.avg_cost_per_km).toBeGreaterThan(0);
+  expect(data.orders).toBeInstanceOf(Array);
+  expect(data.orders.length).toBeGreaterThan(0);
+
+  const firstOrder = data.orders[0];
+  expect(firstOrder.order_id).toBeDefined();
+  expect(firstOrder.total_delivery_cost).toBeGreaterThan(0);
+  expect(firstOrder.net_margin).toBeDefined();
+  expect(firstOrder.fuel_cost).toBeGreaterThanOrEqual(0);
+  expect(firstOrder.labor_cost).toBeGreaterThanOrEqual(0);
+});
+
+test("Transactions: GET /reports/delivery-costs?warehouseId=WH-001 filters by warehouse", async () => {
+  const res = await testFetch("/reports/delivery-costs?warehouseId=WH-001");
+  expect(res.status).toBe(200);
+  const data = (await res.json()) as any;
+  expect(data.warehouse_id).toBe("WH-001");
+  expect(data.summary).toBeDefined();
+  expect(data.orders).toBeInstanceOf(Array);
+});
+
+
 
 

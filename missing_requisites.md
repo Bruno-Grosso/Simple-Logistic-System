@@ -9,11 +9,10 @@ average gas price in the warehouses they will go though.
 - [x] Order ETA. Considering a minimum (smallest reasonalbe speed) and a maximum
 speed the truck can go at + stop time (a driver can drive a max of 8 hours a day
 ), calculate the ETA and display in the order.
-- [ ] Reports. Include the dilivery cost in the report.
+- [x] Reports. Include the delivery cost in the report.
 - [ ] General improvements. Recheck especially the reports page, provide more
 information and graphs.
 - [ ] More tests. Full user simulation in cypress, more tests in the back end.
 - [ ] Documentation. Create a docs directory with full documentation on how the
 project works (user interaction flow, back end structure, docker structure, 
 database UML and docs, etc.)
-

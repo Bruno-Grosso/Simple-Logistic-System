@@ -12,6 +12,7 @@ import {
   adaptFreightCost,
   adaptMonthlyPerformance,
   adaptOrderETA,
+  adaptDeliveryCostReport,
 } from "./adapters"
 import {
   DEPOSITS,
@@ -36,6 +37,7 @@ import type {
   FreightCost,
   MonthlyPerformanceData,
   OrderETA,
+  DeliveryCostReport,
 } from "@/types"
 
 const baseURL = (process.env.LOGISYS_BACKEND_URL ?? process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080").replace(/\/$/, "")
@@ -573,6 +575,19 @@ export const api = {
         console.warn("[API] GET /monthly-performance fallback to mock data:", err)
       }
       return MONTHLY_PERFORMANCE
+    },
+
+    async getDeliveryCosts(warehouseId?: string): Promise<DeliveryCostReport> {
+      try {
+        const url = warehouseId ? `/reports/delivery-costs?warehouseId=${encodeURIComponent(warehouseId)}` : "/reports/delivery-costs"
+        const res = await apiClient.get<any>(url)
+        if (res.data) {
+          return adaptDeliveryCostReport(res.data)
+        }
+      } catch (err) {
+        console.warn("[API] GET /reports/delivery-costs fallback:", err)
+      }
+      return adaptDeliveryCostReport(null)
     },
   },
 }

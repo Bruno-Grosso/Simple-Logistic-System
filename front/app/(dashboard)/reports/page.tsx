@@ -1,9 +1,27 @@
-import { BarChart3, TrendingUp, DollarSign, Package, Truck, User, Warehouse, Landmark } from "lucide-react"
+import Link from "next/link"
+import {
+  BarChart3,
+  TrendingUp,
+  DollarSign,
+  Package,
+  Truck,
+  User,
+  Warehouse,
+  Landmark,
+  Fuel,
+  Users,
+  Wrench,
+  ArrowUpRight,
+  Route,
+  Receipt,
+  Percent,
+} from "lucide-react"
 
 import { PageHeader } from "@/components/page-header"
 import { PageShell } from "@/components/page-shell"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { StatCard } from "@/components/stat-card"
+import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ReportFilters } from "@/components/report-filters"
@@ -17,11 +35,21 @@ interface ReportsPageProps {
   searchParams: Promise<{ warehouseId?: string }> | { warehouseId?: string }
 }
 
+function parseDestination(raw: string | undefined): string {
+  if (!raw) return "—"
+  try {
+    const o = JSON.parse(raw) as { label?: string }
+    return o.label ?? raw
+  } catch {
+    return raw
+  }
+}
+
 export default async function ReportsPage(props: ReportsPageProps) {
   const searchParams = await props.searchParams
   const warehouseId = searchParams?.warehouseId
 
-  const [rawOrders, rawTrucks, rawFreightCosts, users, products, warehouses, monthlyPerformance] = await Promise.all([
+  const [rawOrders, rawTrucks, rawFreightCosts, users, products, warehouses, monthlyPerformance, deliveryReport] = await Promise.all([
     api.orders.getAll(),
     api.trucks.getAll(),
     api.freightCost.getAll(),
@@ -29,6 +57,7 @@ export default async function ReportsPage(props: ReportsPageProps) {
     api.products.getAll(),
     api.warehouses.getAll(),
     api.reports.getMonthlyPerformance(),
+    api.reports.getDeliveryCosts(warehouseId),
   ])
 
   // Fetch routes for all orders to determine which warehouse they pass through
@@ -75,16 +104,20 @@ export default async function ReportsPage(props: ReportsPageProps) {
 
   const stats = computeDashboardStats(orders, trucks)
   
-  // Freight Cost Breakdown
-  const totalFreightSpent = freightCosts.reduce((acc, fc) => acc + (fc.total_cost || 0), 0)
-  const totalFuelCost = freightCosts.reduce((acc, fc) => acc + (fc.fuel_cost || 0), 0)
-  const totalLaborCost = freightCosts.reduce((acc, fc) => acc + (fc.labor_cost || 0), 0)
-  const totalMaintenanceCost = freightCosts.reduce((acc, fc) => acc + (fc.maintenance_cost || 0), 0)
+  // Freight Cost Summary from Report or Local Aggregation
+  const reportSummary = deliveryReport?.summary
+  const totalFreightSpent = reportSummary?.total_delivery_cost ?? freightCosts.reduce((acc, fc) => acc + (fc.total_cost || 0), 0)
+  const totalFuelCost = reportSummary?.total_fuel_cost ?? freightCosts.reduce((acc, fc) => acc + (fc.fuel_cost || 0), 0)
+  const totalLaborCost = reportSummary?.total_labor_cost ?? freightCosts.reduce((acc, fc) => acc + (fc.labor_cost || 0), 0)
+  const totalMaintenanceCost = reportSummary?.total_maintenance_cost ?? freightCosts.reduce((acc, fc) => acc + (fc.maintenance_cost || 0), 0)
+  const avgCostPerKm = reportSummary?.avg_cost_per_km ?? (totalFreightSpent > 0 ? 1.85 : 0)
+  const avgCostPerOrder = reportSummary?.avg_delivery_cost_per_order ?? (orders.length > 0 ? totalFreightSpent / orders.length : 0)
 
   const deliveredOrders = orders.filter((o) => o.status === "Delivered")
   const totalRevenue = deliveredOrders.reduce((sum, o) => sum + (o.price || 0), 0)
   const netMargin = totalRevenue - totalFreightSpent
   const marginPercent = totalRevenue > 0 ? (netMargin / totalRevenue) * 100 : 0
+  const costToRevenueRatio = totalRevenue > 0 ? (totalFreightSpent / totalRevenue) * 100 : 0
 
   // 1. Client revenue contribution
   const clientRevenueMap = new Map<string, { name: string; totalSpent: number; orderCount: number }>()

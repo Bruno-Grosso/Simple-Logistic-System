@@ -14,6 +14,9 @@ import type {
   OrderStatus,
   MonthlyPerformanceData,
   OrderETA,
+  DeliveryCostReport,
+  DeliveryCostSummary,
+  OrderDeliveryCostItem,
 } from "@/types"
 
 export function adaptWarehouse(raw: any): Deposit {
@@ -279,4 +282,67 @@ export function adaptMonthlyPerformance(raw: any): MonthlyPerformanceData {
     poi: raw.poi || undefined,
   }
 }
+
+export function adaptDeliveryCostReport(raw: any): DeliveryCostReport {
+  if (!raw) {
+    return {
+      warehouse_id: null,
+      summary: {
+        total_orders_analyzed: 0,
+        total_delivered_revenue: 0,
+        total_all_revenue: 0,
+        total_delivery_cost: 0,
+        total_fuel_cost: 0,
+        total_labor_cost: 0,
+        total_maintenance_cost: 0,
+        net_operating_profit: 0,
+        cost_to_revenue_ratio: 0,
+        avg_delivery_cost_per_order: 0,
+        avg_cost_per_km: 0,
+        total_distance_km: 0,
+      },
+      orders: [],
+    }
+  }
+
+  const rawSummary = raw.summary || {}
+  const rawOrders = Array.isArray(raw.orders) ? raw.orders : []
+
+  return {
+    warehouse_id: raw.warehouse_id || null,
+    summary: {
+      total_orders_analyzed: Number(rawSummary.total_orders_analyzed ?? 0),
+      total_delivered_revenue: Number(rawSummary.total_delivered_revenue ?? 0),
+      total_all_revenue: Number(rawSummary.total_all_revenue ?? 0),
+      total_delivery_cost: Number(rawSummary.total_delivery_cost ?? 0),
+      total_fuel_cost: Number(rawSummary.total_fuel_cost ?? 0),
+      total_labor_cost: Number(rawSummary.total_labor_cost ?? 0),
+      total_maintenance_cost: Number(rawSummary.total_maintenance_cost ?? 0),
+      net_operating_profit: Number(rawSummary.net_operating_profit ?? 0),
+      cost_to_revenue_ratio: Number(rawSummary.cost_to_revenue_ratio ?? 0),
+      avg_delivery_cost_per_order: Number(rawSummary.avg_delivery_cost_per_order ?? 0),
+      avg_cost_per_km: Number(rawSummary.avg_cost_per_km ?? 0),
+      total_distance_km: Number(rawSummary.total_distance_km ?? 0),
+    },
+    orders: rawOrders.map((o: any) => ({
+      order_id: String(o.order_id),
+      client_id: String(o.client_id),
+      client_name: String(o.client_name || `Client ${o.client_id}`),
+      destination: o.destination || undefined,
+      origin_warehouse_id: o.origin_warehouse_id || undefined,
+      origin_warehouse_label: o.origin_warehouse_label || undefined,
+      distance_km: Number(o.distance_km ?? 0),
+      status: o.status || "Pending",
+      revenue: Number(o.revenue ?? 0),
+      fuel_cost: Number(o.fuel_cost ?? 0),
+      labor_cost: Number(o.labor_cost ?? 0),
+      maintenance_cost: Number(o.maintenance_cost ?? 0),
+      total_delivery_cost: Number(o.total_delivery_cost ?? 0),
+      net_margin: Number(o.net_margin ?? 0),
+      margin_percent: Number(o.margin_percent ?? 0),
+      calculated_at: o.calculated_at || undefined,
+    })),
+  }
+}
+
 
