@@ -21,21 +21,21 @@ INSERT INTO suppliers (id, name, location) VALUES
 -- 3. Warehouses (3 entries)
 INSERT INTO warehouses (id, location, size, volume_current, volume_max, has_refrigeration, fuel_price, truck_capacity) VALUES
 ('WH-001', '{"latitude":-22.3842,"longitude":-43.1311,"label":"Petrópolis Hub (Itaipava)"}', '{"length":100,"width":100,"height":10}', 0.36, 100000.0, 1, 5.89, 5),
-('WH-002', '{"latitude":-22.4350,"longitude":-42.9800,"label":"Teresópolis Depot (Alto)"}', '{"length":50,"width":50,"height":8}', 0.0, 20000.0, 0, 5.89, 2),
-('WH-003', '{"latitude":-22.3000,"longitude":-42.5400,"label":"Nova Friburgo Facility (Olaria)"}', '{"length":80,"width":60,"height":10}', 0.0, 48000.0, 1, 5.89, 4);
+('WH-002', '{"latitude":-22.4350,"longitude":-42.9800,"label":"Teresópolis Depot (Alto)"}', '{"length":50,"width":50,"height":8}', 0.0, 20000.0, 0, 6.15, 2),
+('WH-003', '{"latitude":-22.3000,"longitude":-42.5400,"label":"Nova Friburgo Facility (Olaria)"}', '{"length":80,"width":60,"height":10}', 0.0, 48000.0, 1, 5.95, 4);
 
 -- 4. Users (10 entries)
-INSERT INTO users (id, name, password, address, role) VALUES
-('USR-001', 'Alice Admin', 'admin123', '{"address": "Rua do Imperador, Centro, Petrópolis - RJ"}', 'admin'),
-('USR-002', 'Bob Worker', 'bobpass', '{"address": "Estrada União e Indústria, Itaipava, Petrópolis - RJ"}', 'warehouse_worker'),
-('USR-003', 'Charlie Driver', 'trucker1', '{"address": "Av. Alberto Braune, Centro, Nova Friburgo - RJ"}', 'truck_driver'),
-('USR-004', 'David Client', 'client789', '{"address": "Av. Reta da Várzea, Várzea, Teresópolis - RJ"}', 'client'),
-('USR-005', 'Eve Client', 'evepass', '{"address": "Rua Monte Líbano, Centro, Nova Friburgo - RJ"}', 'client'),
-('USR-006', 'Frank Driver', 'frank123', '{"address": "Estrada Terê-Fri, Km 12, Teresópolis - RJ"}', 'truck_driver'),
-('USR-007', 'Grace Worker', 'gracepass', '{"address": "Rua General Osório, Centro, Nova Friburgo - RJ"}', 'warehouse_worker'),
-('USR-008', 'Henry Client', 'henry789', '{"address": "Rua Visconde de Uruguai, Cachoeiras de Macacu - RJ"}', 'client'),
-('USR-009', 'Ivy Client', 'ivypass', '{"address": "Av. Dedo de Deus, Guapimirim - RJ"}', 'client'),
-('USR-010', 'Jack Worker', 'jackpass', '{"address": "Rua Cel. Veiga, Petrópolis - RJ"}', 'warehouse_worker');
+INSERT INTO users (id, name, password, address, role, wage) VALUES
+('USR-001', 'Alice Admin', 'admin123', '{"address": "Rua do Imperador, Centro, Petrópolis - RJ"}', 'admin', 65.0),
+('USR-002', 'Bob Worker', 'bobpass', '{"address": "Estrada União e Indústria, Itaipava, Petrópolis - RJ"}', 'warehouse_worker', 42.0),
+('USR-003', 'Charlie Driver', 'trucker1', '{"address": "Av. Alberto Braune, Centro, Nova Friburgo - RJ"}', 'truck_driver', 55.0),
+('USR-004', 'David Client', 'client789', '{"address": "Av. Reta da Várzea, Várzea, Teresópolis - RJ"}', 'client', 0.0),
+('USR-005', 'Eve Client', 'evepass', '{"address": "Rua Monte Líbano, Centro, Nova Friburgo - RJ"}', 'client', 0.0),
+('USR-006', 'Frank Driver', 'frank123', '{"address": "Estrada Terê-Fri, Km 12, Teresópolis - RJ"}', 'truck_driver', 50.0),
+('USR-007', 'Grace Worker', 'gracepass', '{"address": "Rua General Osório, Centro, Nova Friburgo - RJ"}', 'warehouse_worker', 40.0),
+('USR-008', 'Henry Client', 'henry789', '{"address": "Rua Visconde de Uruguai, Cachoeiras de Macacu - RJ"}', 'client', 0.0),
+('USR-009', 'Ivy Client', 'ivypass', '{"address": "Av. Dedo de Deus, Guapimirim - RJ"}', 'client', 0.0),
+('USR-010', 'Jack Worker', 'jackpass', '{"address": "Rua Cel. Veiga, Petrópolis - RJ"}', 'warehouse_worker', 38.0);
 
 -- 5. Trucks (4 entries)
 INSERT INTO trucks (id, model, speed, is_valid, is_delivering, size, volume_current, volume_max, weight_current, weight_max, has_refrigeration, current_warehouse_id, fuel_capacity, fuel_current, fuel_consumption, truck_maintenance) VALUES

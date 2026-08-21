@@ -61,6 +61,9 @@ const innerFetchHandler = async (req: Request) => {
     if (role) return Response.json(await controller.users.byRole(role));
     return Response.json(await controller.users.all());
   }
+  if (path === "/users/drivers" && method === "GET") {
+    return Response.json(await controller.users.drivers());
+  }
   if (path.startsWith("/users/") && method === "GET") {
     const id = path.split("/")[2];
     if (!id) return new Response("User ID required", { status: 400 });
@@ -118,6 +121,11 @@ const innerFetchHandler = async (req: Request) => {
   // 3. INFRASTRUCTURE & FLEET LAYER
   if (path === "/warehouses" && method === "GET") {
     return Response.json(await controller.warehouses.all());
+  }
+  if (path === "/warehouses/average-gas-price" && method === "GET") {
+    const ids = url.searchParams.get("ids")?.split(",").map((s) => s.trim()).filter(Boolean);
+    const avgPrice = await controller.warehouses.getAverageGasPrice(ids);
+    return Response.json({ avg_gas_price: avgPrice, warehouses_count: ids?.length ?? 0 });
   }
   if (path.startsWith("/warehouses/") && method === "GET") {
     const parts = path.split("/");
@@ -258,6 +266,34 @@ const innerFetchHandler = async (req: Request) => {
     const parts = path.split("/");
     const id = parts[2];
     if (!id) return new Response("Order ID required", { status: 400 });
+
+    if (parts[3] === "calculate-cost") {
+      try {
+        const body = (await req.json().catch(() => ({}))) as {
+          driverWage?: number;
+          fuelPrice?: number;
+          distanceKm?: number;
+          truckId?: string;
+          driverId?: string;
+        };
+        const costResult = await controller.freightCosts.calculateAndSave(id, body);
+        return Response.json({ success: true, ...costResult });
+      } catch (error: any) {
+        console.error("Error calculating freight cost:", error);
+        return Response.json({ success: false, error: error.message || "Failed to calculate freight cost" }, { status: 400 });
+      }
+    }
+
+    if (parts[3] === "calculate-distance") {
+      try {
+        const body = (await req.json().catch(() => ({}))) as { warehouse_id?: string };
+        const distResult = await controller.orders.calculateDistance(id, body?.warehouse_id);
+        return Response.json({ success: true, ...distResult });
+      } catch (error: any) {
+        console.error("Error calculating distance in DB:", error);
+        return Response.json({ success: false, error: error.message || "Failed to calculate distance" }, { status: 400 });
+      }
+    }
 
     if (parts[3] === "route") {
       try {

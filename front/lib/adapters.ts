@@ -130,6 +130,7 @@ export function adaptUser(raw: any): User {
     address: addressStr || undefined,
     role,
     rawRole: raw.role || "client",
+    wage: Number(raw.wage ?? (role === "client" ? 0 : 45.0)),
   }
 }
 
@@ -219,6 +220,12 @@ export function adaptFreightCost(raw: any): FreightCost {
     labor_cost: Number(raw.labor_cost ?? 0),
     maintenance_cost: Number(raw.maintenance_cost ?? 0),
     total_cost: Number(raw.total_cost ?? 0),
+    distance_km: raw.distance_km !== undefined ? Number(raw.distance_km) : undefined,
+    avg_fuel_price: raw.avg_fuel_price !== undefined ? Number(raw.avg_fuel_price) : undefined,
+    driver_wage: raw.driver_wage !== undefined ? Number(raw.driver_wage) : undefined,
+    warehouses_passed: Array.isArray(raw.warehouses_passed) ? raw.warehouses_passed : undefined,
+    fuel_liters: raw.fuel_liters !== undefined ? Number(raw.fuel_liters) : undefined,
+    travel_hours: raw.travel_hours !== undefined ? Number(raw.travel_hours) : undefined,
     calculated_at: raw.calculated_at || undefined,
   }
 }

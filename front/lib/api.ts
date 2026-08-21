@@ -145,6 +145,19 @@ export const api = {
       }
     },
 
+    async getAverageGasPrice(ids?: string[]): Promise<number> {
+      try {
+        const query = ids && ids.length > 0 ? `?ids=${encodeURIComponent(ids.join(","))}` : ""
+        const res = await apiClient.get<{ avg_gas_price: number }>(`/warehouses/average-gas-price${query}`)
+        if (res.data && res.data.avg_gas_price !== undefined) {
+          return res.data.avg_gas_price
+        }
+      } catch (err) {
+        console.warn("[API] GET /warehouses/average-gas-price fallback:", err)
+      }
+      return 5.89
+    },
+
     async update(id: string, payload: {
       location: any
       size: any
@@ -266,11 +279,24 @@ export const api = {
       return USERS.find((u) => u.id === id)
     },
 
+    async getDrivers(): Promise<User[]> {
+      try {
+        const res = await apiClient.get<any[]>("/users/drivers")
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          return res.data.map(adaptUser)
+        }
+      } catch (err) {
+        console.warn("[API] GET /users/drivers fallback:", err)
+      }
+      return USERS.filter((u) => u.rawRole === "truck_driver" || u.work_position?.includes("Driver"))
+    },
+
     async update(id: string, payload: {
       name?: string
       address?: string
       password?: string
       role?: string
+      wage?: number
     }): Promise<{ success: boolean; user?: User }> {
       try {
         const res = await apiClient.put<{ success: boolean; user?: any }>(`/users/${id}`, payload)
@@ -393,6 +419,36 @@ export const api = {
       return res.data
     },
 
+    async calculateCost(orderId: string, options?: {
+      driverWage?: number
+      fuelPrice?: number
+      distanceKm?: number
+      truckId?: string
+      driverId?: string
+    }): Promise<FreightCost | null> {
+      try {
+        const res = await apiClient.post<any>(`/orders/${orderId}/calculate-cost`, options || {})
+        if (res.data && res.data.success) {
+          return adaptFreightCost(res.data)
+        }
+      } catch (err) {
+        console.warn(`[API] POST /orders/${orderId}/calculate-cost fallback:`, err)
+      }
+      return null
+    },
+
+    async calculateDistance(orderId: string, warehouseId?: string): Promise<{ distance_km: number } | null> {
+      try {
+        const res = await apiClient.post<any>(`/orders/${orderId}/calculate-distance`, { warehouse_id: warehouseId })
+        if (res.data && res.data.success) {
+          return { distance_km: res.data.distance_km }
+        }
+      } catch (err) {
+        console.warn(`[API] POST /orders/${orderId}/calculate-distance fallback:`, err)
+      }
+      return null
+    },
+
     async addRouteStep(orderId: string, payload: {
       step: number
       warehouse_id?: string | null
@@ -452,6 +508,24 @@ export const api = {
         console.warn("[API] GET /freight-cost fallback:", err)
       }
       return []
+    },
+
+    async calculate(orderId: string, options?: {
+      driverWage?: number
+      fuelPrice?: number
+      distanceKm?: number
+      truckId?: string
+      driverId?: string
+    }): Promise<FreightCost | null> {
+      try {
+        const res = await apiClient.post<any>(`/orders/${orderId}/calculate-cost`, options || {})
+        if (res.data && res.data.success) {
+          return adaptFreightCost(res.data)
+        }
+      } catch (err) {
+        console.warn(`[API] POST /orders/${orderId}/calculate-cost fallback:`, err)
+      }
+      return null
     },
   },
 

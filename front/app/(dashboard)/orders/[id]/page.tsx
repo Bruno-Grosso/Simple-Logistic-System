@@ -94,15 +94,36 @@ export default async function OrderDetailPage({ params }: PageProps) {
   const originWarehouseId = routeSteps[0]?.deposit_id || warehouses[0]?.id || "WH-001"
   const originWarehouse = depositMap.get(originWarehouseId)
 
+  // Calculate route warehouses and average gas price
+  const routeWarehouseIdSet = new Set<string>([originWarehouseId])
+  routeSteps.forEach((s) => {
+    if (s.deposit_id) routeWarehouseIdSet.add(s.deposit_id)
+  })
+  const routeWarehouseIds = Array.from(routeWarehouseIdSet)
+  const routeWarehouses = routeWarehouseIds.map((id) => depositMap.get(id)).filter(Boolean) as Deposit[]
+  const avgGasPrice =
+    routeWarehouses.length > 0
+      ? Math.round((routeWarehouses.reduce((acc, w) => acc + (w.fuel_price ?? 5.89), 0) / routeWarehouses.length) * 100) / 100
+      : (originWarehouse?.fuel_price ?? 5.89)
+
+  // Assigned truck and driver wage
+  const assignedTruckId = routeSteps.find((s) => s.truck_id)?.truck_id || trucks[0]?.id
+  const assignedTruck = assignedTruckId ? truckMap.get(assignedTruckId) : trucks[0]
+  const drivers = users.filter((u) => u.rawRole === "truck_driver" || u.work_position?.includes("Driver"))
+  const driverWage = drivers[0]?.wage ?? 50.0
+
   // Calculate Valhalla route map
   const valhallaRoute = await api.routes.calculateRoute(order.id, originWarehouseId)
+  const distanceKm = valhallaRoute?.summary?.length || 120
+  const timeSeconds = valhallaRoute?.summary?.time || 5400
 
   // Freight Cost calculation if not already recorded in DB
   const freightCost = costData ?? calculateFreightEstimate(
-    valhallaRoute?.summary?.length || 120,
-    valhallaRoute?.summary?.time || 5400,
-    trucks[0],
-    5.89
+    distanceKm,
+    timeSeconds,
+    assignedTruck,
+    avgGasPrice,
+    driverWage
   )
 
   return (
@@ -213,28 +234,48 @@ export default async function OrderDetailPage({ params }: PageProps) {
                   <DollarSign className="size-4 text-primary" />
                   Freight Cost Breakdown
                 </CardTitle>
-                <Badge variant="outline" className="text-xs">
-                  {costData ? "Recorded in DB" : "Estimated"}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    Avg Gas: R$ {avgGasPrice.toFixed(2)}/L
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    Driver: R$ {driverWage.toFixed(2)}/h
+                  </Badge>
+                  <Badge variant={costData ? "default" : "secondary"} className="text-xs">
+                    {costData ? "Recorded in DB" : "Estimated"}
+                  </Badge>
+                </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                   <InfoField
                     label="Fuel Cost"
-                    value={`R$ ${(freightCost.fuel_cost ?? 0).toLocaleString("pt-BR")}`}
+                    value={`R$ ${(freightCost.fuel_cost ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
                   />
                   <InfoField
                     label="Labor Cost"
-                    value={`R$ ${(freightCost.labor_cost ?? 0).toLocaleString("pt-BR")}`}
+                    value={`R$ ${(freightCost.labor_cost ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
                   />
                   <InfoField
                     label="Maintenance"
-                    value={`R$ ${(freightCost.maintenance_cost ?? 0).toLocaleString("pt-BR")}`}
+                    value={`R$ ${(freightCost.maintenance_cost ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
                   />
                   <InfoField
                     label="Total Freight Cost"
-                    value={`R$ ${(freightCost.total_cost ?? 0).toLocaleString("pt-BR")}`}
+                    value={`R$ ${(freightCost.total_cost ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
                   />
+                </div>
+
+                <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span>
+                      <strong>Route Distance:</strong> {distanceKm.toFixed(1)} km
+                    </span>
+                    <span>
+                      <strong>Warehouses in Route:</strong>{" "}
+                      {routeWarehouses.map((w) => `${w.location.split("(")[0].trim()} (R$ ${(w.fuel_price ?? 5.89).toFixed(2)}/L)`).join(" ➔ ") || originWarehouse?.location || "Warehouse"}
+                    </span>
+                  </div>
                 </div>
               </CardContent>
             </Card>

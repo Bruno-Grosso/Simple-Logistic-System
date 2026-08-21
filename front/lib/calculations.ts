@@ -66,18 +66,42 @@ export function computeTruckLoad(truck: Truck): { volumePct: number; weightPct: 
   }
 }
 
+export function computeRouteAverageGasPrice(
+  deposits: Deposit[],
+  routeDepositIds: string[]
+): number {
+  if (!routeDepositIds || routeDepositIds.length === 0) {
+    if (deposits.length === 0) return 5.89
+    const sum = deposits.reduce((acc, d) => acc + (d.fuel_price ?? 5.89), 0)
+    return Math.round((sum / deposits.length) * 100) / 100
+  }
+
+  const matched = deposits.filter((d) => routeDepositIds.includes(d.id))
+  if (matched.length === 0) return 5.89
+
+  const sum = matched.reduce((acc, d) => acc + (d.fuel_price ?? 5.89), 0)
+  return Math.round((sum / matched.length) * 100) / 100
+}
+
 export function calculateFreightEstimate(
   distanceKm: number,
   timeSeconds: number,
   truck?: Truck,
-  fuelPrice = 5.89
+  fuelPrice: number | number[] = 5.89,
+  driverWage = 45.0
 ): FreightCost {
+  const avgFuelPrice = Array.isArray(fuelPrice)
+    ? fuelPrice.length > 0
+      ? fuelPrice.reduce((a, b) => a + b, 0) / fuelPrice.length
+      : 5.89
+    : fuelPrice
+
   const consumption = truck?.fuel_consumption ?? 0.35 // Litros por km
   const fuelLiters = distanceKm * consumption
-  const fuelCost = Math.round(fuelLiters * fuelPrice * 100) / 100
+  const fuelCost = Math.round(fuelLiters * avgFuelPrice * 100) / 100
 
   const timeHours = timeSeconds / 3600
-  const laborCost = Math.round(timeHours * 45 * 100) / 100 // R$ 45/hora de motorista
+  const laborCost = Math.round(timeHours * driverWage * 100) / 100 // Custo de motorista por hora
 
   const wearRate = truck?.wear_rate ?? 0.15
   const maintenanceCost = Math.round(distanceKm * wearRate * 100) / 100
@@ -86,6 +110,11 @@ export function calculateFreightEstimate(
 
   return {
     order_id: "",
+    distance_km: distanceKm,
+    avg_fuel_price: Math.round(avgFuelPrice * 100) / 100,
+    driver_wage: driverWage,
+    fuel_liters: Math.round(fuelLiters * 100) / 100,
+    travel_hours: Math.round(timeHours * 100) / 100,
     fuel_cost: fuelCost,
     labor_cost: laborCost,
     maintenance_cost: maintenanceCost,
@@ -93,3 +122,4 @@ export function calculateFreightEstimate(
     calculated_at: new Date().toISOString(),
   }
 }
+

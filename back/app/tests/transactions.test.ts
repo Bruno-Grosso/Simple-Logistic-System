@@ -121,3 +121,67 @@ test("Transactions: GET /freight-cost filtering with no results", async () => {
   const data = (await res.json()) as any[];
   expect(data).toHaveLength(0);
 });
+
+test("Transactions: POST /orders/:id/calculate-distance calculates distance in DB", async () => {
+  const res = await testFetch("/orders/ORD-001/calculate-distance", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ warehouse_id: "WH-001" }),
+  });
+  expect(res.status).toBe(200);
+  const data = (await res.json()) as any;
+  expect(data.success).toBe(true);
+  expect(data.distance_km).toBeGreaterThan(0);
+  expect(data.order_id).toBe("ORD-001");
+  expect(data.origin_coords).toBeDefined();
+  expect(data.destination_coords).toBeDefined();
+});
+
+test("Transactions: GET /warehouses/average-gas-price calculates avg price across warehouses", async () => {
+  const res = await testFetch("/warehouses/average-gas-price?ids=WH-001,WH-002");
+  expect(res.status).toBe(200);
+  const data = (await res.json()) as any;
+  expect(data.avg_gas_price).toBeGreaterThan(5.0);
+  expect(data.warehouses_count).toBe(2);
+});
+
+test("Transactions: GET /users/drivers returns drivers with hourly wages", async () => {
+  const res = await testFetch("/users/drivers");
+  expect(res.status).toBe(200);
+  const data = (await res.json()) as any[];
+  expect(data.length).toBeGreaterThanOrEqual(2);
+  expect(data.some((d) => d.name.includes("Charlie") && d.wage > 0)).toBe(true);
+});
+
+test("Transactions: POST /orders/:id/calculate-cost calculates & saves cost considering wage & warehouse gas prices", async () => {
+  const res = await testFetch("/orders/ORD-001/calculate-cost", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      driverWage: 55.0,
+      fuelPrice: 6.0,
+      distanceKm: 100.0,
+    }),
+  });
+  expect(res.status).toBe(200);
+  const data = (await res.json()) as any;
+  expect(data.success).toBe(true);
+  expect(data.order_id).toBe("ORD-001");
+  expect(data.fuel_cost).toBeGreaterThan(0);
+  expect(data.labor_cost).toBeGreaterThan(0);
+  expect(data.maintenance_cost).toBeGreaterThan(0);
+  expect(data.total_cost).toBe(
+    Math.round((data.fuel_cost + data.labor_cost + data.maintenance_cost) * 100) / 100,
+  );
+  expect(data.avg_fuel_price).toBe(6.0);
+  expect(data.driver_wage).toBe(55.0);
+  expect(data.distance_km).toBe(100.0);
+
+  // Verify persistence in freight_cost
+  const costCheck = await testFetch("/orders/ORD-001/cost");
+  expect(costCheck.status).toBe(200);
+  const savedCosts = (await costCheck.json()) as any[];
+  expect(savedCosts.length).toBeGreaterThan(0);
+  expect(savedCosts[0].total_cost).toBe(data.total_cost);
+});
+

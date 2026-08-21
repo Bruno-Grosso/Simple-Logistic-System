@@ -46,6 +46,7 @@ export default async function EmployeesPage() {
               <TableRow>
                 <TableHead scope="col">Name</TableHead>
                 <TableHead scope="col">Role / Position</TableHead>
+                <TableHead scope="col">Hourly Wage</TableHead>
                 <TableHead scope="col">ID</TableHead>
                 <TableHead scope="col">Status</TableHead>
               </TableRow>
@@ -66,6 +67,9 @@ export default async function EmployeesPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground capitalize">
                       {u.work_position || u.role.replace("_", " ")}
+                    </TableCell>
+                    <TableCell className="font-medium text-foreground">
+                      R$ {(u.wage ?? 45.0).toFixed(2)}/h
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{u.id}</TableCell>
                     <TableCell>

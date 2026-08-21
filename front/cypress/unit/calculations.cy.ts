@@ -1,7 +1,9 @@
 import {
   computeDashboardStats,
   computeDepositUsage,
+  computeDepositParkingUsage,
   computeTruckLoad,
+  computeRouteAverageGasPrice,
   calculateFreightEstimate,
 } from "../../lib/calculations"
 import type { Order, Truck, Deposit } from "../../types"
@@ -64,6 +66,45 @@ describe("Unit Tests - Domain Calculations (lib/calculations.ts)", () => {
     })
   })
 
+  describe("computeDepositParkingUsage", () => {
+    it("should calculate parked percentage and availability correctly", () => {
+      const deposit: Partial<Deposit> = { truck_capacity: 5 }
+      const res = computeDepositParkingUsage(deposit as Deposit, 2)
+      expect(res.capacity).to.equal(5)
+      expect(res.parked).to.equal(2)
+      expect(res.available).to.equal(3)
+      expect(res.pct).to.equal(40)
+      expect(res.isFull).to.equal(false)
+      expect(res.statusLabel).to.equal("Available")
+    })
+
+    it("should identify full parking status", () => {
+      const deposit: Partial<Deposit> = { truck_capacity: 4 }
+      const res = computeDepositParkingUsage(deposit as Deposit, 4)
+      expect(res.isFull).to.equal(true)
+      expect(res.available).to.equal(0)
+      expect(res.statusLabel).to.equal("Full")
+    })
+  })
+
+  describe("computeRouteAverageGasPrice", () => {
+    it("should compute average fuel price across warehouses along route", () => {
+      const warehouses: Partial<Deposit>[] = [
+        { id: "WH-001", fuel_price: 5.89 },
+        { id: "WH-002", fuel_price: 6.15 },
+        { id: "WH-003", fuel_price: 5.95 },
+      ]
+      const avg = computeRouteAverageGasPrice(warehouses as Deposit[], ["WH-001", "WH-002"])
+      // (5.89 + 6.15) / 2 = 6.02
+      expect(avg).to.equal(6.02)
+    })
+
+    it("should fallback to default if no matching warehouses", () => {
+      const avg = computeRouteAverageGasPrice([], [])
+      expect(avg).to.equal(5.89)
+    })
+  })
+
   describe("computeTruckLoad", () => {
     it("should compute volume and weight load percentages", () => {
       const truck: Partial<Truck> = {
@@ -91,8 +132,9 @@ describe("Unit Tests - Domain Calculations (lib/calculations.ts)", () => {
       const distanceKm = 100
       const timeSeconds = 7200 // 2 hours
       const customFuelPrice = 6.0
+      const customDriverWage = 45.0
 
-      const estimate = calculateFreightEstimate(distanceKm, timeSeconds, truck as Truck, customFuelPrice)
+      const estimate = calculateFreightEstimate(distanceKm, timeSeconds, truck as Truck, customFuelPrice, customDriverWage)
 
       // Fuel: 100 km * 0.4 L/km = 40 L -> 40 * 6.0 = 240.00
       expect(estimate.fuel_cost).to.equal(240)
@@ -104,5 +146,25 @@ describe("Unit Tests - Domain Calculations (lib/calculations.ts)", () => {
       expect(estimate.total_cost).to.equal(350)
       expect(estimate.calculated_at).to.be.a("string")
     })
+
+    it("should calculate delivery cost considering array of warehouse gas prices and driver wage", () => {
+      const truck: Partial<Truck> = { fuel_consumption: 0.3, wear_rate: 0.1 }
+      const distanceKm = 200
+      const timeSeconds = 9000 // 2.5 hours
+      const warehouseGasPrices = [5.89, 6.15] // avg = 6.02
+      const driverWage = 55.0 // R$ 55/hour for Charlie Driver
+
+      const estimate = calculateFreightEstimate(distanceKm, timeSeconds, truck as Truck, warehouseGasPrices, driverWage)
+
+      // Fuel: 200 * 0.3 = 60 L * 6.02 = 361.20
+      expect(estimate.fuel_cost).to.equal(361.2)
+      // Labor: 2.5 hours * 55.0 = 137.50
+      expect(estimate.labor_cost).to.equal(137.5)
+      // Maintenance: 200 * 0.1 = 20.00
+      expect(estimate.maintenance_cost).to.equal(20)
+      // Total: 361.20 + 137.50 + 20.00 = 518.70
+      expect(estimate.total_cost).to.equal(518.7)
+    })
   })
 })
+

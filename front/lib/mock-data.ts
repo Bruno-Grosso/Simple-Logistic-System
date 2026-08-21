@@ -23,6 +23,7 @@ export const USERS: User[] = [
     role: "admin",
     work_position: "System Admin",
     address: "Rua do Imperador, Centro, Petrópolis - RJ",
+    wage: 65.0,
   },
   {
     id: "USR-002",
@@ -30,6 +31,7 @@ export const USERS: User[] = [
     role: "worker",
     work_position: "Warehouse Worker",
     address: "Estrada União e Indústria, Itaipava, Petrópolis - RJ",
+    wage: 42.0,
   },
   {
     id: "USR-003",
@@ -37,18 +39,21 @@ export const USERS: User[] = [
     role: "worker",
     work_position: "Truck Driver",
     address: "Av. Alberto Braune, Centro, Nova Friburgo - RJ",
+    wage: 55.0,
   },
   {
     id: "USR-004",
     name: "David Client",
     role: "client",
     address: "Av. Reta da Várzea, Várzea, Teresópolis - RJ",
+    wage: 0.0,
   },
   {
     id: "USR-005",
     name: "Eve Client",
     role: "client",
     address: "Rua Monte Líbano, Centro, Nova Friburgo - RJ",
+    wage: 0.0,
   },
   {
     id: "USR-006",
@@ -56,6 +61,7 @@ export const USERS: User[] = [
     role: "worker",
     work_position: "Truck Driver",
     address: "Estrada Terê-Fri, Km 12, Teresópolis - RJ",
+    wage: 50.0,
   },
   {
     id: "USR-007",
@@ -63,18 +69,21 @@ export const USERS: User[] = [
     role: "worker",
     work_position: "Warehouse Worker",
     address: "Rua General Osório, Centro, Nova Friburgo - RJ",
+    wage: 40.0,
   },
   {
     id: "USR-008",
     name: "Henry Client",
     role: "client",
     address: "Rua Visconde de Uruguai, Cachoeiras de Macacu - RJ",
+    wage: 0.0,
   },
   {
     id: "USR-009",
     name: "Ivy Client",
     role: "client",
     address: "Av. Dedo de Deus, Guapimirim - RJ",
+    wage: 0.0,
   },
   {
     id: "USR-010",
@@ -82,6 +91,7 @@ export const USERS: User[] = [
     role: "worker",
     work_position: "Warehouse Worker",
     address: "Rua Cel. Veiga, Petrópolis - RJ",
+    wage: 38.0,
   },
 ];
 
@@ -98,6 +108,7 @@ export const DEPOSITS: Deposit[] = [
     volume_actual: 0.36,
     volume_max: 100000.0,
     has_refrigeration: true,
+    fuel_price: 5.89,
     truck_capacity: 5,
     parking_capacity: 5,
   },
@@ -108,6 +119,7 @@ export const DEPOSITS: Deposit[] = [
     volume_actual: 0.0,
     volume_max: 20000.0,
     has_refrigeration: false,
+    fuel_price: 6.15,
     truck_capacity: 2,
     parking_capacity: 2,
   },
@@ -118,6 +130,7 @@ export const DEPOSITS: Deposit[] = [
     volume_actual: 0.0,
     volume_max: 48000.0,
     has_refrigeration: true,
+    fuel_price: 5.95,
     truck_capacity: 4,
     parking_capacity: 4,
   },
@@ -712,4 +725,28 @@ export const MONTHLY_PERFORMANCE: MonthlyPerformanceData[] = [
     poi: "Record Holiday Delivery Peak & Highest Annual Operating Margin",
   },
 ];
+
+// ─── 11. Freight Costs (from db/fill_mock_data.sql) ──────────────────────────
+
+export const FREIGHT_COSTS = [
+  {
+    order_id: "ORD-003",
+    fuel_cost: 25.0,
+    labor_cost: 40.0,
+    maintenance_cost: 5.0,
+    total_cost: 70.0,
+    calculated_at: "2026-03-20 11:00:00",
+  },
+  {
+    order_id: "ORD-002",
+    fuel_cost: 150.0,
+    labor_cost: 300.0,
+    maintenance_cost: 45.0,
+    total_cost: 495.0,
+    calculated_at: "2026-03-25 10:30:00",
+  },
+];
+
+export const getFreightCostByOrder = (orderId: string) =>
+  FREIGHT_COSTS.find((fc) => fc.order_id === orderId);
 

@@ -121,16 +121,19 @@ describe("Unit Tests - Data Adapters (lib/adapters.ts)", () => {
       expect(adaptUser({ id: 4, role: "customer" }).role).to.equal("client")
     })
 
-    it("should extract derived email and address string", () => {
+    it("should extract derived email, address string, and hourly wage", () => {
       const raw = {
         id: 10,
         name: "Bob Smith",
         address: { address: "Rua do Imperador 100, Petrópolis" },
+        role: "warehouse_worker",
+        wage: 42.5,
       }
       const adapted = adaptUser(raw)
       expect(adapted.name).to.equal("Bob Smith")
       expect(adapted.email).to.equal("bob@logisys.com")
       expect(adapted.address).to.equal("Rua do Imperador 100, Petrópolis")
+      expect(adapted.wage).to.equal(42.5)
     })
   })
 
@@ -195,11 +198,25 @@ describe("Unit Tests - Data Adapters (lib/adapters.ts)", () => {
   })
 
   describe("adaptFreightCost & adaptMonthlyPerformance", () => {
-    it("should correctly adapt freight cost breakdown", () => {
-      const raw = { order_id: "ORD-1", fuel_cost: 120, labor_cost: 90, maintenance_cost: 30, total_cost: 240 }
+    it("should correctly adapt freight cost breakdown including gas prices and wages", () => {
+      const raw = {
+        order_id: "ORD-1",
+        fuel_cost: 120,
+        labor_cost: 90,
+        maintenance_cost: 30,
+        total_cost: 240,
+        distance_km: 85.5,
+        avg_fuel_price: 6.02,
+        driver_wage: 55.0,
+        warehouses_passed: ["WH-001", "WH-002"],
+      }
       const adapted = adaptFreightCost(raw)
       expect(adapted.total_cost).to.equal(240)
       expect(adapted.fuel_cost).to.equal(120)
+      expect(adapted.distance_km).to.equal(85.5)
+      expect(adapted.avg_fuel_price).to.equal(6.02)
+      expect(adapted.driver_wage).to.equal(55.0)
+      expect(adapted.warehouses_passed).to.deep.equal(["WH-001", "WH-002"])
     })
 
     it("should map monthly performance snake_case properties", () => {
@@ -221,3 +238,4 @@ describe("Unit Tests - Data Adapters (lib/adapters.ts)", () => {
     })
   })
 })
+

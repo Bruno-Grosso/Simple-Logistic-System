@@ -1,5 +1,110 @@
 import { pg_conn } from "./model";
 
+// Auto-migration to ensure wage column, distance_km column, and distance calculation function exist
+(async () => {
+  try {
+    await pg_conn`ALTER TABLE users ADD COLUMN IF NOT EXISTS wage REAL NOT NULL DEFAULT 45.0`;
+    await pg_conn`ALTER TABLE orders ADD COLUMN IF NOT EXISTS distance_km REAL DEFAULT 0.0`;
+    await pg_conn`UPDATE warehouses SET fuel_price = 5.89 WHERE id = 'WH-001' AND fuel_price < 4.0`;
+    await pg_conn`UPDATE warehouses SET fuel_price = 6.15 WHERE id = 'WH-002' AND fuel_price < 4.0`;
+    await pg_conn`UPDATE warehouses SET fuel_price = 5.95 WHERE id = 'WH-003' AND fuel_price < 4.0`;
+    await pg_conn`
+      CREATE OR REPLACE FUNCTION calculate_distance_km(lat1 DOUBLE PRECISION, lon1 DOUBLE PRECISION, lat2 DOUBLE PRECISION, lon2 DOUBLE PRECISION)
+      RETURNS DOUBLE PRECISION AS $$
+      BEGIN
+        RETURN 6371.0 * acos(
+          LEAST(1.0, GREATEST(-1.0,
+            cos(radians(lat1)) * cos(radians(lat2)) * cos(radians(lon2) - radians(lon1)) +
+            sin(radians(lat1)) * sin(radians(lat2))
+          ))
+        );
+      END;
+      $$ LANGUAGE plpgsql IMMUTABLE;
+    `;
+  } catch {
+    /* ignore migration errors */
+  }
+})();
+
+/**
+ * Helper to safely parse location coordinates from various formats
+ */
+export function parseLocationCoords(raw: any, defaultLat = -22.3842, defaultLon = -43.1311): { lat: number; lon: number } {
+  if (!raw) return { lat: defaultLat, lon: defaultLon };
+
+  if (typeof raw === "object" && raw !== null) {
+    const lat = Number(raw.latitude ?? raw.lat);
+    const lon = Number(raw.longitude ?? raw.lon);
+    if (!isNaN(lat) && !isNaN(lon) && lat !== 0) return { lat, lon };
+  }
+
+  const str = String(raw);
+
+  if (str.trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(str);
+      const lat = Number(parsed.latitude ?? parsed.lat);
+      const lon = Number(parsed.longitude ?? parsed.lon);
+      if (!isNaN(lat) && !isNaN(lon) && lat !== 0) return { lat, lon };
+    } catch {}
+  }
+
+  const latMatch = str.match(/Lat:\s*(-?\d+\.\d+)/i) || str.match(/(-?\d+\.\d+)\s*,/);
+  const lonMatch = str.match(/Lon:\s*(-?\d+\.\d+)/i) || str.match(/,\s*(-?\d+\.\d+)/);
+
+  if (latMatch && lonMatch) {
+    const lat = Number(latMatch[1]);
+    const lon = Number(lonMatch[1]);
+    if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
+  }
+
+  if (str.includes("Petrópolis") || str.includes("Itaipava")) return { lat: -22.3842, lon: -43.1311 };
+  if (str.includes("Teresópolis") || str.includes("Várzea") || str.includes("Alto")) return { lat: -22.4123, lon: -42.9656 };
+  if (str.includes("Friburgo") || str.includes("Olaria")) return { lat: -22.2819, lon: -42.5311 };
+  if (str.includes("Cachoeiras")) return { lat: -22.4633, lon: -42.6528 };
+  if (str.includes("Guapimirim")) return { lat: -22.5367, lon: -42.9819 };
+
+  return { lat: defaultLat, lon: defaultLon };
+}
+
+/**
+ * Calculates geodesic distance in kilometers between two coordinate pairs using PostgreSQL or Haversine formula
+ */
+export async function calculateDistanceInDb(lat1: number, lon1: number, lat2: number, lon2: number): Promise<number> {
+  try {
+    const res = await pg_conn`
+      SELECT calculate_distance_km(${lat1}, ${lon1}, ${lat2}, ${lon2}) as distance_km
+    `;
+    if (res && res[0] && res[0].distance_km !== null) {
+      return Math.round(Number(res[0].distance_km) * 10) / 10;
+    }
+  } catch {
+    try {
+      const res = await pg_conn`
+        SELECT (6371.0 * acos(
+          LEAST(1.0, GREATEST(-1.0,
+            cos(radians(${lat1})) * cos(radians(${lat2})) * cos(radians(${lon2} - ${lon1})) +
+            sin(radians(${lat1})) * sin(radians(${lat2}))
+          ))
+        )) as distance_km
+      `;
+      if (res && res[0] && res[0].distance_km !== null) {
+        return Math.round(Number(res[0].distance_km) * 10) / 10;
+      }
+    } catch {
+      /* fallback to JavaScript haversine */
+    }
+  }
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 10) / 10;
+}
+
 /**
  * Functional factory for basic CRUD operations.
  * Returns an object with functions (functors) to execute on routes.
@@ -16,6 +121,20 @@ const createBaseRepo = (table: string) => ({
 export const users = {
   ...createBaseRepo("users"),
   byRole: (role: string) => pg_conn`SELECT * FROM users WHERE role = ${role}`,
+  drivers: () => pg_conn`SELECT * FROM users WHERE role = 'truck_driver'`,
+  getDriverWage: async (driverId?: string): Promise<number> => {
+    if (driverId) {
+      const userRes = await pg_conn`SELECT wage FROM users WHERE id = ${driverId}`;
+      if (userRes && userRes.length > 0 && userRes[0].wage !== null && userRes[0].wage !== undefined) {
+        return Number(userRes[0].wage);
+      }
+    }
+    const avgRes = await pg_conn`SELECT AVG(wage) as avg_wage FROM users WHERE role = 'truck_driver'`;
+    if (avgRes && avgRes.length > 0 && avgRes[0].avg_wage !== null) {
+      return Number(avgRes[0].avg_wage);
+    }
+    return 50.0;
+  },
   login: async (identityInput: string, passwordInput: string) => {
     const input = String(identityInput || "").trim().toLowerCase();
     const cleanPrefix = input.includes("@") ? input.split("@")[0] : input;
@@ -55,11 +174,12 @@ export const users = {
         name: matched.name,
         email: matched.email || (matched.name ? `${matched.name.split(" ")[0].toLowerCase()}@logisys.com` : `${matched.id.toLowerCase()}@logisys.com`),
         role: matched.role,
+        wage: matched.wage !== undefined ? Number(matched.wage) : 45.0,
         address: matched.address,
       },
     };
   },
-  update: async (id: string, user: { name?: string; password?: string; address?: any; role?: string }) => {
+  update: async (id: string, user: { name?: string; password?: string; address?: any; role?: string; wage?: number }) => {
     let addressVal: string | null = null;
     if (user.address !== undefined) {
       if (typeof user.address === "object" && user.address !== null) {
@@ -71,7 +191,6 @@ export const users = {
       }
     }
 
-    const setClauses: string[] = [];
     if (user.name !== undefined) {
       await pg_conn`UPDATE users SET name = ${user.name} WHERE id = ${id}`;
     }
@@ -84,18 +203,22 @@ export const users = {
     if (user.role !== undefined) {
       await pg_conn`UPDATE users SET role = ${user.role} WHERE id = ${id}`;
     }
+    if (user.wage !== undefined) {
+      await pg_conn`UPDATE users SET wage = ${Number(user.wage)} WHERE id = ${id}`;
+    }
 
     const updated = await pg_conn`SELECT * FROM users WHERE id = ${id}`;
     return updated;
   },
-  createClient: async (client: { id?: string; name: string; email?: string; password: string; address?: string; role?: string }) => {
+  createClient: async (client: { id?: string; name: string; email?: string; password: string; address?: string; role?: string; wage?: number }) => {
     const id = client.id || `USR-${Math.floor(100 + Math.random() * 900)}`;
     const role = client.role || "client";
+    const wage = client.wage !== undefined ? Number(client.wage) : (role === "client" ? 0.0 : 45.0);
     const addressJson = JSON.stringify({ address: client.address || "" });
     const inserted = await pg_conn`
-      INSERT INTO users (id, name, password, address, role)
-      VALUES (${id}, ${client.name}, ${client.password}, ${addressJson}, ${role})
-      RETURNING id, name, address, role
+      INSERT INTO users (id, name, password, address, role, wage)
+      VALUES (${id}, ${client.name}, ${client.password}, ${addressJson}, ${role}, ${wage})
+      RETURNING id, name, address, role, wage
     `;
     return inserted[0];
   },
@@ -136,6 +259,23 @@ export const warehouses = {
   ...createBaseRepo("warehouses"),
   stock: (warehouseId: string) => 
     pg_conn`SELECT * FROM warehouses_stock WHERE warehouse_id = ${warehouseId}`,
+  getAverageGasPrice: async (warehouseIds?: string[]): Promise<number> => {
+    if (warehouseIds && warehouseIds.length > 0) {
+      const res = await pg_conn`
+        SELECT AVG(fuel_price) as avg_price 
+        FROM warehouses 
+        WHERE id = ANY(${warehouseIds})
+      `;
+      if (res && res.length > 0 && res[0].avg_price !== null && res[0].avg_price !== undefined) {
+        return Math.round(Number(res[0].avg_price) * 100) / 100;
+      }
+    }
+    const allRes = await pg_conn`SELECT AVG(fuel_price) as avg_price FROM warehouses`;
+    if (allRes && allRes.length > 0 && allRes[0].avg_price !== null && allRes[0].avg_price !== undefined) {
+      return Math.round(Number(allRes[0].avg_price) * 100) / 100;
+    }
+    return 5.89;
+  },
   getParkingStatus: async (warehouseId: string) => {
     const whRes = await pg_conn`SELECT * FROM warehouses WHERE id = ${warehouseId}`;
     if (!whRes || whRes.length === 0) return null;
@@ -274,6 +414,34 @@ export const orders = {
   items: (orderId: string) => pg_conn`SELECT * FROM orders_items WHERE order_id = ${orderId}`,
   routes: (orderId: string) => pg_conn`SELECT * FROM orders_route WHERE order_id = ${orderId}`,
   costs: (orderId: string) => pg_conn`SELECT * FROM freight_cost WHERE order_id = ${orderId}`,
+  calculateDistance: async (orderId: string, originWarehouseId?: string) => {
+    const orderRes = await pg_conn`SELECT * FROM orders WHERE id = ${orderId}`;
+    if (!orderRes || orderRes.length === 0) throw new Error("Order not found");
+    const order = orderRes[0];
+
+    let whId = originWarehouseId;
+    if (!whId) {
+      const routes = await pg_conn`SELECT * FROM orders_route WHERE order_id = ${orderId} ORDER BY step ASC`;
+      whId = routes[0]?.warehouse_id || "WH-001";
+    }
+
+    const whRes = await pg_conn`SELECT * FROM warehouses WHERE id = ${whId}`;
+    const warehouse = whRes && whRes.length > 0 ? whRes[0] : null;
+
+    const wCoords = parseLocationCoords(warehouse?.location, -22.3842, -43.1311);
+    const oCoords = parseLocationCoords(order.final_destination, -22.4123, -42.9656);
+
+    const distanceKm = await calculateDistanceInDb(wCoords.lat, wCoords.lon, oCoords.lat, oCoords.lon);
+    await orders.updateDistance(orderId, distanceKm);
+
+    return {
+      order_id: orderId,
+      distance_km: distanceKm,
+      warehouse_id: whId,
+      origin_coords: wCoords,
+      destination_coords: oCoords,
+    };
+  },
   create: (order: { id: string; client_id: string; final_destination: string; time_limit: string; price: number; status?: string }) =>
     pg_conn`
       INSERT INTO orders (id, client_id, final_destination, time_limit, price, status)
@@ -356,6 +524,110 @@ export const supplyRoutes = {
 export const freightCosts = {
   ...createBaseRepo("freight_cost"),
   byOrder: (orderId: string) => pg_conn`SELECT * FROM freight_cost WHERE order_id = ${orderId}`,
+  calculateAndSave: async (
+    orderId: string,
+    options?: {
+      driverWage?: number;
+      fuelPrice?: number;
+      distanceKm?: number;
+      truckId?: string;
+      driverId?: string;
+    }
+  ) => {
+    const orderRes = await pg_conn`SELECT * FROM orders WHERE id = ${orderId}`;
+    if (!orderRes || orderRes.length === 0) throw new Error("Order not found");
+    const order = orderRes[0];
+
+    // 1. Determine all warehouses the order goes through
+    const routeSteps = await pg_conn`SELECT * FROM orders_route WHERE order_id = ${orderId} ORDER BY step ASC`;
+    const warehouseIdSet = new Set<string>();
+    for (const step of routeSteps) {
+      if (step.warehouse_id) warehouseIdSet.add(step.warehouse_id);
+      if (step.destination_warehouse_id) warehouseIdSet.add(step.destination_warehouse_id);
+    }
+    if (warehouseIdSet.size === 0) {
+      warehouseIdSet.add("WH-001");
+    }
+    const warehouseIds = Array.from(warehouseIdSet);
+
+    // 2. Average gas price in warehouses passed through
+    const avgFuelPrice =
+      options?.fuelPrice !== undefined
+        ? options.fuelPrice
+        : await warehouses.getAverageGasPrice(warehouseIds);
+
+    // 3. Driver wage
+    const driverWage =
+      options?.driverWage !== undefined
+        ? options.driverWage
+        : await users.getDriverWage(options?.driverId);
+
+    // 4. Truck consumption, speed, wear rate
+    let truckId = options?.truckId || routeSteps.find((s: any) => s.truck_id)?.truck_id;
+    let truckData: any = null;
+    if (truckId) {
+      const tRes = await pg_conn`SELECT * FROM trucks WHERE id = ${truckId}`;
+      if (tRes && tRes.length > 0) truckData = tRes[0];
+    }
+    if (!truckData) {
+      const allTrucks = await pg_conn`SELECT * FROM trucks LIMIT 1`;
+      truckData = allTrucks[0];
+    }
+
+    const consumption = Number(truckData?.fuel_consumption ?? 0.35);
+    const speed = Number(truckData?.speed ?? 80.0);
+    const wearRate = Number(truckData?.wear_rate ?? 0.15);
+
+    // 5. Distance in km (calculated in DB if missing)
+    let distanceKm = options?.distanceKm;
+    if (distanceKm === undefined || distanceKm === null || distanceKm <= 0) {
+      if (order.distance_km !== null && order.distance_km !== undefined && Number(order.distance_km) > 0) {
+        distanceKm = Number(order.distance_km);
+      } else {
+        const calc = await orders.calculateDistance(orderId, warehouseIds[0]);
+        distanceKm = calc.distance_km;
+      }
+    }
+
+    // 6. Cost calculations
+    const fuelLiters = distanceKm * consumption;
+    const fuelCost = Math.round(fuelLiters * avgFuelPrice * 100) / 100;
+
+    const travelHours = distanceKm / (speed > 0 ? speed : 80.0);
+    const laborCost = Math.round(travelHours * driverWage * 100) / 100;
+
+    const maintenanceCost = Math.round(distanceKm * wearRate * 100) / 100;
+    const totalCost = Math.round((fuelCost + laborCost + maintenanceCost) * 100) / 100;
+
+    const nowStr = new Date().toISOString().replace("T", " ").slice(0, 19);
+
+    // 7. Save to freight_cost table in PostgreSQL
+    const saved = await pg_conn`
+      INSERT INTO freight_cost (order_id, fuel_cost, labor_cost, maintenance_cost, total_cost, calculated_at)
+      VALUES (${orderId}, ${fuelCost}, ${laborCost}, ${maintenanceCost}, ${totalCost}, ${nowStr})
+      ON CONFLICT (order_id) DO UPDATE SET
+        fuel_cost = EXCLUDED.fuel_cost,
+        labor_cost = EXCLUDED.labor_cost,
+        maintenance_cost = EXCLUDED.maintenance_cost,
+        total_cost = EXCLUDED.total_cost,
+        calculated_at = EXCLUDED.calculated_at
+      RETURNING *
+    `;
+
+    return {
+      ...saved[0],
+      distance_km: distanceKm,
+      avg_fuel_price: avgFuelPrice,
+      driver_wage: driverWage,
+      warehouses_passed: warehouseIds,
+      fuel_liters: Math.round(fuelLiters * 100) / 100,
+      travel_hours: Math.round(travelHours * 100) / 100,
+      fuel_cost: fuelCost,
+      labor_cost: laborCost,
+      maintenance_cost: maintenanceCost,
+      total_cost: totalCost,
+    };
+  },
 };
 
 export const monthlyPerformance = {

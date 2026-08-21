@@ -73,6 +73,7 @@ export interface User {
   address?: string;
   role: UserRole;
   rawRole?: string;
+  wage?: number;
 }
 
 // ─── 5. session ───────────────────────────────────────────────────────────────
@@ -232,6 +233,12 @@ export interface FreightCost {
   labor_cost?: number;
   maintenance_cost?: number;
   total_cost?: number;
+  distance_km?: number;
+  avg_fuel_price?: number;
+  driver_wage?: number;
+  warehouses_passed?: string[];
+  fuel_liters?: number;
+  travel_hours?: number;
   calculated_at?: string;
 }
 

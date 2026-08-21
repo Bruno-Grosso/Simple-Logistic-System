@@ -91,12 +91,18 @@ export default async function DepositsPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 border-t border-border pt-4">
+                    <div className="grid grid-cols-3 gap-2 border-t border-border pt-4">
                       <div className="text-center">
-                        <p className="text-lg font-semibold tabular-nums text-primary">
-                          {parking.parked} <span className="text-xs font-normal text-muted-foreground">/ {parking.capacity}</span>
+                        <p className="text-sm font-semibold tabular-nums text-primary">
+                          {parking.parked} <span className="text-[10px] font-normal text-muted-foreground">/ {parking.capacity}</span>
                         </p>
                         <p className="text-[10px] text-muted-foreground">Trucks parked</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm font-semibold tabular-nums text-foreground">
+                          R$ {(deposit.fuel_price ?? 5.89).toFixed(2)}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">Avg Gas / L</p>
                       </div>
                       <div className="flex flex-col items-center justify-center gap-1">
                         <span

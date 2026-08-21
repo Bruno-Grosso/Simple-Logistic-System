@@ -256,6 +256,11 @@
   **Example of activity**: If you want to restrict access to certain actions, check this field.  
   **Example value**: `"client"`
 
+- **wage (REAL)**:  
+  This field stores the hourly wage / labor rate for workers and truck drivers in currency units (e.g., R$/hour). Used to calculate order delivery labor costs based on estimated transit time.  
+  **Example of activity**: When calculating delivery freight costs, multiply driver hourly wage by route driving duration.  
+  **Example value**: `55.00`
+
 ---
 
 # TABLE: online_users

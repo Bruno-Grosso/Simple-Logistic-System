@@ -15,4 +15,5 @@ export const pg_conn = postgres({
   password: config.password,
   database: config.database,
   port: config.port,
+  onnotice: () => {},
 });

@@ -2,7 +2,7 @@
 - [x] Parking on warehouses: warehouses have a certain amount of trucks they
 can fit, it should be checked when the route for the order is created / changed.
 The information should be displayed in the warehouses.
-- [ ] Gas prices and delivery cost. The distance is calculated in the database,
+- [x] Gas prices and delivery cost. The distance is calculated in the database,
 each warehouse should have an average gas price, and each driver a wage. The
 delivery cost should be calculated considering the wage of the worker and the
 average gas price in the warehouses they will go though.

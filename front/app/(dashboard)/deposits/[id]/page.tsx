@@ -76,9 +76,13 @@ export default async function DepositDetailPage({
                 <CardTitle>Deposit details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid gap-6 sm:grid-cols-4">
+                <div className="grid gap-6 sm:grid-cols-5">
                   <InfoField label="Location" value={name} />
                   <InfoField label="Size" value={formatDepositSize(deposit.size)} />
+                  <InfoField
+                    label="Local Gas Price"
+                    value={`R$ ${(deposit.fuel_price ?? 5.89).toFixed(2)} / L`}
+                  />
                   <InfoField
                     label="Refrigeration"
                     value={deposit.has_refrigeration ? "Yes" : "No"}
