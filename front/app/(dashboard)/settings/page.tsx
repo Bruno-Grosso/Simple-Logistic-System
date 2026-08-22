@@ -128,7 +128,7 @@ export default async function SettingsPage() {
           </SettingRow>
           <SettingRow label="Backend API Status">
             <span className="font-mono text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
-              Connected (http://localhost:8081)
+              Connected (http://localhost:8080)
             </span>
           </SettingRow>
           <SettingRow label="Environment">

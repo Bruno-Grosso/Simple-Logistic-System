@@ -54,7 +54,7 @@ export default async function DepositsPage() {
                         </Badge>
                       </div>
                       <p className="mt-0.5 font-mono text-xs text-muted-foreground">
-                        {deposit.id}
+                        Warehouse {deposit.id}
                       </p>
                     </div>
                   </CardHeader>

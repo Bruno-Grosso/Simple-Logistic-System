@@ -12,74 +12,90 @@ declare global {
 }
 
 function decodePolyline6(str: string): [number, number][] {
-  let index = 0;
-  let lat = 0;
-  let lng = 0;
-  const coordinates: [number, number][] = [];
-  const factor = 1e6;
+  let index = 0
+  let lat = 0
+  let lng = 0
+  const coordinates: [number, number][] = []
+  const factor = 1e6
 
   while (index < str.length) {
-    let byte;
-    let shift = 0;
-    let result = 0;
+    let byte: number
+    let shift = 0
+    let result = 0
 
     // Decode Latitude
     do {
-      byte = str.charCodeAt(index++) - 63;
-  
-      result += (byte & 0x1f) * Math.pow(2, shift);
-      shift += 5;
-    } while (byte >= 0x20);
+      byte = str.charCodeAt(index++) - 63
+      result |= (byte & 0x1f) << shift
+      shift += 5
+    } while (byte >= 0x20)
 
-    const deltaLat = result & 1 ? ~(Math.floor(result / 2)) : Math.floor(result / 2);
-    lat += deltaLat;
+    const deltaLat = result & 1 ? ~(result >> 1) : result >> 1
+    lat += deltaLat
 
-    shift = 0;
-    result = 0;
+    shift = 0
+    result = 0
 
     // Decode Longitude
     do {
-      byte = str.charCodeAt(index++) - 63;
-      result += (byte & 0x1f) * Math.pow(2, shift);
-      shift += 5;
-    } while (byte >= 0x20);
+      byte = str.charCodeAt(index++) - 63
+      result |= (byte & 0x1f) << shift
+      shift += 5
+    } while (byte >= 0x20)
 
-    const deltaLng = result & 1 ? ~(Math.floor(result / 2)) : Math.floor(result / 2);
-    lng += deltaLng;
+    const deltaLng = result & 1 ? ~(result >> 1) : result >> 1
+    lng += deltaLng
 
-    coordinates.push([lat / factor, lng / factor]);
+    coordinates.push([lat / factor, lng / factor])
   }
-  return coordinates;
+  return coordinates
+}
+
+function resolveCoordinates(label?: string, defaultLat = -22.3842, defaultLng = -43.1311): [number, number] {
+  if (!label) return [defaultLat, defaultLng]
+
+  // Check for embedded JSON / coordinates in label string
+  const latMatch = label.match(/Lat:\s*(-?\d+\.\d+)/i) || label.match(/(-?\d+\.\d+)\s*,/)
+  const lonMatch = label.match(/Lon:\s*(-?\d+\.\d+)/i) || label.match(/,\s*(-?\d+\.\d+)/)
+  if (latMatch && lonMatch) {
+    const lat = Number(latMatch[1])
+    const lng = Number(lonMatch[1])
+    if (!isNaN(lat) && !isNaN(lng)) return [lat, lng]
+  }
+
+  // Região Serrana & surrounding cities coordinate lookup
+  if (label.includes("Petrópolis") || label.includes("Itaipava") || label.includes("Bingen") || label.includes("Imperador")) {
+    return [-22.3842, -43.1311]
+  }
+  if (label.includes("Teresópolis") || label.includes("Várzea") || label.includes("Alto") || label.includes("Terê-Fri")) {
+    return [-22.4123, -42.9656]
+  }
+  if (label.includes("Friburgo") || label.includes("Olaria") || label.includes("Alberto Braune") || label.includes("Monte Líbano")) {
+    return [-22.2819, -42.5311]
+  }
+  if (label.includes("Cachoeiras") || label.includes("Papucaia")) {
+    return [-22.4633, -42.6528]
+  }
+  if (label.includes("Guapimirim") || label.includes("Dedo de Deus") || label.includes("Bananal")) {
+    return [-22.5300, -42.9900]
+  }
+  if (label.includes("São José") || label.includes("Rio Preto")) {
+    return [-22.1528, -42.9239]
+  }
+  if (label.includes("Cordeiro") || label.includes("Cantagalo") || label.includes("Raul Veiga")) {
+    return [-21.9861, -42.3611]
+  }
+  if (label.includes("Bom Jardim") || label.includes("Moacyr Freijanes")) {
+    return [-22.1500, -42.4167]
+  }
+
+  return [defaultLat, defaultLng]
 }
 
 function generateFallbackPoints(originLabel?: string, destinationLabel?: string): [number, number][] {
-  let startLat = -22.3842
-  let startLng = -43.1311
-  let endLat = -22.4123
-  let endLng = -42.9656
-
-  if (originLabel?.includes("Teresópolis")) { startLat = -22.4350; startLng = -42.9800 }
-  else if (originLabel?.includes("Friburgo")) { startLat = -22.3000; startLng = -42.5400 }
-
-  if (destinationLabel?.includes("Friburgo")) { endLat = -22.2819; endLng = -42.5311 }
-  else if (destinationLabel?.includes("Cachoeiras")) { endLat = -22.4633; endLng = -42.6528 }
-  else if (destinationLabel?.includes("Guapimirim")) { endLat = -22.5367; endLng = -42.9819 }
-  else if (destinationLabel?.includes("Petrópolis")) { endLat = -22.5050; endLng = -43.1789 }
-
-  const numPoints = 14
-  const points: [number, number][] = []
-  
-  const midLat = (startLat + endLat) / 2 + 0.025
-  const midLng = (startLng + endLng) / 2 - 0.020
-
-  for (let i = 0; i <= numPoints; i++) {
-    const t = i / numPoints
-    const lat = (1 - t) * (1 - t) * startLat + 2 * (1 - t) * t * midLat + t * t * endLat
-    const lng = (1 - t) * (1 - t) * startLng + 2 * (1 - t) * t * midLng + t * t * endLng
-    points.push([lat, lng])
-  }
-
-  return points
+  const start = resolveCoordinates(originLabel, -22.3842, -43.1311)
+  const end = resolveCoordinates(destinationLabel, -22.4123, -42.9656)
+  return [start, end]
 }
 
 type RouteMapProps = {
@@ -117,8 +133,8 @@ export function RouteMap({
     return generateFallbackPoints(originLabel, destinationLabel)
   }, [encodedShape, originLabel, destinationLabel])
 
-  const distanceKm = summary?.length ? Math.round(summary.length * 10) / 10 : 36.3
-  const durationMins = summary?.time ? Math.round(summary.time / 60) : 39
+  const distanceKm = summary?.length != null ? Math.round(summary.length * 10) / 10 : null
+  const durationMins = summary?.time != null ? Math.round(summary.time / 60) : null
 
   // Dynamically load Leaflet CSS & JS (matching valhalla_map.html)
   useEffect(() => {
@@ -211,7 +227,16 @@ export function RouteMap({
       .addTo(map)
       .bindPopup(`<b>Destino:</b> ${destinationLabel}`)
 
-    map.fitBounds(routeLine.getBounds(), { padding: [40, 40] })
+    try {
+      const bounds = routeLine.getBounds()
+      if (bounds && typeof bounds.isValid === "function" && bounds.isValid() && (start[0] !== end[0] || start[1] !== end[1])) {
+        map.fitBounds(bounds, { padding: [40, 40] })
+      } else {
+        map.setView(start, 13)
+      }
+    } catch {
+      map.setView(start, 13)
+    }
 
     mapInstanceRef.current = map
 

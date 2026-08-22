@@ -104,14 +104,32 @@ export default async function OrderDetailPage({ params }: PageProps) {
   const client = userMap.get(order.client_id)
   const receiver = order.receiver_id ? userMap.get(order.receiver_id) : undefined
 
-  // Pick origin warehouse from first route step or first warehouse
-  const originWarehouseId = routeSteps[0]?.deposit_id || warehouses[0]?.id || "WH-001"
-  const originWarehouse = depositMap.get(originWarehouseId)
+  // Pick origin warehouse from first valid route step or closest logical regional warehouse
+  let originWarehouseId = routeSteps.find((s) => s.deposit_id && depositMap.has(s.deposit_id))?.deposit_id
+  if (!originWarehouseId && warehouses.length > 0) {
+    const dest = order.final_destination || ""
+    const matchedWarehouse = warehouses.find((w) => {
+      const loc = w.location || ""
+      if (dest.includes("Teresópolis") && loc.includes("Teresópolis")) return true
+      if (dest.includes("Friburgo") && loc.includes("Friburgo")) return true
+      if (dest.includes("Cachoeiras") && loc.includes("Cachoeiras")) return true
+      if (dest.includes("Guapimirim") && loc.includes("Guapimirim")) return true
+      if (dest.includes("São José") && loc.includes("São José")) return true
+      if ((dest.includes("Cordeiro") || dest.includes("Cantagalo")) && (loc.includes("Cordeiro") || loc.includes("Cantagalo"))) return true
+      if (dest.includes("Bom Jardim") && loc.includes("Bom Jardim")) return true
+      if (dest.includes("Petrópolis") && loc.includes("Petrópolis")) return true
+      return false
+    })
+    originWarehouseId = matchedWarehouse?.id || warehouses[0]?.id || "WH-001"
+  } else if (!originWarehouseId) {
+    originWarehouseId = "WH-001"
+  }
+  const originWarehouse = depositMap.get(originWarehouseId) || warehouses[0]
 
   // Calculate route warehouses and average gas price
   const routeWarehouseIdSet = new Set<string>([originWarehouseId])
   routeSteps.forEach((s) => {
-    if (s.deposit_id) routeWarehouseIdSet.add(s.deposit_id)
+    if (s.deposit_id && depositMap.has(s.deposit_id)) routeWarehouseIdSet.add(s.deposit_id)
   })
   const routeWarehouseIds = Array.from(routeWarehouseIdSet)
   const routeWarehouses = routeWarehouseIds.map((id) => depositMap.get(id)).filter(Boolean) as Deposit[]
@@ -121,13 +139,28 @@ export default async function OrderDetailPage({ params }: PageProps) {
       : (originWarehouse?.fuel_price ?? 5.89)
 
   // Assigned truck and driver wage
-  const assignedTruckId = routeSteps.find((s) => s.truck_id)?.truck_id || trucks[0]?.id
+  const assignedTruckId = routeSteps.find((s) => s.truck_id && truckMap.has(s.truck_id))?.truck_id || trucks[0]?.id
   const assignedTruck = assignedTruckId ? truckMap.get(assignedTruckId) : trucks[0]
   const drivers = users.filter((u) => u.rawRole === "truck_driver" || u.work_position?.includes("Driver"))
   const driverWage = drivers[0]?.wage ?? 50.0
 
+  // Effective route tracking steps to display in timeline
+  const displayRouteSteps: OrderRoute[] =
+    routeSteps.length > 0
+      ? routeSteps
+      : [
+          {
+            order_id: order.id,
+            step: 1,
+            deposit_id: originWarehouseId,
+            truck_id: assignedTruck?.id,
+            estimated_time: order.time_limit,
+            arrived_at: order.status === "Delivered" ? order.time_limit : undefined,
+          },
+        ]
+
   // Calculate Valhalla route map
-  const valhallaRoute = await api.routes.calculateRoute(order.id, originWarehouseId)
+  const valhallaRoute = await api.routes.calculateRoute(order.id, originWarehouseId, assignedTruck?.id)
   const distanceKm = valhallaRoute?.summary?.length || 120
   const timeSeconds = valhallaRoute?.summary?.time || 5400
 

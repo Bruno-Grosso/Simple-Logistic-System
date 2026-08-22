@@ -46,7 +46,11 @@ export default async function FleetDetailPage({ params }: PageProps) {
   // Fetch route geometry from Valhalla if truck is traveling or has route endpoints
   let valhallaRoute: { success: boolean; summary?: any; encodedShape?: string } | null = null
   if (truck.origin_deposit_id && truck.destination_deposit_id) {
-    valhallaRoute = await api.routes.calculateRoute("ORD-002", truck.origin_deposit_id)
+    valhallaRoute = await api.routes.calculateRouteBetweenWarehouses(
+      truck.origin_deposit_id,
+      truck.destination_deposit_id,
+      truck.id
+    )
   }
 
   const cap = truck.fuel_capacity ?? 1

@@ -14,16 +14,6 @@ import {
   adaptOrderETA,
   adaptDeliveryCostReport,
 } from "./adapters"
-import {
-  DEPOSITS,
-  TRUCKS,
-  PRODUCTS,
-  USERS,
-  SUPPLIERS,
-  ORDERS,
-  STOCK,
-  MONTHLY_PERFORMANCE,
-} from "./mock-data"
 import type {
   Deposit,
   Truck,
@@ -40,7 +30,7 @@ import type {
   DeliveryCostReport,
 } from "@/types"
 
-const baseURL = (process.env.LOGISYS_BACKEND_URL ?? process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080").replace(/\/$/, "")
+const baseURL = (process.env.LOGISYS_BACKEND_URL ?? process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8081").replace(/\/$/, "")
 
 export const apiClient = axios.create({
   baseURL,
@@ -88,13 +78,13 @@ export const api = {
     async getAll(): Promise<Deposit[]> {
       try {
         const res = await apiClient.get<any[]>("/warehouses")
-        if (Array.isArray(res.data) && res.data.length > 0) {
+        if (Array.isArray(res.data)) {
           return res.data.map(adaptWarehouse)
         }
       } catch (err) {
-        console.warn("[API] GET /warehouses fallback to mock data:", err)
+        console.error("[API] GET /warehouses error:", err)
       }
-      return DEPOSITS
+      return []
     },
 
     async getById(id: string): Promise<Deposit | undefined> {
@@ -103,9 +93,9 @@ export const api = {
         const raw = Array.isArray(res.data) ? res.data[0] : res.data
         if (raw) return adaptWarehouse(raw)
       } catch (err) {
-        console.warn(`[API] GET /warehouses/${id} fallback:`, err)
+        console.error(`[API] GET /warehouses/${id} error:`, err)
       }
-      return DEPOSITS.find((d) => d.id === id)
+      return undefined
     },
 
     async getStock(id: string): Promise<Stock[]> {
@@ -115,9 +105,9 @@ export const api = {
           return res.data.map(adaptStock)
         }
       } catch (err) {
-        console.warn(`[API] GET /warehouses/${id}/stock fallback:`, err)
+        console.error(`[API] GET /warehouses/${id}/stock error:`, err)
       }
-      return STOCK.filter((s) => s.deposit_id === id)
+      return []
     },
 
     async getParking(id: string): Promise<{
@@ -135,7 +125,7 @@ export const api = {
         const res = await apiClient.get<any>(`/warehouses/${id}/parking`)
         if (res.data) return res.data
       } catch (err) {
-        console.warn(`[API] GET /warehouses/${id}/parking fallback:`, err)
+        console.error(`[API] GET /warehouses/${id}/parking error:`, err)
       }
       return null
     },
@@ -157,7 +147,7 @@ export const api = {
           return res.data.avg_gas_price
         }
       } catch (err) {
-        console.warn("[API] GET /warehouses/average-gas-price fallback:", err)
+        console.error("[API] GET /warehouses/average-gas-price error:", err)
       }
       return 5.89
     },
@@ -180,13 +170,13 @@ export const api = {
       try {
         const url = model ? `/trucks?model=${encodeURIComponent(model)}` : "/trucks"
         const res = await apiClient.get<any[]>(url)
-        if (Array.isArray(res.data) && res.data.length > 0) {
+        if (Array.isArray(res.data)) {
           return res.data.map(adaptTruck)
         }
       } catch (err) {
-        console.warn("[API] GET /trucks fallback to mock data:", err)
+        console.error("[API] GET /trucks error:", err)
       }
-      return TRUCKS
+      return []
     },
 
     async getById(id: string): Promise<Truck | undefined> {
@@ -195,9 +185,9 @@ export const api = {
         const raw = Array.isArray(res.data) ? res.data[0] : res.data
         if (raw) return adaptTruck(raw)
       } catch (err) {
-        console.warn(`[API] GET /trucks/${id} fallback:`, err)
+        console.error(`[API] GET /trucks/${id} error:`, err)
       }
-      return TRUCKS.find((t) => t.id === id)
+      return undefined
     },
 
     async update(id: string, payload: {
@@ -223,13 +213,13 @@ export const api = {
       try {
         const url = name ? `/products?name=${encodeURIComponent(name)}` : "/products"
         const res = await apiClient.get<any[]>(url)
-        if (Array.isArray(res.data) && res.data.length > 0) {
+        if (Array.isArray(res.data)) {
           return res.data.map(adaptProduct)
         }
       } catch (err) {
-        console.warn("[API] GET /products fallback to mock data:", err)
+        console.error("[API] GET /products error:", err)
       }
-      return PRODUCTS
+      return []
     },
 
     async getById(id: string): Promise<Product | undefined> {
@@ -238,9 +228,9 @@ export const api = {
         const raw = Array.isArray(res.data) ? res.data[0] : res.data
         if (raw) return adaptProduct(raw)
       } catch (err) {
-        console.warn(`[API] GET /products/${id} fallback:`, err)
+        console.error(`[API] GET /products/${id} error:`, err)
       }
-      return PRODUCTS.find((p) => p.id === id)
+      return undefined
     },
 
     async update(id: string, payload: {
@@ -263,13 +253,13 @@ export const api = {
       try {
         const url = role ? `/users?role=${encodeURIComponent(role)}` : "/users"
         const res = await apiClient.get<any[]>(url)
-        if (Array.isArray(res.data) && res.data.length > 0) {
+        if (Array.isArray(res.data)) {
           return res.data.map(adaptUser)
         }
       } catch (err) {
-        console.warn("[API] GET /users fallback to mock data:", err)
+        console.error("[API] GET /users error:", err)
       }
-      return USERS
+      return []
     },
 
     async getById(id: string): Promise<User | undefined> {
@@ -278,21 +268,21 @@ export const api = {
         const raw = Array.isArray(res.data) ? res.data[0] : res.data
         if (raw) return adaptUser(raw)
       } catch (err) {
-        console.warn(`[API] GET /users/${id} fallback:`, err)
+        console.error(`[API] GET /users/${id} error:`, err)
       }
-      return USERS.find((u) => u.id === id)
+      return undefined
     },
 
     async getDrivers(): Promise<User[]> {
       try {
         const res = await apiClient.get<any[]>("/users/drivers")
-        if (Array.isArray(res.data) && res.data.length > 0) {
+        if (Array.isArray(res.data)) {
           return res.data.map(adaptUser)
         }
       } catch (err) {
-        console.warn("[API] GET /users/drivers fallback:", err)
+        console.error("[API] GET /users/drivers error:", err)
       }
-      return USERS.filter((u) => u.rawRole === "truck_driver" || u.work_position?.includes("Driver"))
+      return []
     },
 
     async update(id: string, payload: {
@@ -319,7 +309,7 @@ export const api = {
         const res = await apiClient.get<any[]>(url)
         if (Array.isArray(res.data)) return res.data
       } catch (err) {
-        console.warn("[API] GET /online-users fallback:", err)
+        console.error("[API] GET /online-users error:", err)
       }
       return []
     },
@@ -329,13 +319,13 @@ export const api = {
     async getAll(): Promise<Supplier[]> {
       try {
         const res = await apiClient.get<any[]>("/suppliers")
-        if (Array.isArray(res.data) && res.data.length > 0) {
+        if (Array.isArray(res.data)) {
           return res.data.map(adaptSupplier)
         }
       } catch (err) {
-        console.warn("[API] GET /suppliers fallback to mock data:", err)
+        console.error("[API] GET /suppliers error:", err)
       }
-      return SUPPLIERS
+      return []
     },
 
     async getById(id: string): Promise<Supplier | undefined> {
@@ -344,9 +334,9 @@ export const api = {
         const raw = Array.isArray(res.data) ? res.data[0] : res.data
         if (raw) return adaptSupplier(raw)
       } catch (err) {
-        console.warn(`[API] GET /suppliers/${id} fallback:`, err)
+        console.error(`[API] GET /suppliers/${id} error:`, err)
       }
-      return SUPPLIERS.find((s) => s.id === id)
+      return undefined
     },
   },
 
@@ -355,13 +345,13 @@ export const api = {
       try {
         const url = clientId ? `/orders?clientId=${encodeURIComponent(clientId)}` : "/orders"
         const res = await apiClient.get<any[]>(url)
-        if (Array.isArray(res.data) && res.data.length > 0) {
+        if (Array.isArray(res.data)) {
           return res.data.map(adaptOrder)
         }
       } catch (err) {
-        console.warn("[API] GET /orders fallback to mock data:", err)
+        console.error("[API] GET /orders error:", err)
       }
-      return ORDERS
+      return []
     },
 
     async getById(id: string): Promise<Order | undefined> {
@@ -370,9 +360,9 @@ export const api = {
         const raw = Array.isArray(res.data) ? res.data[0] : res.data
         if (raw) return adaptOrder(raw)
       } catch (err) {
-        console.warn(`[API] GET /orders/${id} fallback:`, err)
+        console.error(`[API] GET /orders/${id} error:`, err)
       }
-      return ORDERS.find((o) => o.id === id)
+      return undefined
     },
 
     async getItems(id: string): Promise<OrderItem[]> {
@@ -382,7 +372,7 @@ export const api = {
           return res.data.map(adaptOrderItem)
         }
       } catch (err) {
-        console.warn(`[API] GET /orders/${id}/items fallback:`, err)
+        console.error(`[API] GET /orders/${id}/items error:`, err)
       }
       return []
     },
@@ -394,7 +384,7 @@ export const api = {
           return res.data.map(adaptOrderRoute)
         }
       } catch (err) {
-        console.warn(`[API] GET /orders/${id}/route fallback:`, err)
+        console.error(`[API] GET /orders/${id}/route error:`, err)
       }
       return []
     },
@@ -405,7 +395,7 @@ export const api = {
         const raw = Array.isArray(res.data) ? res.data[0] : res.data
         if (raw) return adaptFreightCost(raw)
       } catch (err) {
-        console.warn(`[API] GET /orders/${id}/cost fallback:`, err)
+        console.error(`[API] GET /orders/${id}/cost error:`, err)
       }
       return undefined
     },
@@ -417,7 +407,7 @@ export const api = {
           return adaptOrderETA(res.data)
         }
       } catch (err) {
-        console.warn(`[API] GET /orders/${id}/eta fallback:`, err)
+        console.error(`[API] GET /orders/${id}/eta error:`, err)
       }
       return undefined
     },
@@ -449,7 +439,7 @@ export const api = {
           return adaptOrderETA(res.data)
         }
       } catch (err) {
-        console.warn(`[API] POST /orders/${orderId}/calculate-eta fallback:`, err)
+        console.error(`[API] POST /orders/${orderId}/calculate-eta error:`, err)
       }
       return null
     },
@@ -467,7 +457,7 @@ export const api = {
           return adaptFreightCost(res.data)
         }
       } catch (err) {
-        console.warn(`[API] POST /orders/${orderId}/calculate-cost fallback:`, err)
+        console.error(`[API] POST /orders/${orderId}/calculate-cost error:`, err)
       }
       return null
     },
@@ -479,7 +469,7 @@ export const api = {
           return { distance_km: res.data.distance_km }
         }
       } catch (err) {
-        console.warn(`[API] POST /orders/${orderId}/calculate-distance fallback:`, err)
+        console.error(`[API] POST /orders/${orderId}/calculate-distance error:`, err)
       }
       return null
     },
@@ -517,15 +507,42 @@ export const api = {
   },
 
   routes: {
-    async calculateRoute(orderId: string, warehouseId: string): Promise<{ success: boolean; summary?: any; encodedShape?: string } | null> {
+    async calculateRoute(orderId: string, warehouseId: string, truckId?: string): Promise<{ success: boolean; summary?: any; encodedShape?: string } | null> {
       try {
         const res = await apiClient.post<{ success: boolean; summary?: any; encodedShape?: string }>("/route", {
           orderId,
           warehouseId,
+          ...(truckId ? { truckId } : {}),
         })
         return res.data
-      } catch (err) {
-        console.warn("[API] POST /route error:", err)
+      } catch (err: any) {
+        if (axios.isAxiosError(err) && err.response?.status === 404) {
+          console.warn(`[API] POST /route returned 404 for order ${orderId} (fallback route estimate will be used)`)
+        } else {
+          console.warn(`[API] POST /route error:`, err?.message || err)
+        }
+        return null
+      }
+    },
+
+    async calculateRouteBetweenWarehouses(
+      originWarehouseId: string,
+      destinationWarehouseId: string,
+      truckId?: string
+    ): Promise<{ success: boolean; summary?: any; encodedShape?: string } | null> {
+      try {
+        const res = await apiClient.post<{ success: boolean; summary?: any; encodedShape?: string }>("/route", {
+          originWarehouseId,
+          destinationWarehouseId,
+          ...(truckId ? { truckId } : {}),
+        })
+        return res.data
+      } catch (err: any) {
+        if (axios.isAxiosError(err) && err.response?.status === 404) {
+          console.warn(`[API] POST /route returned 404 for warehouses ${originWarehouseId} -> ${destinationWarehouseId}`)
+        } else {
+          console.warn(`[API] POST /route warehouse error:`, err?.message || err)
+        }
         return null
       }
     },
@@ -540,7 +557,7 @@ export const api = {
           return res.data.map(adaptFreightCost)
         }
       } catch (err) {
-        console.warn("[API] GET /freight-cost fallback:", err)
+        console.error("[API] GET /freight-cost error:", err)
       }
       return []
     },
@@ -558,7 +575,7 @@ export const api = {
           return adaptFreightCost(res.data)
         }
       } catch (err) {
-        console.warn(`[API] POST /orders/${orderId}/calculate-cost fallback:`, err)
+        console.error(`[API] POST /orders/${orderId}/calculate-cost error:`, err)
       }
       return null
     },
@@ -568,13 +585,13 @@ export const api = {
     async getMonthlyPerformance(): Promise<MonthlyPerformanceData[]> {
       try {
         const res = await apiClient.get<any[]>("/monthly-performance")
-        if (Array.isArray(res.data) && res.data.length > 0) {
+        if (Array.isArray(res.data)) {
           return res.data.map(adaptMonthlyPerformance)
         }
       } catch (err) {
-        console.warn("[API] GET /monthly-performance fallback to mock data:", err)
+        console.error("[API] GET /monthly-performance error:", err)
       }
-      return MONTHLY_PERFORMANCE
+      return []
     },
 
     async getDeliveryCosts(warehouseId?: string): Promise<DeliveryCostReport> {
@@ -585,9 +602,43 @@ export const api = {
           return adaptDeliveryCostReport(res.data)
         }
       } catch (err) {
-        console.warn("[API] GET /reports/delivery-costs fallback:", err)
+        console.error("[API] GET /reports/delivery-costs error:", err)
       }
       return adaptDeliveryCostReport(null)
+    },
+  },
+
+  geo: {
+    async addressToCoordinates(address: string): Promise<{ endereco_completo: string; latitude: string; longitude: string } | null> {
+      try {
+        const res = await apiClient.get<any>(`/geocode?address=${encodeURIComponent(address)}`)
+        if (res.data && res.data.success) {
+          return {
+            endereco_completo: res.data.endereco_completo,
+            latitude: res.data.latitude,
+            longitude: res.data.longitude,
+          }
+        }
+      } catch (err) {
+        console.error("[API] GET /geocode error:", err)
+      }
+      return null
+    },
+
+    async coordinatesToAddress(lat: string | number, lon: string | number): Promise<{ endereco_completo: string; latitude: string; longitude: string } | null> {
+      try {
+        const res = await apiClient.get<any>(`/reverse-geocode?lat=${lat}&lon=${lon}`)
+        if (res.data && res.data.success) {
+          return {
+            endereco_completo: res.data.endereco_completo,
+            latitude: res.data.latitude,
+            longitude: res.data.longitude,
+          }
+        }
+      } catch (err) {
+        console.error("[API] GET /reverse-geocode error:", err)
+      }
+      return null
     },
   },
 }
