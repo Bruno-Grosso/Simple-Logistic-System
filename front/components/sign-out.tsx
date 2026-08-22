@@ -49,13 +49,9 @@ export function SignOutMenuItem() {
         variant="destructive"
         nativeButton={true}
         render={
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => {
-              const form = document.getElementById(formId) as HTMLFormElement | null
-              form?.requestSubmit()
-            }}
+          <button
+            type="submit"
+            form={formId}
             className="w-full cursor-pointer text-left font-inherit"
           />
         }

@@ -90,7 +90,7 @@ export default async function SettingsPage() {
               </div>
             </div>
 
-            <Button variant="outline" size="sm" render={<Link href="/profile" />} className="gap-1.5 shrink-0">
+            <Button nativeButton={false} variant="outline" size="sm" render={<Link href="/profile" />} className="gap-1.5 shrink-0">
               <UserCheck className="size-3.5" />
               Manage Profile
               <ExternalLink className="size-3" />
