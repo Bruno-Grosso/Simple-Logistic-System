@@ -10,7 +10,7 @@ average gas price in the warehouses they will go though.
 speed the truck can go at + stop time (a driver can drive a max of 8 hours a day
 ), calculate the ETA and display in the order.
 - [x] Reports. Include the delivery cost in the report.
-- [ ] General improvements. Recheck especially the reports page, provide more
+- [x] General improvements. Recheck especially the reports page, provide more
 information and graphs.
 - [ ] More tests. Full user simulation in cypress, more tests in the back end.
 - [ ] Documentation. Create a docs directory with full documentation on how the

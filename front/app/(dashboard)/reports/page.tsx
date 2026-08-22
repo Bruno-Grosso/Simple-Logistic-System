@@ -119,6 +119,26 @@ export default async function ReportsPage(props: ReportsPageProps) {
   const marginPercent = totalRevenue > 0 ? (netMargin / totalRevenue) * 100 : 0
   const costToRevenueRatio = totalRevenue > 0 ? (totalFreightSpent / totalRevenue) * 100 : 0
 
+  const deliveryCostOrders = (deliveryReport?.orders ?? orders.map((order) => {
+    const cost = freightCosts.find((item) => item.order_id === order.id)
+    const totalDeliveryCost = cost?.total_cost ?? 0
+    const revenue = order.price ?? 0
+    const netMargin = revenue - totalDeliveryCost
+    return {
+      order_id: order.id,
+      destination: parseDestination(order.final_destination),
+      status: order.status,
+      revenue,
+      total_delivery_cost: totalDeliveryCost,
+      net_margin: netMargin,
+      margin_percent: revenue > 0 ? (netMargin / revenue) * 100 : 0,
+      distance_km: order.distance_km ?? 0,
+    }
+  }))
+    .sort((a, b) => b.total_delivery_cost - a.total_delivery_cost)
+    .slice(0, 6)
+  const largestRouteCost = deliveryCostOrders[0]?.total_delivery_cost ?? 0
+
   // 1. Client revenue contribution
   const clientRevenueMap = new Map<string, { name: string; totalSpent: number; orderCount: number }>()
   orders.forEach((o) => {
@@ -240,6 +260,119 @@ export default async function ReportsPage(props: ReportsPageProps) {
             </div>
           </CardContent>
         </Card>
+
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard
+            label="Average Cost / Order"
+            value={`R$ ${avgCostPerOrder.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+            icon={Receipt}
+            description={`${reportSummary?.total_orders_analyzed ?? orders.length} routes analyzed`}
+          />
+          <StatCard
+            label="Average Cost / km"
+            value={`R$ ${avgCostPerKm.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+            icon={Route}
+            description="Freight spend by route distance"
+          />
+          <StatCard
+            label="Cost / Revenue"
+            value={`${costToRevenueRatio.toFixed(1)}%`}
+            icon={Percent}
+            description="Lower values improve margin"
+          />
+          <StatCard
+            label="Operating Profit"
+            value={`R$ ${netMargin.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+            icon={ArrowUpRight}
+            description="Delivered revenue less freight cost"
+            accent
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-display text-base flex items-center gap-2">
+                <Route className="size-4 text-primary" />
+                Highest-Cost Delivery Routes
+              </CardTitle>
+              <CardDescription>Delivery cost compared with route revenue. Top six routes by freight spend.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {deliveryCostOrders.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No delivery-cost data recorded for this selection.</p>
+              ) : deliveryCostOrders.map((order) => {
+                const costShare = largestRouteCost > 0 ? (order.total_delivery_cost / largestRouteCost) * 100 : 0
+                const revenueShare = largestRouteCost > 0 ? Math.min(100, (order.revenue / largestRouteCost) * 100) : 0
+                return (
+                  <div key={order.order_id} className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <div className="min-w-0">
+                        <Link href={`/orders/${order.order_id}`} className="font-medium hover:text-primary hover:underline">
+                          {order.order_id}
+                        </Link>
+                        <span className="ml-2 text-xs text-muted-foreground">{order.destination ?? "Destination unavailable"}</span>
+                      </div>
+                      <span className="shrink-0 font-semibold tabular-nums">R$ {order.total_delivery_cost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${costShare}%` }} />
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground tabular-nums">
+                      <span>Cost</span>
+                      <span>Revenue: R$ {order.revenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-emerald-500" style={{ width: `${revenueShare}%` }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-display text-base flex items-center gap-2">
+                <Receipt className="size-4 text-primary" />
+                Route Profitability Detail
+              </CardTitle>
+              <CardDescription>Cost, distance, and margin by delivery route.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order</TableHead>
+                      <TableHead className="text-right">Distance</TableHead>
+                      <TableHead className="text-right">Cost</TableHead>
+                      <TableHead className="text-right">Margin</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {deliveryCostOrders.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">No delivery-cost data recorded for this selection.</TableCell>
+                      </TableRow>
+                    ) : deliveryCostOrders.map((order) => (
+                      <TableRow key={order.order_id}>
+                        <TableCell><Link href={`/orders/${order.order_id}`} className="font-medium hover:text-primary hover:underline">{order.order_id}</Link></TableCell>
+                        <TableCell className="text-right tabular-nums">{order.distance_km.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km</TableCell>
+                        <TableCell className="text-right tabular-nums">R$ {order.total_delivery_cost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant={order.net_margin >= 0 ? "default" : "destructive"} className="tabular-nums">
+                            {order.margin_percent.toFixed(1)}%
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Top Products Table */}
