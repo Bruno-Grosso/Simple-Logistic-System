@@ -160,8 +160,8 @@ export function ProfileManagement({
               onChange={(e) => handleUserSwitch(e.target.value)}
               className="bg-transparent font-medium text-foreground outline-none cursor-pointer"
             >
-              {allMockUsers.map((u) => (
-                <option key={u.id} value={u.id} className="bg-card text-foreground">
+              {allMockUsers.map((u, index) => (
+                <option key={`${u.id}-${u.email ?? "user"}-${index}`} value={u.id} className="bg-card text-foreground">
                   {u.id} - {u.name} ({u.rawRole || u.role})
                 </option>
               ))}
@@ -348,8 +348,11 @@ export function ProfileManagement({
               </div>
             ) : (
               <div className="divide-y divide-border rounded-lg border border-border bg-background/50">
-                {sessions.map((sess) => (
-                  <div key={sess.session_id} className="flex items-center justify-between p-3.5 text-xs">
+                {sessions.map((sess, index) => (
+                  <div
+                    key={`${sess.session_id ?? selectedUserId}-${sess.login_time ?? "session"}-${index}`}
+                    className="flex items-center justify-between p-3.5 text-xs"
+                  >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <Key className="size-3.5 text-primary" />
