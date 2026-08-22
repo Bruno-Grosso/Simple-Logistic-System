@@ -253,6 +253,29 @@ test("Transactions: GET /reports/delivery-costs?warehouseId=WH-001 filters by wa
   expect(data.orders).toBeInstanceOf(Array);
 });
 
+test("Transactions: delivery-cost report summary equals its per-order cost breakdown", async () => {
+  const res = await testFetch("/reports/delivery-costs");
+  expect(res.status).toBe(200);
+  const data = (await res.json()) as any;
+
+  const totals = data.orders.reduce(
+    (acc: { delivery: number; fuel: number; labor: number; maintenance: number; distance: number }, order: any) => ({
+      delivery: acc.delivery + Number(order.total_delivery_cost),
+      fuel: acc.fuel + Number(order.fuel_cost),
+      labor: acc.labor + Number(order.labor_cost),
+      maintenance: acc.maintenance + Number(order.maintenance_cost),
+      distance: acc.distance + Number(order.distance_km),
+    }),
+    { delivery: 0, fuel: 0, labor: 0, maintenance: 0, distance: 0 },
+  );
+
+  expect(data.summary.total_orders_analyzed).toBe(data.orders.length);
+  expect(data.summary.total_delivery_cost).toBeCloseTo(totals.delivery, 2);
+  expect(data.summary.total_fuel_cost).toBeCloseTo(totals.fuel, 2);
+  expect(data.summary.total_labor_cost).toBeCloseTo(totals.labor, 2);
+  expect(data.summary.total_maintenance_cost).toBeCloseTo(totals.maintenance, 2);
+  expect(data.summary.total_distance_km).toBeCloseTo(totals.distance, 1);
+});
 
 
 

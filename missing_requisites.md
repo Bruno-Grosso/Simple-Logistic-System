@@ -12,7 +12,7 @@ speed the truck can go at + stop time (a driver can drive a max of 8 hours a day
 - [x] Reports. Include the delivery cost in the report.
 - [x] General improvements. Recheck especially the reports page, provide more
 information and graphs.
-- [ ] More tests. Full user simulation in cypress, more tests in the back end.
+- [x] More tests. Full user simulation in Cypress, more tests in the back end.
 - [ ] Documentation. Create a docs directory with full documentation on how the
 project works (user interaction flow, back end structure, docker structure, 
 database UML and docs, etc.)
