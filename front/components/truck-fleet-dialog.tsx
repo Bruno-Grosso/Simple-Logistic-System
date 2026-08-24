@@ -85,9 +85,9 @@ export function TruckFleetDialog({ truck, originLabel, destinationLabel }: Truck
   const fuelCap = truck.fuel_capacity ?? 1
   const fuelPct = Math.round((truck.fuel_current / fuelCap) * 100)
   const volPct  = truck.volume_max ? Math.round((truck.volume_actual / truck.volume_max) * 100) : 0
-  const wearPct = truck.wear_percentage
+  const mainCount = truck.truck_maintenance ?? truck.maintenance_count ?? 0
   const fuelDanger = fuelPct < 20
-  const wearDanger = wearPct > 80
+  const mainDanger = mainCount >= 3 || !truck.is_valid
 
   const statusLabel = !truck.is_valid
     ? "Maintenance"
@@ -165,8 +165,8 @@ export function TruckFleetDialog({ truck, originLabel, destinationLabel }: Truck
           />
           <Stat
             icon={Gauge}
-            label="Wear rate"
-            value={truck.wear_rate ? `${truck.wear_rate}/km` : "—"}
+            label="Maintenances"
+            value={`${mainCount} recorded`}
           />
           <Stat
             icon={Refrigerator}
@@ -225,18 +225,18 @@ export function TruckFleetDialog({ truck, originLabel, destinationLabel }: Truck
             unit=" m³"
           />
           <GaugeRow
-            label="Wear"
-            value={wearPct}
-            max={100}
-            pct={wearPct}
-            unit="%"
-            danger={wearDanger}
+            label="Maintenances"
+            value={mainCount}
+            max={5}
+            pct={Math.min(100, Math.round((mainCount / 5) * 100))}
+            unit=" times"
+            danger={mainDanger}
           />
         </div>
 
-        {wearDanger && (
+        {mainDanger && (
           <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-            High wear detected. Schedule maintenance before next dispatch.
+            High maintenance frequency ({mainCount} recorded). Schedule inspection before next dispatch.
           </p>
         )}
       </DialogContent>

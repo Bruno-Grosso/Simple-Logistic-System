@@ -1,67 +1,76 @@
-import Link from "next/link";
+import Link from "next/link"
 import {
   ArrowUpRight,
   CheckCircle2,
   Clock,
   Package,
   TrendingUp,
-  Truck,
-  Warehouse,
+  Truck as TruckIcon,
+  Warehouse as WarehouseIcon,
   Wrench,
-} from "lucide-react";
+} from "lucide-react"
 
-import { PageHeader } from "@/components/page-header";
-import { PageShell } from "@/components/page-shell";
-import { StatCard } from "@/components/stat-card";
-import { TruckFleetDialog } from "@/components/truck-fleet-dialog";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import {
-  DEPOSITS,
-  getDashboardStats,
-  getDepositById,
-  getDepositLabel,
-  ORDERS,
-  TRUCKS,
-} from "@/lib/mock-data";
-import type { OrderStatus } from "@/types";
-import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/page-header"
+import { PageShell } from "@/components/page-shell"
+import { StatCard } from "@/components/stat-card"
+import { TruckFleetDialog } from "@/components/truck-fleet-dialog"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
+import { api } from "@/lib/api"
+import { computeDashboardStats, computeDepositUsage } from "@/lib/calculations"
+import type { OrderStatus, Deposit, Truck } from "@/types"
+import { cn } from "@/lib/utils"
+
+export const dynamic = "force-dynamic"
 
 function destinationLabel(raw: string | undefined): string {
-  if (!raw) return "—";
+  if (!raw) return "—"
   try {
-    const parsed = JSON.parse(raw) as { label?: string };
-    return parsed.label ?? raw;
+    const parsed = JSON.parse(raw) as { label?: string }
+    return parsed.label ?? raw
   } catch {
-    return raw;
+    return raw
   }
+}
+
+function getDepositLabel(d: Deposit): string {
+  return d.location || `Deposit ${d.id}`
 }
 
 function OrderStatusBadge({ status }: { status: OrderStatus }) {
   switch (status) {
     case "Pending":
-      return <Badge variant="secondary">{status}</Badge>;
+      return <Badge variant="secondary">{status}</Badge>
     case "Shipped":
-      return <Badge variant="default">{status}</Badge>;
+      return <Badge variant="default">{status}</Badge>
     case "Delivered":
       return (
         <Badge variant="outline" className="border-chart-2 text-chart-2">
           {status}
         </Badge>
-      );
+      )
     case "Cancelled":
-      return <Badge variant="destructive">{status}</Badge>;
+      return <Badge variant="destructive">{status}</Badge>
     default:
-      return <Badge variant="secondary">{status}</Badge>;
+      return <Badge variant="secondary">{status}</Badge>
   }
 }
 
-export default function DashboardPage() {
-  const stats = getDashboardStats();
-  const recentOrders = ORDERS.slice(0, 5);
-  const activeTrucks = TRUCKS.filter((t) => t.is_traveling);
-  const maintenanceTrucks = TRUCKS.filter((t) => t.wear_percentage > 80);
+export default async function DashboardPage() {
+  const [orders, trucks, deposits] = await Promise.all([
+    api.orders.getAll(),
+    api.trucks.getAll(),
+    api.warehouses.getAll(),
+  ])
+
+  const stats = computeDashboardStats(orders, trucks)
+  const recentOrders = orders.slice(0, 5)
+  const activeTrucks = trucks.filter((t) => t.is_traveling || t.is_delivering)
+  const maintenanceTrucks = trucks.filter((t) => (t.truck_maintenance ?? 0) >= 3 || !t.is_valid)
+
+  const depositMap = new Map<string, Deposit>()
+  deposits.forEach((d) => depositMap.set(d.id, d))
 
   return (
     <PageShell>
@@ -72,7 +81,7 @@ export default function DashboardPage() {
         <StatCard
           label="In Transit"
           value={stats.ordersInProgress}
-          icon={Truck}
+          icon={TruckIcon}
           description="Active shipments"
           accent
         />
@@ -86,7 +95,7 @@ export default function DashboardPage() {
           label="Delivered"
           value={stats.deliveredThisMonth}
           icon={CheckCircle2}
-          description="This month"
+          description="Total completed"
         />
         <StatCard
           label="Revenue"
@@ -107,21 +116,11 @@ export default function DashboardPage() {
             <table className="w-full min-w-[520px] caption-bottom text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-muted-foreground">
-                  <th scope="col" className="h-10 px-3 font-medium">
-                    Order
-                  </th>
-                  <th scope="col" className="h-10 px-3 font-medium">
-                    Destination
-                  </th>
-                  <th scope="col" className="h-10 px-3 font-medium">
-                    Deadline
-                  </th>
-                  <th scope="col" className="h-10 px-3 text-right font-medium">
-                    Price
-                  </th>
-                  <th scope="col" className="h-10 px-3 font-medium">
-                    Status
-                  </th>
+                  <th scope="col" className="h-10 px-3 font-medium">Order</th>
+                  <th scope="col" className="h-10 px-3 font-medium">Destination</th>
+                  <th scope="col" className="h-10 px-3 font-medium">Deadline</th>
+                  <th scope="col" className="h-10 px-3 text-right font-medium">Price</th>
+                  <th scope="col" className="h-10 px-3 font-medium">Status</th>
                   <th scope="col" className="h-10 px-2 text-right font-medium">
                     <span className="sr-only">Open</span>
                   </th>
@@ -147,7 +146,7 @@ export default function DashboardPage() {
                     </td>
                     <td className="p-3 align-middle tabular-nums text-muted-foreground">
                       {order.time_limit
-                        ? new Date(order.time_limit + "T12:00:00").toLocaleDateString("pt-BR")
+                        ? new Date(order.time_limit.includes("T") ? order.time_limit : order.time_limit + "T12:00:00").toLocaleDateString("pt-BR")
                         : "—"}
                     </td>
                     <td className="p-3 text-right align-middle tabular-nums text-foreground">
@@ -184,8 +183,8 @@ export default function DashboardPage() {
                 <p className="text-sm text-muted-foreground">No trucks on route right now.</p>
               ) : (
                 activeTrucks.map((t) => {
-                  const origin = t.origin_deposit_id ? getDepositById(t.origin_deposit_id) : undefined;
-                  const dest   = t.destination_deposit_id ? getDepositById(t.destination_deposit_id) : undefined;
+                  const origin = t.origin_deposit_id ? depositMap.get(t.origin_deposit_id) : undefined
+                  const dest = t.destination_deposit_id ? depositMap.get(t.destination_deposit_id) : undefined
                   return (
                     <TruckFleetDialog
                       key={t.id}
@@ -193,7 +192,7 @@ export default function DashboardPage() {
                       originLabel={origin ? getDepositLabel(origin) : undefined}
                       destinationLabel={dest ? getDepositLabel(dest) : undefined}
                     />
-                  );
+                  )
                 })
               )}
             </CardContent>
@@ -215,12 +214,12 @@ export default function DashboardPage() {
                     className="flex items-center gap-3 rounded-lg border border-border/60 bg-background/60 p-2.5 transition-colors hover:bg-muted/50"
                   >
                     <div className="flex size-9 items-center justify-center rounded-md bg-destructive/15 text-destructive">
-                      <Truck className="size-4" aria-hidden />
+                      <TruckIcon className="size-4" aria-hidden />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-foreground">{t.model}</p>
                       <p className="text-xs text-destructive tabular-nums">
-                        Wear at {t.wear_percentage}%
+                        Maintenances: {t.truck_maintenance ?? 0} recorded
                       </p>
                     </div>
                     <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -247,14 +246,14 @@ export default function DashboardPage() {
           </Link>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {DEPOSITS.map((d) => {
-            const max = d.volume_max ?? 1;
-            const pct = Math.min(100, Math.round((d.volume_actual / max) * 100));
+          {deposits.map((d) => {
+            const { pct } = computeDepositUsage(d)
+            const max = d.volume_max ?? 1
             return (
               <Card key={d.id} className="border-border/80">
                 <CardContent className="space-y-3 pt-5">
                   <div className="flex items-start gap-2">
-                    <Warehouse className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <WarehouseIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium leading-tight text-foreground">
                         {getDepositLabel(d)}
@@ -278,12 +277,12 @@ export default function DashboardPage() {
                   </div>
                 </CardContent>
               </Card>
-            );
+            )
           })}
         </div>
       </section>
     </PageShell>
-  );
+  )
 }
 
 function ButtonLink({ href, label }: { href: string; label: string }) {
@@ -295,5 +294,5 @@ function ButtonLink({ href, label }: { href: string; label: string }) {
       {label}
       <ArrowUpRight className="size-3.5" aria-hidden />
     </Link>
-  );
+  )
 }

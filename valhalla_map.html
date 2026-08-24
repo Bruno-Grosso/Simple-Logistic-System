@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador de Rota Valhalla</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    
+    <style>
+        #map {
+            height: 600px;
+            width: 100%;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+        .info-panel {
+            background: #fff;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="info-panel">
+        <h1>Rota Gerada pelo Valhalla</h1>
+        <p><strong>Origem:</strong> Praça Dermerval Barbosa Moreira</p>
+        <p><strong>Destino:</strong> Rua Luiza Carpenter</p>
+    </div>
+    
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mapbox-polyline/1.1.1/polyline.js"></script>
+
+    <script>
+        // 1. O 'shape' do seu cURL do Valhalla
+        const encodedShape = "zf~ni@hx{bpAbBs@~Ao@tFcApKq@`BD`Tl@`ABtOhB`l@lBvCT~[dC`RdBrq@bFrj@fErS`BdVnBjKtAeGp|@iBxTo@vFaArMs@bNqy@dGkc@fDyFb@u|@zFaSfAyGf@{HZqKn@JvB^zM\\vCfDOpO_A~Lw@bsAoJ~DYnUmAp\\{BnTsAd`@aClEe@zCy@xGuEzBcAvCWpFJhGd@tO~BrQjEvAb@fB~@hFrCRzD|@rD`B|CrBvBjCxAvCx@`DRvHrDbC~@tC`AyBvGeApHuDrR}Gre@gAlGgv@eOo@aASiBNwCpFq`@j@mE";
+
+        // 2. PRIMEIRO cria a instância do mapa no elemento #map
+        const map = L.map('map').setView([-22.285, -42.533], 15);
+
+        // 3. Adiciona a camada de mapa sem bloqueio de HTTP Referer (CartoDB Voyager)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        // 4. Decodifica a polyline do Valhalla (Valhalla usa precisão 6)
+        const coordinates = polyline.decode(encodedShape, 6);
+
+        // 5. Desenha a linha da rota em azul
+        const routeLine = L.polyline(coordinates, {
+            color: '#2563eb',
+            weight: 6,
+            opacity: 0.8
+        }).addTo(map);
+
+        // 6. Adiciona os marcadores no início e no fim da rota
+        L.marker(coordinates[0]).addTo(map).bindPopup("<b>Origem</b>");
+        L.marker(coordinates[coordinates.length - 1]).addTo(map).bindPopup("<b>Destino</b>");
+
+        // 7. Enquadra o zoom do mapa na rota
+        map.fitBounds(routeLine.getBounds());
+    </script>
+</body>
+</html>

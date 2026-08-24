@@ -1,79 +1,103 @@
 import { test, expect } from "vitest";
-
-const BASE_URL = "http://localhost:8080";
+import { testFetch } from "./test-utils";
 
 test("Identity: GET /users returns all users", async () => {
-  const res = await fetch(`${BASE_URL}/users`);
+  const res = await testFetch("/users");
   expect(res.status).toBe(200);
-  const data = await res.json() as any[];
+  const data = (await res.json()) as any[];
   expect(Array.isArray(data)).toBe(true);
   expect(data.length).toBeGreaterThanOrEqual(10);
 });
 
 test("Identity: GET /users/:id returns specific user", async () => {
-  const res = await fetch(`${BASE_URL}/users/USR-001`);
+  const res = await testFetch("/users/USR-001");
   expect(res.status).toBe(200);
-  const data = await res.json() as any[];
+  const data = (await res.json()) as any[];
   expect(data[0].id).toBe("USR-001");
   expect(data[0].name).toBe("Alice Admin");
 });
 
 test("Identity: GET /users?role=admin", async () => {
-  const res = await fetch(`${BASE_URL}/users?role=admin`);
+  const res = await testFetch("/users?role=admin");
   expect(res.status).toBe(200);
-  const data = await res.json() as any[];
-  expect(data.every(u => u.role === "admin")).toBe(true);
-  expect(data.some(u => u.id === "USR-001")).toBe(true);
+  const data = (await res.json()) as any[];
+  expect(data.every((u) => u.role === "admin")).toBe(true);
+  expect(data.some((u) => u.id === "USR-001")).toBe(true);
 });
 
 test("Identity: GET /users?role=client", async () => {
-  const res = await fetch(`${BASE_URL}/users?role=client`);
+  const res = await testFetch("/users?role=client");
   expect(res.status).toBe(200);
-  const data = await res.json() as any[];
-  expect(data.every(u => u.role === "client")).toBe(true);
+  const data = (await res.json()) as any[];
+  expect(data.every((u) => u.role === "client")).toBe(true);
   expect(data.length).toBeGreaterThanOrEqual(4);
 });
 
 test("Identity: GET /online-users returns active sessions", async () => {
-  const res = await fetch(`${BASE_URL}/online-users`);
+  const res = await testFetch("/online-users");
   expect(res.status).toBe(200);
-  const data = await res.json() as any[];
+  const data = (await res.json()) as any[];
   expect(Array.isArray(data)).toBe(true);
   expect(data.length).toBeGreaterThanOrEqual(3);
 });
 
 test("Identity: GET /online-users?userId=USR-001", async () => {
-  const res = await fetch(`${BASE_URL}/online-users?userId=USR-001`);
+  const res = await testFetch("/online-users?userId=USR-001");
   expect(res.status).toBe(200);
-  const data = await res.json() as any[];
+  const data = (await res.json()) as any[];
   expect(data[0].user_id).toBe("USR-001");
   expect(data[0].session_id).toBe("SESS-001");
 });
 
 test("Identity: GET /users/INVALID returns 404", async () => {
-  const res = await fetch(`${BASE_URL}/users/INVALID-ID`);
+  const res = await testFetch("/users/INVALID-ID");
   expect(res.status).toBe(404);
   const text = await res.text();
   expect(text).toBe("User not found");
 });
 
 test("Identity: GET /users/ (empty ID) returns 400", async () => {
-  const res = await fetch(`${BASE_URL}/users/`);
+  const res = await testFetch("/users/");
   expect(res.status).toBe(400);
   const text = await res.text();
   expect(text).toBe("User ID required");
 });
 
 test("Identity: GET /users/ role filtering with no results", async () => {
-  const res = await fetch(`${BASE_URL}/users?role=non-existent`);
+  const res = await testFetch("/users?role=non-existent");
   expect(res.status).toBe(200);
-  const data = await res.json() as any[];
+  const data = (await res.json()) as any[];
   expect(data).toHaveLength(0);
 });
 
 test("Identity: GET /online-users/ user filtering with no results", async () => {
-  const res = await fetch(`${BASE_URL}/online-users?userId=USR-999`);
+  const res = await testFetch("/online-users?userId=USR-999");
   expect(res.status).toBe(200);
-  const data = await res.json() as any[];
+  const data = (await res.json()) as any[];
   expect(data).toHaveLength(0);
+});
+
+test("Identity: PUT /users/:id updates profile", async () => {
+  const res = await testFetch("/users/USR-001", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "Alice Admin Updated",
+      address: "Rua do Imperador 100, Petrópolis - RJ",
+    }),
+  });
+  expect(res.status).toBe(200);
+  const data = (await res.json()) as any;
+  expect(data.success).toBe(true);
+  expect(data.user.name).toBe("Alice Admin Updated");
+
+  // Revert change
+  await testFetch("/users/USR-001", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "Alice Admin",
+      address: "Rua do Imperador, Centro, Petrópolis - RJ",
+    }),
+  });
 });

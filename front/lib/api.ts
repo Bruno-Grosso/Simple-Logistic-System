@@ -1,22 +1,42 @@
-import "server-only"
-
 import axios, { AxiosError, type AxiosResponse } from "axios"
+import {
+  adaptWarehouse,
+  adaptTruck,
+  adaptProduct,
+  adaptUser,
+  adaptOrder,
+  adaptOrderItem,
+  adaptOrderRoute,
+  adaptSupplier,
+  adaptStock,
+  adaptFreightCost,
+  adaptMonthlyPerformance,
+  adaptOrderETA,
+  adaptDeliveryCostReport,
+} from "./adapters"
+import type {
+  Deposit,
+  Truck,
+  Product,
+  User,
+  Order,
+  OrderItem,
+  OrderRoute,
+  Supplier,
+  Stock,
+  FreightCost,
+  MonthlyPerformanceData,
+  OrderETA,
+  DeliveryCostReport,
+} from "@/types"
 
-// ---------------------------------------------------------------------------
-// Axios instance
-// ---------------------------------------------------------------------------
-
-const baseURL = (process.env.LOGISYS_BACKEND_URL ?? "http://localhost:8848").replace(/\/$/, "")
+const baseURL = (process.env.LOGISYS_BACKEND_URL ?? process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8081").replace(/\/$/, "")
 
 export const apiClient = axios.create({
   baseURL,
   headers: { "Content-Type": "application/json" },
-  timeout: 10_000,
+  timeout: 5_000,
 })
-
-// ---------------------------------------------------------------------------
-// Response shape types
-// ---------------------------------------------------------------------------
 
 export type LoginResponseData = {
   ok?: boolean
@@ -44,24 +64,583 @@ export type RegisterPayload = {
   role: string
 }
 
-// ---------------------------------------------------------------------------
-// API namespaces
-// ---------------------------------------------------------------------------
-
 export const api = {
   auth: {
-    login(
-      email: string,
-      password: string,
-    ): Promise<AxiosResponse<LoginResponseData>> {
+    login(email: string, password: string): Promise<AxiosResponse<LoginResponseData>> {
       return apiClient.post<LoginResponseData>("/login", { email, password })
     },
-
     register(payload: RegisterPayload): Promise<AxiosResponse<RegisterResponseData>> {
       return apiClient.post<RegisterResponseData>("/clients", payload)
     },
   },
+
+  warehouses: {
+    async getAll(): Promise<Deposit[]> {
+      try {
+        const res = await apiClient.get<any[]>("/warehouses")
+        if (Array.isArray(res.data)) {
+          return res.data.map(adaptWarehouse)
+        }
+      } catch (err) {
+        console.error("[API] GET /warehouses error:", err)
+      }
+      return []
+    },
+
+    async getById(id: string): Promise<Deposit | undefined> {
+      try {
+        const res = await apiClient.get<any>(`/warehouses/${id}`)
+        const raw = Array.isArray(res.data) ? res.data[0] : res.data
+        if (raw) return adaptWarehouse(raw)
+      } catch (err) {
+        console.error(`[API] GET /warehouses/${id} error:`, err)
+      }
+      return undefined
+    },
+
+    async getStock(id: string): Promise<Stock[]> {
+      try {
+        const res = await apiClient.get<any[]>(`/warehouses/${id}/stock`)
+        if (Array.isArray(res.data)) {
+          return res.data.map(adaptStock)
+        }
+      } catch (err) {
+        console.error(`[API] GET /warehouses/${id}/stock error:`, err)
+      }
+      return []
+    },
+
+    async getParking(id: string): Promise<{
+      warehouse_id: string
+      truck_capacity: number
+      parked_count: number
+      inbound_count: number
+      occupied_spots: number
+      available_spots: number
+      is_full: boolean
+      parked_trucks: any[]
+      inbound_trucks: any[]
+    } | null> {
+      try {
+        const res = await apiClient.get<any>(`/warehouses/${id}/parking`)
+        if (res.data) return res.data
+      } catch (err) {
+        console.error(`[API] GET /warehouses/${id}/parking error:`, err)
+      }
+      return null
+    },
+
+    async checkParking(id: string, truckId?: string): Promise<{ allowed: boolean; reason?: string; status?: any }> {
+      try {
+        const res = await apiClient.post<any>(`/warehouses/${id}/check-parking`, { truck_id: truckId })
+        return res.data
+      } catch (err: any) {
+        return { allowed: false, reason: err.response?.data?.reason || "Warehouse parking full or unavailable" }
+      }
+    },
+
+    async getAverageGasPrice(ids?: string[]): Promise<number> {
+      try {
+        const query = ids && ids.length > 0 ? `?ids=${encodeURIComponent(ids.join(","))}` : ""
+        const res = await apiClient.get<{ avg_gas_price: number }>(`/warehouses/average-gas-price${query}`)
+        if (res.data && res.data.avg_gas_price !== undefined) {
+          return res.data.avg_gas_price
+        }
+      } catch (err) {
+        console.error("[API] GET /warehouses/average-gas-price error:", err)
+      }
+      return 5.89
+    },
+
+    async update(id: string, payload: {
+      location: any
+      size: any
+      volume_max: number
+      has_refrigeration: number
+      fuel_price: number
+      truck_capacity?: number
+    }): Promise<{ success: boolean; warehouse?: any }> {
+      const res = await apiClient.put<{ success: boolean; warehouse?: any }>(`/warehouses/${id}`, payload)
+      return res.data
+    },
+  },
+
+  trucks: {
+    async getAll(model?: string): Promise<Truck[]> {
+      try {
+        const url = model ? `/trucks?model=${encodeURIComponent(model)}` : "/trucks"
+        const res = await apiClient.get<any[]>(url)
+        if (Array.isArray(res.data)) {
+          return res.data.map(adaptTruck)
+        }
+      } catch (err) {
+        console.error("[API] GET /trucks error:", err)
+      }
+      return []
+    },
+
+    async getById(id: string): Promise<Truck | undefined> {
+      try {
+        const res = await apiClient.get<any>(`/trucks/${id}`)
+        const raw = Array.isArray(res.data) ? res.data[0] : res.data
+        if (raw) return adaptTruck(raw)
+      } catch (err) {
+        console.error(`[API] GET /trucks/${id} error:`, err)
+      }
+      return undefined
+    },
+
+    async update(id: string, payload: {
+      model: string
+      speed: number
+      is_valid: number
+      size: any
+      volume_max: number
+      weight_max: number
+      has_refrigeration: number
+      fuel_capacity: number
+      fuel_current: number
+      fuel_consumption: number
+      current_warehouse_id: string | null
+    }): Promise<{ success: boolean; truck?: any }> {
+      const res = await apiClient.put<{ success: boolean; truck?: any }>(`/trucks/${id}`, payload)
+      return res.data
+    },
+  },
+
+  products: {
+    async getAll(name?: string): Promise<Product[]> {
+      try {
+        const url = name ? `/products?name=${encodeURIComponent(name)}` : "/products"
+        const res = await apiClient.get<any[]>(url)
+        if (Array.isArray(res.data)) {
+          return res.data.map(adaptProduct)
+        }
+      } catch (err) {
+        console.error("[API] GET /products error:", err)
+      }
+      return []
+    },
+
+    async getById(id: string): Promise<Product | undefined> {
+      try {
+        const res = await apiClient.get<any>(`/products/${id}`)
+        const raw = Array.isArray(res.data) ? res.data[0] : res.data
+        if (raw) return adaptProduct(raw)
+      } catch (err) {
+        console.error(`[API] GET /products/${id} error:`, err)
+      }
+      return undefined
+    },
+
+    async update(id: string, payload: {
+      name: string
+      price: number
+      is_cold: number
+      is_fragile: number
+      expire_date: string | null
+      size: any
+      volume: number
+      weight: number
+    }): Promise<{ success: boolean; product?: any }> {
+      const res = await apiClient.put<{ success: boolean; product?: any }>(`/products/${id}`, payload)
+      return res.data
+    },
+  },
+
+  users: {
+    async getAll(role?: string): Promise<User[]> {
+      try {
+        const url = role ? `/users?role=${encodeURIComponent(role)}` : "/users"
+        const res = await apiClient.get<any[]>(url)
+        if (Array.isArray(res.data)) {
+          return res.data.map(adaptUser)
+        }
+      } catch (err) {
+        console.error("[API] GET /users error:", err)
+      }
+      return []
+    },
+
+    async getById(id: string): Promise<User | undefined> {
+      try {
+        const res = await apiClient.get<any>(`/users/${id}`)
+        const raw = Array.isArray(res.data) ? res.data[0] : res.data
+        if (raw) return adaptUser(raw)
+      } catch (err) {
+        console.error(`[API] GET /users/${id} error:`, err)
+      }
+      return undefined
+    },
+
+    async getDrivers(): Promise<User[]> {
+      try {
+        const res = await apiClient.get<any[]>("/users/drivers")
+        if (Array.isArray(res.data)) {
+          return res.data.map(adaptUser)
+        }
+      } catch (err) {
+        console.error("[API] GET /users/drivers error:", err)
+      }
+      return []
+    },
+
+    async update(id: string, payload: {
+      name?: string
+      address?: string
+      password?: string
+      role?: string
+      wage?: number
+    }): Promise<{ success: boolean; user?: User }> {
+      try {
+        const res = await apiClient.put<{ success: boolean; user?: any }>(`/users/${id}`, payload)
+        if (res.data && res.data.success && res.data.user) {
+          return { success: true, user: adaptUser(res.data.user) }
+        }
+      } catch (err) {
+        console.error(`[API] PUT /users/${id} error:`, err)
+      }
+      return { success: false }
+    },
+
+    async getOnlineSessions(userId?: string): Promise<any[]> {
+      try {
+        const url = userId ? `/online-users?userId=${encodeURIComponent(userId)}` : "/online-users"
+        const res = await apiClient.get<any[]>(url)
+        if (Array.isArray(res.data)) return res.data
+      } catch (err) {
+        console.error("[API] GET /online-users error:", err)
+      }
+      return []
+    },
+  },
+
+  suppliers: {
+    async getAll(): Promise<Supplier[]> {
+      try {
+        const res = await apiClient.get<any[]>("/suppliers")
+        if (Array.isArray(res.data)) {
+          return res.data.map(adaptSupplier)
+        }
+      } catch (err) {
+        console.error("[API] GET /suppliers error:", err)
+      }
+      return []
+    },
+
+    async getById(id: string): Promise<Supplier | undefined> {
+      try {
+        const res = await apiClient.get<any>(`/suppliers/${id}`)
+        const raw = Array.isArray(res.data) ? res.data[0] : res.data
+        if (raw) return adaptSupplier(raw)
+      } catch (err) {
+        console.error(`[API] GET /suppliers/${id} error:`, err)
+      }
+      return undefined
+    },
+  },
+
+  orders: {
+    async getAll(clientId?: string): Promise<Order[]> {
+      try {
+        const url = clientId ? `/orders?clientId=${encodeURIComponent(clientId)}` : "/orders"
+        const res = await apiClient.get<any[]>(url)
+        if (Array.isArray(res.data)) {
+          return res.data.map(adaptOrder)
+        }
+      } catch (err) {
+        console.error("[API] GET /orders error:", err)
+      }
+      return []
+    },
+
+    async getById(id: string): Promise<Order | undefined> {
+      try {
+        const res = await apiClient.get<any>(`/orders/${id}`)
+        const raw = Array.isArray(res.data) ? res.data[0] : res.data
+        if (raw) return adaptOrder(raw)
+      } catch (err) {
+        console.error(`[API] GET /orders/${id} error:`, err)
+      }
+      return undefined
+    },
+
+    async getItems(id: string): Promise<OrderItem[]> {
+      try {
+        const res = await apiClient.get<any[]>(`/orders/${id}/items`)
+        if (Array.isArray(res.data)) {
+          return res.data.map(adaptOrderItem)
+        }
+      } catch (err) {
+        console.error(`[API] GET /orders/${id}/items error:`, err)
+      }
+      return []
+    },
+
+    async getRoute(id: string): Promise<OrderRoute[]> {
+      try {
+        const res = await apiClient.get<any[]>(`/orders/${id}/route`)
+        if (Array.isArray(res.data)) {
+          return res.data.map(adaptOrderRoute)
+        }
+      } catch (err) {
+        console.error(`[API] GET /orders/${id}/route error:`, err)
+      }
+      return []
+    },
+
+    async getCost(id: string): Promise<FreightCost | undefined> {
+      try {
+        const res = await apiClient.get<any>(`/orders/${id}/cost`)
+        const raw = Array.isArray(res.data) ? res.data[0] : res.data
+        if (raw) return adaptFreightCost(raw)
+      } catch (err) {
+        console.error(`[API] GET /orders/${id}/cost error:`, err)
+      }
+      return undefined
+    },
+
+    async getETA(id: string): Promise<OrderETA | undefined> {
+      try {
+        const res = await apiClient.get<any>(`/orders/${id}/eta`)
+        if (res.data && res.data.success) {
+          return adaptOrderETA(res.data)
+        }
+      } catch (err) {
+        console.error(`[API] GET /orders/${id}/eta error:`, err)
+      }
+      return undefined
+    },
+
+    async create(payload: {
+      id: string
+      client_id: string
+      final_destination: string
+      time_limit: string
+      price: number
+      status?: string
+      items: Array<{ product_id: string; quantity: number }>
+    }): Promise<{ success: boolean; order?: any }> {
+      const res = await apiClient.post<{ success: boolean; order?: any }>("/orders", payload)
+      return res.data
+    },
+
+    async calculateETA(orderId: string, options?: {
+      minSpeed?: number
+      maxSpeed?: number
+      avgSpeed?: number
+      departureTime?: string
+      originWarehouseId?: string
+      truckId?: string
+    }): Promise<OrderETA | null> {
+      try {
+        const res = await apiClient.post<any>(`/orders/${orderId}/calculate-eta`, options || {})
+        if (res.data && res.data.success) {
+          return adaptOrderETA(res.data)
+        }
+      } catch (err) {
+        console.error(`[API] POST /orders/${orderId}/calculate-eta error:`, err)
+      }
+      return null
+    },
+
+    async calculateCost(orderId: string, options?: {
+      driverWage?: number
+      fuelPrice?: number
+      distanceKm?: number
+      truckId?: string
+      driverId?: string
+    }): Promise<FreightCost | null> {
+      try {
+        const res = await apiClient.post<any>(`/orders/${orderId}/calculate-cost`, options || {})
+        if (res.data && res.data.success) {
+          return adaptFreightCost(res.data)
+        }
+      } catch (err) {
+        console.error(`[API] POST /orders/${orderId}/calculate-cost error:`, err)
+      }
+      return null
+    },
+
+    async calculateDistance(orderId: string, warehouseId?: string): Promise<{ distance_km: number } | null> {
+      try {
+        const res = await apiClient.post<any>(`/orders/${orderId}/calculate-distance`, { warehouse_id: warehouseId })
+        if (res.data && res.data.success) {
+          return { distance_km: res.data.distance_km }
+        }
+      } catch (err) {
+        console.error(`[API] POST /orders/${orderId}/calculate-distance error:`, err)
+      }
+      return null
+    },
+
+    async addRouteStep(orderId: string, payload: {
+      step: number
+      warehouse_id?: string | null
+      truck_id?: string | null
+      destination_warehouse_id?: string | null
+      estimated_time?: string | null
+      arrived_at?: string | null
+    }): Promise<{ success: boolean; route?: any; error?: string }> {
+      try {
+        const res = await apiClient.post<{ success: boolean; route?: any }>(`/orders/${orderId}/route`, payload)
+        return res.data
+      } catch (err: any) {
+        return { success: false, error: err.response?.data?.error || err.message }
+      }
+    },
+
+    async updateRouteStep(orderId: string, step: number, payload: {
+      warehouse_id?: string | null
+      truck_id?: string | null
+      destination_warehouse_id?: string | null
+      estimated_time?: string | null
+      arrived_at?: string | null
+    }): Promise<{ success: boolean; route?: any; error?: string }> {
+      try {
+        const res = await apiClient.put<{ success: boolean; route?: any }>(`/orders/${orderId}/route/${step}`, payload)
+        return res.data
+      } catch (err: any) {
+        return { success: false, error: err.response?.data?.error || err.message }
+      }
+    },
+  },
+
+  routes: {
+    async calculateRoute(orderId: string, warehouseId: string, truckId?: string): Promise<{ success: boolean; summary?: any; encodedShape?: string } | null> {
+      try {
+        const res = await apiClient.post<{ success: boolean; summary?: any; encodedShape?: string }>("/route", {
+          orderId,
+          warehouseId,
+          ...(truckId ? { truckId } : {}),
+        })
+        return res.data
+      } catch (err: any) {
+        if (axios.isAxiosError(err) && err.response?.status === 404) {
+          console.warn(`[API] POST /route returned 404 for order ${orderId} (fallback route estimate will be used)`)
+        } else {
+          console.warn(`[API] POST /route error:`, err?.message || err)
+        }
+        return null
+      }
+    },
+
+    async calculateRouteBetweenWarehouses(
+      originWarehouseId: string,
+      destinationWarehouseId: string,
+      truckId?: string
+    ): Promise<{ success: boolean; summary?: any; encodedShape?: string } | null> {
+      try {
+        const res = await apiClient.post<{ success: boolean; summary?: any; encodedShape?: string }>("/route", {
+          originWarehouseId,
+          destinationWarehouseId,
+          ...(truckId ? { truckId } : {}),
+        })
+        return res.data
+      } catch (err: any) {
+        if (axios.isAxiosError(err) && err.response?.status === 404) {
+          console.warn(`[API] POST /route returned 404 for warehouses ${originWarehouseId} -> ${destinationWarehouseId}`)
+        } else {
+          console.warn(`[API] POST /route warehouse error:`, err?.message || err)
+        }
+        return null
+      }
+    },
+  },
+
+  freightCost: {
+    async getAll(orderId?: string): Promise<FreightCost[]> {
+      try {
+        const url = orderId ? `/freight-cost?orderId=${encodeURIComponent(orderId)}` : "/freight-cost"
+        const res = await apiClient.get<any[]>(url)
+        if (Array.isArray(res.data)) {
+          return res.data.map(adaptFreightCost)
+        }
+      } catch (err) {
+        console.error("[API] GET /freight-cost error:", err)
+      }
+      return []
+    },
+
+    async calculate(orderId: string, options?: {
+      driverWage?: number
+      fuelPrice?: number
+      distanceKm?: number
+      truckId?: string
+      driverId?: string
+    }): Promise<FreightCost | null> {
+      try {
+        const res = await apiClient.post<any>(`/orders/${orderId}/calculate-cost`, options || {})
+        if (res.data && res.data.success) {
+          return adaptFreightCost(res.data)
+        }
+      } catch (err) {
+        console.error(`[API] POST /orders/${orderId}/calculate-cost error:`, err)
+      }
+      return null
+    },
+  },
+
+  reports: {
+    async getMonthlyPerformance(): Promise<MonthlyPerformanceData[]> {
+      try {
+        const res = await apiClient.get<any[]>("/monthly-performance")
+        if (Array.isArray(res.data)) {
+          return res.data.map(adaptMonthlyPerformance)
+        }
+      } catch (err) {
+        console.error("[API] GET /monthly-performance error:", err)
+      }
+      return []
+    },
+
+    async getDeliveryCosts(warehouseId?: string): Promise<DeliveryCostReport> {
+      try {
+        const url = warehouseId ? `/reports/delivery-costs?warehouseId=${encodeURIComponent(warehouseId)}` : "/reports/delivery-costs"
+        const res = await apiClient.get<any>(url)
+        if (res.data) {
+          return adaptDeliveryCostReport(res.data)
+        }
+      } catch (err) {
+        console.error("[API] GET /reports/delivery-costs error:", err)
+      }
+      return adaptDeliveryCostReport(null)
+    },
+  },
+
+  geo: {
+    async addressToCoordinates(address: string): Promise<{ endereco_completo: string; latitude: string; longitude: string } | null> {
+      try {
+        const res = await apiClient.get<any>(`/geocode?address=${encodeURIComponent(address)}`)
+        if (res.data && res.data.success) {
+          return {
+            endereco_completo: res.data.endereco_completo,
+            latitude: res.data.latitude,
+            longitude: res.data.longitude,
+          }
+        }
+      } catch (err) {
+        console.error("[API] GET /geocode error:", err)
+      }
+      return null
+    },
+
+    async coordinatesToAddress(lat: string | number, lon: string | number): Promise<{ endereco_completo: string; latitude: string; longitude: string } | null> {
+      try {
+        const res = await apiClient.get<any>(`/reverse-geocode?lat=${lat}&lon=${lon}`)
+        if (res.data && res.data.success) {
+          return {
+            endereco_completo: res.data.endereco_completo,
+            latitude: res.data.latitude,
+            longitude: res.data.longitude,
+          }
+        }
+      } catch (err) {
+        console.error("[API] GET /reverse-geocode error:", err)
+      }
+      return null
+    },
+  },
 }
 
-// Re-export so callers can do instanceof checks without importing axios directly
 export { AxiosError }

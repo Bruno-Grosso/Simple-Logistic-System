@@ -105,6 +105,11 @@
   **Example of activity**: If you want to calculate the cheapest refueling option for trucks near this warehouse, use this value.  
   **Example value**: `1.45`
 
+- **truck_capacity (INTEGER)**:  
+  This field defines the maximum number of trucks that can be parked or docked simultaneously at the warehouse.  
+  **Example of activity**: Before routing or assigning a truck to a warehouse, check if current parked + arriving trucks < `truck_capacity`.  
+  **Example value**: `5`
+
 ---
 
 # TABLE: warehouses_stock
@@ -135,7 +140,7 @@
 - **model (TEXT)**:  
   This field stores the truck model or name.  
   **Example of activity**: If you want to check vehicle specifications or compare models, retrieve this field.  
-  **Example value**: `"Volvo FH16"`
+  **Example value**: `"Caminhão Serrano 01"`
 
 - **speed (REAL)**:  
   This field stores the average speed of the truck in km/h.  
@@ -250,6 +255,11 @@
   This field defines the user’s access level in the system.  
   **Example of activity**: If you want to restrict access to certain actions, check this field.  
   **Example value**: `"client"`
+
+- **wage (REAL)**:  
+  This field stores the hourly wage / labor rate for workers and truck drivers in currency units (e.g., R$/hour). Used to calculate order delivery labor costs based on estimated transit time.  
+  **Example of activity**: When calculating delivery freight costs, multiply driver hourly wage by route driving duration.  
+  **Example value**: `55.00`
 
 ---
 
@@ -513,9 +523,41 @@ Example of activity: Total cargo volume = product.volume × quantity.
 4. Trucks transport goods (`trucks`, `trucks_cargo`)
 5. Route tracked (`orders_route`)
 6. Costs calculated (`freight_cost`)
-7. Order delivered and status updated
+7. ETA calculated with driver rest regulation & speed boundaries
+8. Order delivered and status updated
 
 Example of activity: Follow this flow to debug or track any order.
+
+---
+
+# ORDER ETA & TRANSIT TIME METHODOLOGY
+
+Estimated Time of Arrival (ETA) calculations model real-world commercial trucking constraints, speed limits, and transport safety labor regulations:
+
+1. **Distance ($D$)**:
+   Geodesic Haversine formula `calculate_distance_km(lat1, lon1, lat2, lon2)` or Valhalla route engine distance in kilometers.
+
+2. **Speed Limits ($V$)**:
+   - **Minimum Speed ($V_{\min} = 40.0\text{ km/h}$)**: Smallest reasonable operating speed for commercial freight trucks in urban, mountainous, or congested terrain.
+   - **Maximum Speed ($V_{\max} = \text{truck.speed} \text{ or } 85.0\text{ km/h}$)**: Maximum rated highway speed for the assigned vehicle.
+   - **Average Fleet Speed ($V_{\text{avg}} = \frac{V_{\min} + V_{\max}}{2}$)**: Nominal operating speed.
+
+3. **Driver Working Hours Regulation (Max 8h Driving / Day)**:
+   - A truck driver can drive a maximum of **8 hours per 24-hour cycle**.
+   - When pure driving duration exceeds 8 hours, mandatory rest stop cycles of 16 hours are scheduled:
+     $$N_{\text{rests}} = \max\left(0, \left\lfloor \frac{t_{\text{driving}} - 0.001}{8} \right\rfloor\right)$$
+     $$t_{\text{rest}} = N_{\text{rests}} \times 16\text{ hours}$$
+     $$T_{\text{transit}} = t_{\text{driving}} + t_{\text{rest}}$$
+
+4. **ETA Timestamps**:
+   - $\text{ETA}_{\text{fastest}} = T_{\text{departure}} + T_{\text{transit, min}}$
+   - $\text{ETA}_{\text{slowest}} = T_{\text{departure}} + T_{\text{transit, max}}$
+   - $\text{ETA}_{\text{expected}} = T_{\text{departure}} + T_{\text{transit, avg}}$
+
+5. **Deadline Compliance**:
+   - `on_time`: $\text{ETA}_{\text{slowest}} \le \text{time\_limit}$
+   - `at_risk`: $\text{ETA}_{\text{expected}} \le \text{time\_limit} < \text{ETA}_{\text{slowest}}$
+   - `overdue`: $\text{ETA}_{\text{expected}} > \text{time\_limit}$
 
 ---
 

@@ -1,26 +1,28 @@
 import { notFound } from "next/navigation"
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle, Wrench } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { PageShell } from "@/components/page-shell"
 import { InfoField } from "@/components/info-field"
+import { EditTruckDialog } from "@/components/edit-truck-dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
+import { RouteMap } from "@/components/route-map"
 import { cn } from "@/lib/utils"
-import { getTruckById, getDepositById, getDepositLabel } from "@/lib/mock-data"
-import type { Truck } from "@/types"
+import { api } from "@/lib/api"
+import type { Truck, Deposit } from "@/types"
 
-function truckLocation(t: Truck): string {
-  if (t.is_traveling && t.origin_deposit_id && t.destination_deposit_id) {
-    const o = getDepositById(t.origin_deposit_id)
-    const d = getDepositById(t.destination_deposit_id)
-    const a = o ? getDepositLabel(o) : "—"
-    const b = d ? getDepositLabel(d) : "—"
+function truckLocation(t: Truck, depositMap: Map<string, Deposit>): string {
+  if ((t.is_traveling || t.is_delivering) && t.origin_deposit_id && t.destination_deposit_id) {
+    const o = depositMap.get(t.origin_deposit_id)
+    const d = depositMap.get(t.destination_deposit_id)
+    const a = o?.location || "—"
+    const b = d?.location || "—"
     return `${a} → ${b}`
   }
   if (t.current_deposit_id) {
-    const dep = getDepositById(t.current_deposit_id)
-    return dep ? getDepositLabel(dep) : "—"
+    const dep = depositMap.get(t.current_deposit_id)
+    return dep?.location || `Warehouse ${t.current_deposit_id}`
   }
   return "—"
 }
@@ -31,26 +33,44 @@ type PageProps = {
 
 export default async function FleetDetailPage({ params }: PageProps) {
   const { id } = await params
-  const truck = getTruckById(id)
+  const truck = await api.trucks.getById(id)
   if (!truck) notFound()
+
+  const deposits = await api.warehouses.getAll()
+  const depositMap = new Map<string, Deposit>()
+  deposits.forEach((d) => depositMap.set(d.id, d))
+
+  const originDeposit = truck.origin_deposit_id ? depositMap.get(truck.origin_deposit_id) : undefined
+  const destinationDeposit = truck.destination_deposit_id ? depositMap.get(truck.destination_deposit_id) : undefined
+
+  // Fetch route geometry from Valhalla if truck is traveling or has route endpoints
+  let valhallaRoute: { success: boolean; summary?: any; encodedShape?: string } | null = null
+  if (truck.origin_deposit_id && truck.destination_deposit_id) {
+    valhallaRoute = await api.routes.calculateRouteBetweenWarehouses(
+      truck.origin_deposit_id,
+      truck.destination_deposit_id,
+      truck.id
+    )
+  }
 
   const cap = truck.fuel_capacity ?? 1
   const fuelPct = Math.min(100, Math.round((truck.fuel_current / cap) * 100))
-  const wearPct = Math.min(100, Math.round(truck.wear_percentage))
+  const mainCount = truck.truck_maintenance ?? 0
   const volMax = truck.volume_max ?? 1
   const volPct = Math.min(100, Math.round((truck.volume_actual / volMax) * 100))
   const wMax = truck.weight_max ?? 1
   const weightPct = Math.min(100, Math.round((truck.weight_actual / wMax) * 100))
-  const highWear = truck.wear_percentage > 80
+  const highMaintenance = mainCount >= 3 || !truck.is_valid
 
   const performance: [string, string][] = [
-    ["Speed", truck.speed != null ? `${truck.speed} km/h` : "—"],
+    ["Speed", truck.speed != null ? `${truck.speed} km/h` : "80 km/h"],
     [
       "Fuel consumption",
-      truck.fuel_consumption != null ? `${truck.fuel_consumption} L/km` : "—",
+      truck.fuel_consumption != null ? `${truck.fuel_consumption} L/km` : "0.35 L/km",
     ],
     ["Refrigeration", truck.has_refrigeration ? "Yes" : "No"],
     ["Service status", truck.is_valid ? "Operational" : "Maintenance required"],
+    ["Maintenances recorded", `${mainCount} time(s)`],
     ["Delivering", truck.is_delivering ? "Yes" : "No"],
   ]
 
@@ -63,6 +83,7 @@ export default async function FleetDetailPage({ params }: PageProps) {
           { label: "Fleet", href: "/fleet" },
           { label: title },
         ]}
+        actions={<EditTruckDialog truck={truck} warehouses={deposits} />}
       />
       <div className="min-h-0 flex-1 overflow-auto">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -94,23 +115,19 @@ export default async function FleetDetailPage({ params }: PageProps) {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-display text-lg">Location</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm leading-relaxed text-foreground">{truckLocation(truck)}</p>
-                {truck.estimated_time && (
-                  <p className="mt-2 text-xs text-muted-foreground tabular-nums">
-                    ETA {new Date(truck.estimated_time).toLocaleString("pt-BR")}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            {/* Valhalla Route Map for Truck */}
+            <RouteMap
+              encodedShape={valhallaRoute?.encodedShape}
+              summary={valhallaRoute?.summary}
+              originLabel={originDeposit?.location || "Origin Warehouse"}
+              destinationLabel={destinationDeposit?.location || "Destination Warehouse"}
+              truckModel={truck.model}
+              title={`Valhalla Navigation: ${truck.model}`}
+            />
 
             <Card>
               <CardHeader>
-                <CardTitle className="font-display text-lg">Cargo</CardTitle>
+                <CardTitle className="font-display text-lg">Cargo Load</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-1.5">
@@ -155,35 +172,36 @@ export default async function FleetDetailPage({ params }: PageProps) {
               </CardContent>
             </Card>
 
+            {/* Maintenance Count Card */}
             <Card>
-              <CardHeader>
-                <CardTitle className="font-display text-lg">Wear</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="font-display text-lg flex items-center gap-2">
+                  <Wrench className="size-4 text-primary" />
+                  Maintenances
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p
                   className={cn(
                     "font-display text-4xl tabular-nums",
-                    highWear ? "text-destructive" : "text-foreground",
+                    highMaintenance ? "text-destructive" : "text-foreground",
                   )}
-                  aria-label={`Wear ${wearPct} percent`}
                 >
-                  {wearPct}
-                  <span className="text-2xl text-muted-foreground">%</span>
+                  {mainCount}
+                  <span className="text-sm font-normal text-muted-foreground ml-2">recorded</span>
                 </p>
-                <Progress
-                  value={wearPct}
-                  className={cn(
-                    highWear && "[&_[data-slot=progress-indicator]]:bg-destructive",
-                  )}
-                />
-                {highWear && (
+                {highMaintenance ? (
                   <div
                     className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
                     role="alert"
                   >
                     <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-                    <p>Wear exceeds 80%. Schedule maintenance before next long haul.</p>
+                    <p>High maintenance frequency detected. Schedule full inspection before long haul.</p>
                   </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Vehicle maintenance is within normal operational limits.
+                  </p>
                 )}
               </CardContent>
             </Card>

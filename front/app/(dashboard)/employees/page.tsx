@@ -11,12 +11,10 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import {
-  EMPLOYEES,
-  getDepositById,
-  getDepositLabel,
-  getUserById,
-} from "@/lib/mock-data"
+import { api } from "@/lib/api"
+import type { User, Deposit } from "@/types"
+
+export const dynamic = "force-dynamic"
 
 function initialsFromName(name: string): string {
   const parts = name.trim().split(/\s+/)
@@ -26,7 +24,18 @@ function initialsFromName(name: string): string {
   return name.slice(0, 2).toUpperCase()
 }
 
-export default function EmployeesPage() {
+export default async function EmployeesPage() {
+  const [users, deposits] = await Promise.all([
+    api.users.getAll(),
+    api.warehouses.getAll(),
+  ])
+
+  // Filter for workers/staff (non-clients or all employees)
+  const staff = users.filter((u) => u.role !== "client")
+
+  const depositMap = new Map<string, Deposit>()
+  deposits.forEach((d) => depositMap.set(d.id, d))
+
   return (
     <PageShell>
       <PageHeader crumbs={[{ label: "Employees" }]} />
@@ -36,66 +45,37 @@ export default function EmployeesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead scope="col">Name</TableHead>
-                <TableHead scope="col">Position</TableHead>
-                <TableHead scope="col">Deposit</TableHead>
+                <TableHead scope="col">Role / Position</TableHead>
+                <TableHead scope="col">Hourly Wage</TableHead>
+                <TableHead scope="col">ID</TableHead>
                 <TableHead scope="col">Status</TableHead>
-                <TableHead scope="col" className="text-right">
-                  Hours / day
-                </TableHead>
-                <TableHead scope="col" className="text-right">
-                  Cost / hour
-                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {EMPLOYEES.map((e) => {
-                const user = getUserById(e.user_id)
-                const deposit = e.deposit_id ? getDepositById(e.deposit_id) : undefined
-                const depositName = deposit ? getDepositLabel(deposit) : "—"
-                const available = e.is_able
-
+              {staff.map((u) => {
                 return (
-                  <TableRow key={e.id}>
+                  <TableRow key={u.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="size-9">
-                          <AvatarFallback
-                            className={cn(
-                              "bg-primary/15 text-xs font-medium text-primary",
-                            )}
-                          >
-                            {user ? initialsFromName(user.name) : "?"}
+                          <AvatarFallback className={cn("bg-primary/15 text-xs font-medium text-primary")}>
+                            {initialsFromName(u.name)}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="font-medium">{user?.name ?? e.user_id}</span>
+                        <span className="font-medium">{u.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {user?.work_position ?? "—"}
+                    <TableCell className="text-muted-foreground capitalize">
+                      {u.work_position || u.role.replace("_", " ")}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{depositName}</TableCell>
+                    <TableCell className="font-medium text-foreground">
+                      R$ {(u.wage ?? 45.0).toFixed(2)}/h
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">{u.id}</TableCell>
                     <TableCell>
-                      {available ? (
-                        <Badge
-                          variant="outline"
-                          className="border-chart-2 text-chart-2"
-                        >
-                          Available
-                        </Badge>
-                      ) : (
-                        <Badge variant="destructive">Unavailable</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {e.max_work_hours_per_day ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {e.hourly_cost != null
-                        ? new Intl.NumberFormat(undefined, {
-                            style: "currency",
-                            currency: "BRL",
-                          }).format(e.hourly_cost)
-                        : "—"}
+                      <Badge variant="outline" className="border-chart-2 text-chart-2">
+                        Active
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 )

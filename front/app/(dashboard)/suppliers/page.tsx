@@ -10,9 +10,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { SUPPLIERS } from "@/lib/mock-data"
+import { api } from "@/lib/api"
 
-export default function SuppliersPage() {
+export default async function SuppliersPage() {
+  const suppliers = await api.suppliers.getAll()
+
   return (
     <PageShell>
       <PageHeader crumbs={[{ label: "Suppliers" }]} />
@@ -22,17 +24,14 @@ export default function SuppliersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead scope="col">Name</TableHead>
-                <TableHead scope="col">Address</TableHead>
+                <TableHead scope="col">Address / Location</TableHead>
                 <TableHead scope="col" className="text-right">
-                  Latitude
-                </TableHead>
-                <TableHead scope="col" className="text-right">
-                  Longitude
+                  ID
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {SUPPLIERS.map((s) => (
+              {suppliers.map((s) => (
                 <TableRow key={s.id}>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -43,11 +42,8 @@ export default function SuppliersPage() {
                   <TableCell className="max-w-md text-muted-foreground">
                     {s.address ?? "—"}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {s.latitude != null ? s.latitude : "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {s.longitude != null ? s.longitude : "—"}
+                  <TableCell className="text-right font-mono text-xs text-muted-foreground">
+                    {s.id}
                   </TableCell>
                 </TableRow>
               ))}

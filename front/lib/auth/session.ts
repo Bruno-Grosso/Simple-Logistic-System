@@ -8,10 +8,13 @@ export function sessionCookieMaxAge(): number {
 }
 
 /**
- * Mints a simple dev/env-fallback session token (not used when LOGISYS_BACKEND_URL is set,
- * since the backend JWT is stored directly).
+ * Mints a session token payload for client/server session tracking.
  */
-export function createSessionToken(email: string): string {
+export function createSessionToken(payloadOrEmail: string | Record<string, any>): string {
   const exp = Math.floor(Date.now() / 1000) + sessionCookieMaxAge()
-  return "next." + Buffer.from(JSON.stringify({ email, exp })).toString("base64url")
+  const payload =
+    typeof payloadOrEmail === "string"
+      ? { email: payloadOrEmail, exp }
+      : { ...payloadOrEmail, exp }
+  return "next." + Buffer.from(JSON.stringify(payload)).toString("base64url")
 }

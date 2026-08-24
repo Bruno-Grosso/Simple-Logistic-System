@@ -2,6 +2,7 @@ import { Box } from "lucide-react"
 
 import { PageHeader } from "@/components/page-header"
 import { PageShell } from "@/components/page-shell"
+import { EditProductDialog } from "@/components/edit-product-dialog"
 import {
   Table,
   TableBody,
@@ -12,7 +13,9 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { PRODUCTS } from "@/lib/mock-data"
+import { api } from "@/lib/api"
+
+export const dynamic = "force-dynamic"
 
 function isExpired(isoDate: string | undefined): boolean {
   if (!isoDate) return false
@@ -22,7 +25,9 @@ function isExpired(isoDate: string | undefined): boolean {
   return d < today
 }
 
-export default function ProductsPage() {
+export default async function ProductsPage() {
+  const products = await api.products.getAll()
+
   return (
     <PageShell>
       <PageHeader crumbs={[{ label: "Products" }]} />
@@ -43,10 +48,13 @@ export default function ProductsPage() {
                 <TableHead scope="col" className="text-right">
                   Weight
                 </TableHead>
+                <TableHead scope="col" className="text-right">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {PRODUCTS.map((p) => {
+              {products.map((p) => {
                 const expired = p.expire_date ? isExpired(p.expire_date) : false
                 return (
                   <TableRow key={p.id}>
@@ -61,7 +69,7 @@ export default function ProductsPage() {
                         {p.is_cold && <Badge variant="default">cold</Badge>}
                         {p.is_fragile && <Badge variant="secondary">fragile</Badge>}
                         {!p.is_cold && !p.is_fragile && (
-                          <span className="text-muted-foreground">—</span>
+                           <span className="text-muted-foreground">—</span>
                         )}
                       </div>
                     </TableCell>
@@ -94,6 +102,9 @@ export default function ProductsPage() {
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
                       {p.weight != null ? `${p.weight} kg` : "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <EditProductDialog product={p} />
                     </TableCell>
                   </TableRow>
                 )

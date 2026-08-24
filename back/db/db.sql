@@ -25,7 +25,8 @@ CREATE TABLE warehouses (
     volume_current REAL NOT NULL DEFAULT 0,
     volume_max REAL NOT NULL,
     has_refrigeration INTEGER NOT NULL DEFAULT 0,
-    fuel_price REAL NOT NULL DEFAULT 0
+    fuel_price REAL NOT NULL DEFAULT 0,
+    truck_capacity INTEGER NOT NULL DEFAULT 5
 );
 
 CREATE TABLE warehouses_stock (
@@ -62,7 +63,8 @@ CREATE TABLE users (
     name TEXT NOT NULL,
     password TEXT NOT NULL,
     address JSON, -- Documentation says geographic coordinates
-    role TEXT CHECK(role IN ('admin','warehouse_worker','truck_driver','client'))
+    role TEXT CHECK(role IN ('admin','warehouse_worker','truck_driver','client')),
+    wage REAL NOT NULL DEFAULT 45.0
 );
 
 CREATE TABLE online_users (
@@ -87,7 +89,8 @@ CREATE TABLE orders (
     price REAL NOT NULL DEFAULT 0,
     status TEXT CHECK(status IN ('Pending','Shipped','Delivered','Canceled')) DEFAULT 'Pending',
     supplier_id TEXT REFERENCES suppliers(id),
-    supplier_delivery INTEGER NOT NULL DEFAULT 0
+    supplier_delivery INTEGER NOT NULL DEFAULT 0,
+    distance_km REAL
 );
 
 CREATE TABLE orders_items (
@@ -136,3 +139,16 @@ CREATE INDEX idx_stock_warehouse ON warehouses_stock(warehouse_id);
 CREATE INDEX idx_orders_route_order ON orders_route(order_id);
 CREATE INDEX idx_orders_route_truck ON orders_route(truck_id);
 CREATE INDEX idx_cargo_truck ON trucks_cargo(truck_id);
+
+-- Geodesic distance calculation function (Haversine formula in kilometers)
+CREATE OR REPLACE FUNCTION calculate_distance_km(lat1 DOUBLE PRECISION, lon1 DOUBLE PRECISION, lat2 DOUBLE PRECISION, lon2 DOUBLE PRECISION)
+RETURNS DOUBLE PRECISION AS $$
+BEGIN
+    RETURN 6371.0 * acos(
+        LEAST(1.0, GREATEST(-1.0,
+            cos(radians(lat1)) * cos(radians(lat2)) * cos(radians(lon2) - radians(lon1)) +
+            sin(radians(lat1)) * sin(radians(lat2))
+        ))
+    );
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;

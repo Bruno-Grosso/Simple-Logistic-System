@@ -1,50 +1,22 @@
-"use client"
-
-import { useEffect, useState } from "react"
-import { Moon, Shield, Sun, Truck } from "lucide-react"
+import Link from "next/link"
+import { Shield, Truck, UserCheck, ExternalLink } from "lucide-react"
 
 import { PageHeader } from "@/components/page-header"
 import { SignOutButton } from "@/components/sign-out"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { getCurrentUserProfile } from "@/lib/auth/get-user"
 
-const USER = { name: "Rafael Mendes", role: "admin", email: "rafael.mendes@logisys.io" }
+export const dynamic = "force-dynamic"
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/)
-  return (parts[0]![0]! + (parts[parts.length - 1]?.[0] ?? "")).toUpperCase()
-}
-
-function Toggle({
-  checked,
-  onChange,
-  id,
-}: {
-  checked: boolean
-  onChange: (v: boolean) => void
-  id: string
-}) {
-  return (
-    <button
-      role="switch"
-      id={id}
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={[
-        "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-150 outline-none",
-        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-        checked ? "bg-primary" : "bg-input",
-      ].join(" ")}
-    >
-      <span
-        className={[
-          "pointer-events-none inline-block size-3.5 rounded-full bg-white shadow transition-transform duration-150",
-          checked ? "translate-x-[18px]" : "translate-x-0.5",
-        ].join(" ")}
-      />
-    </button>
-  )
+  if (parts.length >= 2) {
+    return (parts[0]!.charAt(0) + parts[parts.length - 1]!.charAt(0)).toUpperCase()
+  }
+  return name.slice(0, 2).toUpperCase()
 }
 
 function SettingRow({
@@ -82,95 +54,67 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-export default function SettingsPage() {
-  const [isLight, setIsLight] = useState(false)
-  const [emailNotifications, setEmailNotifications] = useState(true)
-  const [orderAlerts, setOrderAlerts] = useState(true)
-  const [fleetAlerts, setFleetAlerts] = useState(false)
-  const [maintenanceAlerts, setMaintenanceAlerts] = useState(true)
-
-  useEffect(() => {
-    setIsLight(document.documentElement.classList.contains("light"))
-  }, [])
-
-  function toggleTheme() {
-    const next = !isLight
-    setIsLight(next)
-    document.documentElement.classList.toggle("light", next)
-    try { localStorage.setItem("theme", next ? "light" : "dark") } catch {}
-  }
+export default async function SettingsPage() {
+  const { user, onlineSession } = await getCurrentUserProfile()
 
   return (
     <div className="flex min-h-0 flex-1 items-start justify-center p-6">
       <div className="flex w-full max-w-xl flex-col gap-6">
         <PageHeader crumbs={[{ label: "Settings" }]} />
 
-        {/* Account */}
-        <Section title="Account">
-          <div className="flex items-center gap-4 py-4">
-            <Avatar className="size-12">
-              <AvatarFallback className="bg-primary/10 font-mono text-sm font-semibold text-primary">
-                {initials(USER.name)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="font-medium text-foreground">{USER.name}</p>
-                <Badge variant="secondary" className="capitalize text-[10px]">
-                  <Shield className="mr-1 size-2.5" />
-                  {USER.role}
-                </Badge>
+        {/* Account Profile Integration */}
+        <Section title="Account Profile">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4">
+            <div className="flex items-center gap-4">
+              <Avatar className="size-12">
+                <AvatarFallback className="bg-primary/10 font-mono text-sm font-semibold text-primary">
+                  {initials(user.name)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-foreground">{user.name}</p>
+                  <Badge variant="secondary" className="capitalize text-[10px]">
+                    <Shield className="mr-1 size-2.5" />
+                    {(user.rawRole || user.role).replace("_", " ")}
+                  </Badge>
+                </div>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {user.email || `${user.id.toLowerCase()}@logisys.com`}
+                </p>
+                {user.address && (
+                  <p className="mt-0.5 text-xs text-muted-foreground truncate max-w-xs">
+                    {user.address}
+                  </p>
+                )}
               </div>
-              <p className="mt-0.5 text-sm text-muted-foreground">{USER.email}</p>
             </div>
+
+            <Button nativeButton={false} variant="outline" size="sm" render={<Link href="/profile" />} className="gap-1.5 shrink-0">
+              <UserCheck className="size-3.5" />
+              Manage Profile
+              <ExternalLink className="size-3" />
+            </Button>
           </div>
         </Section>
 
-        {/* Appearance */}
-        <Section title="Appearance">
+        {/* System & Session Information */}
+        <Section title="Active Session">
           <SettingRow
-            label="Theme"
-            description={isLight ? "Light — warm white" : "Dark — deep blue-slate"}
+            label="Session Token"
+            description={onlineSession?.session_id || "Active cookie session verified"}
           >
-            <button
-              onClick={toggleTheme}
-              aria-label="Toggle theme"
-              className="flex items-center gap-2 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {isLight ? (
-                <><Moon className="size-3.5" /> Switch to Dark</>
-              ) : (
-                <><Sun className="size-3.5" /> Switch to Light</>
-              )}
-            </button>
-          </SettingRow>
-        </Section>
-
-        {/* Notifications */}
-        <Section title="Notifications">
-          <SettingRow
-            label="Email notifications"
-            description="Receive a daily digest to your inbox"
-          >
-            <Toggle id="email-notif" checked={emailNotifications} onChange={setEmailNotifications} />
+            <Badge variant="outline" className="font-mono text-[10px]">
+              {onlineSession?.session_id ? "Online DB Logged" : "Active Cookie"}
+            </Badge>
           </SettingRow>
           <SettingRow
-            label="Order alerts"
-            description="Get notified on status changes and overdue orders"
+            label="User ID"
+            description="PostgreSQL Primary Key"
           >
-            <Toggle id="order-alerts" checked={orderAlerts} onChange={setOrderAlerts} />
-          </SettingRow>
-          <SettingRow
-            label="Fleet alerts"
-            description="Updates when trucks change state or route"
-          >
-            <Toggle id="fleet-alerts" checked={fleetAlerts} onChange={setFleetAlerts} />
-          </SettingRow>
-          <SettingRow
-            label="Maintenance alerts"
-            description="Warnings for trucks above 80% wear"
-          >
-            <Toggle id="maint-alerts" checked={maintenanceAlerts} onChange={setMaintenanceAlerts} />
+            <span className="font-mono text-xs font-semibold text-foreground">
+              {user.id}
+            </span>
           </SettingRow>
         </Section>
 
@@ -179,11 +123,13 @@ export default function SettingsPage() {
           <SettingRow label="Application">
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <Truck className="size-3.5" />
-              LogiSys
+              LogiSys Platform
             </div>
           </SettingRow>
-          <SettingRow label="Version">
-            <span className="font-mono text-xs text-muted-foreground">1.0.0-beta</span>
+          <SettingRow label="Backend API Status">
+            <span className="font-mono text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+              Connected (http://localhost:8080)
+            </span>
           </SettingRow>
           <SettingRow label="Environment">
             <Badge variant="outline" className="font-mono text-[10px]">
@@ -195,7 +141,7 @@ export default function SettingsPage() {
         {/* Session */}
         <section>
           <h2 className="mb-1 font-display text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Session
+            Session Management
           </h2>
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4">
             <div className="flex items-center justify-between gap-6 py-4">
@@ -212,7 +158,7 @@ export default function SettingsPage() {
 
         <Separator />
         <p className="pb-2 text-center text-xs text-muted-foreground">
-          LogiSys — UERJ Software Engineering Project
+          LogiSys — Simple Logistics Platform (PostgreSQL Backend Integrated)
         </p>
       </div>
     </div>

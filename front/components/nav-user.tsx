@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ChevronsUpDown, Settings } from "lucide-react"
+import { ChevronsUpDown, Settings, UserCheck } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -19,11 +19,12 @@ import {
 import { SignOutMenuItem } from "@/components/sign-out"
 
 interface NavUserProps {
-  user: { name: string; role: string }
+  user?: { name: string; role: string; id?: string; email?: string }
 }
 
-export function NavUser({ user }: NavUserProps) {
+export function NavUser({ user: initialUser }: NavUserProps) {
   const { isMobile } = useSidebar()
+  const user = initialUser || { name: "Alice Admin", role: "admin" }
   const initials = user.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
 
   return (
@@ -42,7 +43,7 @@ export function NavUser({ user }: NavUserProps) {
             </Avatar>
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">{user.name}</span>
-              <span className="truncate text-xs text-muted-foreground capitalize">{user.role}</span>
+              <span className="truncate text-xs text-muted-foreground capitalize">{user.role.replace("_", " ")}</span>
             </div>
             <ChevronsUpDown className="ml-auto size-4" />
           </DropdownMenuTrigger>
@@ -52,6 +53,10 @@ export function NavUser({ user }: NavUserProps) {
             align="end"
             sideOffset={4}
           >
+            <DropdownMenuItem render={<Link href="/profile" />}>
+              <UserCheck className="mr-2 size-4" />
+              Profile & Account
+            </DropdownMenuItem>
             <DropdownMenuItem render={<Link href="/settings" />}>
               <Settings className="mr-2 size-4" />
               Settings

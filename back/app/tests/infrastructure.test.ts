@@ -1,86 +1,139 @@
 import { test, expect } from "vitest";
-
-const BASE_URL = "http://localhost:8080";
+import { testFetch } from "./test-utils";
 
 test("Infrastructure: GET /warehouses returns all warehouses", async () => {
-  const res = await fetch(`${BASE_URL}/warehouses`);
+  const res = await testFetch("/warehouses");
   expect(res.status).toBe(200);
-  const data = await res.json() as any[];
+  const data = (await res.json()) as any[];
   expect(data.length).toBeGreaterThanOrEqual(3);
 });
 
-test("Infrastructure: GET /warehouses/:id returns Chicago Hub", async () => {
-  const res = await fetch(`${BASE_URL}/warehouses/WH-003`);
+test("Infrastructure: GET /warehouses/:id returns warehouse WH-003", async () => {
+  const res = await testFetch("/warehouses/WH-003");
   expect(res.status).toBe(200);
-  const data = await res.json() as any[];
+  const data = (await res.json()) as any[];
   expect(data[0].id).toBe("WH-003");
   expect(data[0].has_refrigeration).toBe(1);
 });
 
 test("Infrastructure: GET /warehouses/:id/stock", async () => {
-  const res = await fetch(`${BASE_URL}/warehouses/WH-001/stock`);
+  const res = await testFetch("/warehouses/WH-001/stock");
   expect(res.status).toBe(200);
-  const data = await res.json() as any[];
+  const data = (await res.json()) as any[];
   expect(Array.isArray(data)).toBe(true);
   // PROD-005 and PROD-001 are in WH-001
-  expect(data.some(s => s.product_id === "PROD-005")).toBe(true);
-  expect(data.find(s => s.product_id === "PROD-005").quantity).toBe(10);
+  expect(data.some((s) => s.product_id === "PROD-005")).toBe(true);
+  expect(data.find((s) => s.product_id === "PROD-005").quantity).toBe(10);
 });
 
 test("Infrastructure: GET /trucks returns all trucks", async () => {
-  const res = await fetch(`${BASE_URL}/trucks`);
+  const res = await testFetch("/trucks");
   expect(res.status).toBe(200);
-  const data = await res.json() as any[];
+  const data = (await res.json()) as any[];
   expect(data.length).toBeGreaterThanOrEqual(4);
 });
 
-test("Infrastructure: GET /trucks/:id returns Volvo FH16", async () => {
-  const res = await fetch(`${BASE_URL}/trucks/TRK-001`);
+test("Infrastructure: GET /trucks/:id returns the seeded fleet truck", async () => {
+  const res = await testFetch("/trucks/TRK-001");
   expect(res.status).toBe(200);
-  const data = await res.json() as any[];
-  expect(data[0].model).toBe("Volvo FH16");
+  const data = (await res.json()) as any[];
+  expect(data[0].model).toBe("Caminhão Serrano 01");
   expect(data[0].current_warehouse_id).toBe("WH-001");
 });
 
-test("Infrastructure: GET /trucks?model=Scania", async () => {
-  const res = await fetch(`${BASE_URL}/trucks?model=Scania R500`);
+test("Infrastructure: GET /trucks filters by model", async () => {
+  const res = await testFetch("/trucks?model=Caminh%C3%A3o%20Serrano%2002");
   expect(res.status).toBe(200);
-  const data = await res.json() as any[];
+  const data = (await res.json()) as any[];
   expect(data[0].id).toBe("TRK-002");
   expect(data[0].is_delivering).toBe(1);
 });
 
 test("Infrastructure: GET /warehouses/ (empty ID) returns 400", async () => {
-  const res = await fetch(`${BASE_URL}/warehouses/`);
+  const res = await testFetch("/warehouses/");
   expect(res.status).toBe(400);
   const text = await res.text();
   expect(text).toBe("Warehouse ID required");
 });
 
 test("Infrastructure: GET /trucks/ (empty ID) returns 400", async () => {
-  const res = await fetch(`${BASE_URL}/trucks/`);
+  const res = await testFetch("/trucks/");
   expect(res.status).toBe(400);
   const text = await res.text();
   expect(text).toBe("Truck ID required");
 });
 
 test("Infrastructure: GET /warehouses/INVALID returns 404", async () => {
-  const res = await fetch(`${BASE_URL}/warehouses/INVALID-ID`);
+  const res = await testFetch("/warehouses/INVALID-ID");
   expect(res.status).toBe(404);
   const text = await res.text();
   expect(text).toBe("Warehouse not found");
 });
 
 test("Infrastructure: GET /warehouses/INVALID/stock returns empty", async () => {
-  const res = await fetch(`${BASE_URL}/warehouses/INVALID-ID/stock`);
+  const res = await testFetch("/warehouses/INVALID-ID/stock");
   expect(res.status).toBe(200);
-  const data = await res.json() as any[];
+  const data = (await res.json()) as any[];
   expect(data).toHaveLength(0);
 });
 
 test("Infrastructure: GET /trucks model filtering with no results", async () => {
-  const res = await fetch(`${BASE_URL}/trucks?model=NonExistentModel`);
+  const res = await testFetch("/trucks?model=NonExistentModel");
   expect(res.status).toBe(200);
-  const data = await res.json() as any[];
+  const data = (await res.json()) as any[];
   expect(data).toHaveLength(0);
+});
+
+test("Infrastructure: GET /warehouses/:id/parking returns parking capacity and status", async () => {
+  const res = await testFetch("/warehouses/WH-001/parking");
+  expect(res.status).toBe(200);
+  const data = await res.json() as any;
+  expect(data.warehouse_id).toBe("WH-001");
+  expect(data.truck_capacity).toBeGreaterThanOrEqual(5);
+  expect(typeof data.parked_count).toBe("number");
+  expect(typeof data.available_spots).toBe("number");
+  expect(typeof data.is_full).toBe("boolean");
+});
+
+test("Infrastructure: POST /warehouses/:id/check-parking returns allowed status", async () => {
+  const res = await testFetch("/warehouses/WH-001/check-parking", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ truck_id: "TRK-001" }),
+  });
+  expect(res.status).toBe(200);
+  const data = await res.json() as any;
+  expect(data.allowed).toBe(true);
+});
+
+test("Infrastructure: PUT /warehouses/:id updates truck_capacity", async () => {
+  const res = await testFetch("/warehouses/WH-001", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: '{"latitude":-22.3842,"longitude":-43.1311,"label":"Petrópolis Hub (Itaipava)"}',
+      size: '{"length":100,"width":100,"height":10}',
+      volume_max: 100000,
+      has_refrigeration: 1,
+      fuel_price: 5.89,
+      truck_capacity: 6,
+    }),
+  });
+  expect(res.status).toBe(200);
+  const data = await res.json() as any;
+  expect(data.warehouse.truck_capacity).toBe(6);
+
+  // Restore back to 5
+  await testFetch("/warehouses/WH-001", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: '{"latitude":-22.3842,"longitude":-43.1311,"label":"Petrópolis Hub (Itaipava)"}',
+      size: '{"length":100,"width":100,"height":10}',
+      volume_max: 100000,
+      has_refrigeration: 1,
+      fuel_price: 5.89,
+      truck_capacity: 5,
+    }),
+  });
 });
