@@ -21,8 +21,8 @@ All user credentials are seeded from [`back/db/fill_mock_data.sql`](file:///home
 | `USR-005` | **Eve Client** | `eve@logisys.com` / `USR-005` | `evepass` | `client` | Rua Monte Líbano, Centro, Nova Friburgo - RJ |
 | `USR-006` | **Frank Driver** | `frank@logisys.com` / `USR-006` | `frank123` | `truck_driver` | Estrada Terê-Fri, Km 12, Teresópolis - RJ |
 | `USR-007` | **Grace Worker** | `grace@logisys.com` / `USR-007` | `gracepass` | `warehouse_worker` | Rua General Osório, Centro, Nova Friburgo - RJ |
-| `USR-008` | **Henry Client** | `henry@logisys.com` / `USR-008` | `henry789` | `client` | Rua Visconde de Uruguai, Cachoeiras de Macacu - RJ |
-| `USR-009` | **Ivy Client** | `ivy@logisys.com` / `USR-009` | `ivypass` | `client` | Av. Dedo de Deus, Guapimirim - RJ |
+| `USR-008` | **Henry Client** | `henry@logisys.com` / `USR-008` | `henry789` | `client` | Rua Dr. Moacyr Freijanes, Bom Jardim - RJ |
+| `USR-009` | **Ivy Client** | `ivy@logisys.com` / `USR-009` | `ivypass` | `client` | Av. Alberto Torres, Teresópolis - RJ |
 | `USR-010` | **Jack Worker** | `jack@logisys.com` / `USR-010` | `jackpass` | `warehouse_worker` | Rua Cel. Veiga, Petrópolis - RJ |
 
 ---
@@ -112,7 +112,7 @@ All user credentials are seeded from [`back/db/fill_mock_data.sql`](file:///home
   ```json
   {
     "id": "TRK-001",
-    "model": "Volvo FH16",
+    "model": "Caminhão Serrano 01",
     "speed": 85.0,
     "is_valid": 1,
     "is_delivering": 0,

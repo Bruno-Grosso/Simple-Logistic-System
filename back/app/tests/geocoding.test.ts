@@ -6,15 +6,15 @@ describe("Geocoding & Reverse Geocoding (OpenStreetMap Nominatim)", () => {
   // 1. Direct function tests (converterEndereco)
   describe("converterEndereco (Forward Geocoding)", () => {
     test("converts valid address to latitude and longitude coordinates", async () => {
-      const res = await converterEndereco("Avenida Paulista, 1000, São Paulo, Brasil");
+      const res = await converterEndereco("Rua do Imperador, Petrópolis, RJ");
       expect(typeof res).toBe("object");
       if (typeof res === "object") {
         expect(res).toHaveProperty("latitude");
         expect(res).toHaveProperty("longitude");
         expect(res).toHaveProperty("endereco_completo");
-        expect(Number(res.latitude)).toBeCloseTo(-23.564, 1);
-        expect(Number(res.longitude)).toBeCloseTo(-46.651, 1);
-        expect(res.endereco_completo.toLowerCase()).toContain("paulista");
+        expect(Number(res.latitude)).toBeCloseTo(-22.509, 1);
+        expect(Number(res.longitude)).toBeCloseTo(-43.174, 1);
+        expect(res.endereco_completo.toLowerCase()).toContain("petrópolis");
       }
     });
 
@@ -44,14 +44,14 @@ describe("Geocoding & Reverse Geocoding (OpenStreetMap Nominatim)", () => {
   // 2. Direct function tests (converterCoordenadas)
   describe("converterCoordenadas (Reverse Geocoding)", () => {
     test("converts latitude and longitude back to an address", async () => {
-      // Coords for Avenida Paulista
-      const res = await converterCoordenadas("-23.5648865", "-46.6519180");
+      // Coords for Rua do Imperador, Petrópolis.
+      const res = await converterCoordenadas("-22.5094802", "-43.1741191");
       expect(typeof res).toBe("object");
       if (typeof res === "object") {
         expect(res).toHaveProperty("endereco_completo");
-        expect(res.endereco_completo.toLowerCase()).toContain("paulista");
-        expect(res.latitude).toBe("-23.5648865");
-        expect(res.longitude).toBe("-46.6519180");
+        expect(res.endereco_completo.toLowerCase()).toContain("petrópolis");
+        expect(res.latitude).toBe("-22.5094802");
+        expect(res.longitude).toBe("-43.1741191");
       }
     });
 
@@ -72,7 +72,7 @@ describe("Geocoding & Reverse Geocoding (OpenStreetMap Nominatim)", () => {
   // 3. HTTP Endpoint Integration Tests (GET /geocode & GET /reverse-geocode)
   describe("HTTP Endpoints Integration", () => {
     test("GET /geocode: returns coordinates for given address query", async () => {
-      const res = await testFetch("/geocode?address=Avenida%20Paulista,%201000,%20S%C3%A3o%20Paulo");
+      const res = await testFetch("/geocode?address=Rua%20do%20Imperador,%20Petr%C3%B3polis,%20RJ");
       expect(res.status).toBe(200);
       const data = (await res.json()) as any;
       expect(data.success).toBe(true);

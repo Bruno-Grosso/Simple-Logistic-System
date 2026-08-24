@@ -140,7 +140,7 @@
 - **model (TEXT)**:  
   This field stores the truck model or name.  
   **Example of activity**: If you want to check vehicle specifications or compare models, retrieve this field.  
-  **Example value**: `"Volvo FH16"`
+  **Example value**: `"Caminhão Serrano 01"`
 
 - **speed (REAL)**:  
   This field stores the average speed of the truck in km/h.  

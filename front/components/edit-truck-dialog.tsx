@@ -123,7 +123,7 @@ export function EditTruckDialog({ truck, warehouses }: EditTruckDialogProps) {
                   id="truck-model"
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
-                  placeholder="e.g. Volvo FH16"
+                  placeholder="e.g. Caminhão Serrano 01"
                   required
                 />
               </div>

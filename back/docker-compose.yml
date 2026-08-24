@@ -41,4 +41,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  # Changing the name creates a fresh development database so PostgreSQL runs
+  # the current schema and Região Serrana mock-data scripts on first startup.
   db:
+    name: simple-logistic-system-seed-v2

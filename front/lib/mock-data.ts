@@ -229,16 +229,16 @@ export const SUPPLIERS: Supplier[] = [
   {
     id: "SUP-006",
     name: "Água Mineral Natural da Serra dos Órgãos",
-    address: "Estrada da Caneca Fina, 800, Guapimirim - RJ",
-    latitude: -22.5367,
-    longitude: -42.9819,
+    address: "Estrada Terê-Fri, Km 8, Teresópolis - RJ",
+    latitude: -22.4123,
+    longitude: -42.9656,
   },
   {
     id: "SUP-007",
-    name: "Laticínios Bela Vista & Queijos de Cordeiro",
-    address: "Av. Raul Veiga, 520, Centro, Cordeiro - RJ",
-    latitude: -21.9861,
-    longitude: -42.3611,
+    name: "Laticínios Bela Vista de Nova Friburgo",
+    address: "Rua General Osório, 520, Centro, Nova Friburgo - RJ",
+    latitude: -22.2819,
+    longitude: -42.5311,
   },
   {
     id: "SUP-008",
@@ -256,10 +256,10 @@ export const SUPPLIERS: Supplier[] = [
   },
   {
     id: "SUP-010",
-    name: "Café Especial das Alturas de Cantagalo",
-    address: "Fazenda Santa Rita, Estrada de Euclidelândia, Cantagalo - RJ",
-    latitude: -21.975,
-    longitude: -42.37,
+    name: "Café Especial das Alturas de Lumiar",
+    address: "Estrada de Lumiar, Km 12, Nova Friburgo - RJ",
+    latitude: -22.355,
+    longitude: -42.321,
   },
 ];
 
@@ -300,7 +300,7 @@ export const DEPOSITS: Deposit[] = [
   },
   {
     id: "WH-004",
-    location: "Cachoeiras de Macacu Valley Cross-Dock (Lat: -22.4633, Lon: -42.6528)",
+    location: "Bom Jardim Valley Cross-Dock (Lat: -22.1500, Lon: -42.4167)",
     size: '{"length":70,"width":60,"height":9}',
     volume_actual: 12.0,
     volume_max: 45000.0,
@@ -311,7 +311,7 @@ export const DEPOSITS: Deposit[] = [
   },
   {
     id: "WH-005",
-    location: "Guapimirim Foothills Hub (Lat: -22.5367, Lon: -42.9819)",
+    location: "Teresópolis Foothills Hub (Lat: -22.4123, Lon: -42.9656)",
     size: '{"length":65,"width":55,"height":9}',
     volume_actual: 9.4,
     volume_max: 40000.0,
@@ -333,7 +333,7 @@ export const DEPOSITS: Deposit[] = [
   },
   {
     id: "WH-007",
-    location: "Cordeiro & Cantagalo Central Logistics (Lat: -21.9861, Lon: -42.3611)",
+    location: "Nova Friburgo Central Logistics (Lat: -22.2819, Lon: -42.5311)",
     size: '{"length":80,"width":65,"height":10}',
     volume_actual: 15.6,
     volume_max: 55000.0,
@@ -437,7 +437,7 @@ export const USERS: User[] = [
     email: "henry@logisys.com",
     role: "client",
     rawRole: "client",
-    address: "Rua Visconde de Uruguai, Cachoeiras de Macacu - RJ",
+    address: "Rua Dr. Moacyr Freijanes, Bom Jardim - RJ",
     wage: 0.0,
   },
   {
@@ -446,7 +446,7 @@ export const USERS: User[] = [
     email: "ivy@logisys.com",
     role: "client",
     rawRole: "client",
-    address: "Av. Dedo de Deus, Guapimirim - RJ",
+    address: "Av. Alberto Torres, Teresópolis - RJ",
     wage: 0.0,
   },
   {
@@ -494,7 +494,7 @@ export const USERS: User[] = [
     email: "nelson@logisys.com",
     role: "client",
     rawRole: "client",
-    address: "Av. Raul Veiga, Centro, Cordeiro - RJ",
+    address: "Rua General Osório, Centro, Nova Friburgo - RJ",
     wage: 0.0,
   },
   {
@@ -514,7 +514,7 @@ export const USERS: User[] = [
     role: "worker",
     rawRole: "warehouse_worker",
     work_position: "Warehouse Worker",
-    address: "Rodovia RJ-116, Km 35, Cachoeiras de Macacu - RJ",
+    address: "Rodovia RJ-116, Km 35, Bom Jardim - RJ",
     wage: 41.0,
   },
   {
@@ -532,7 +532,7 @@ export const USERS: User[] = [
     email: "sergio@logisys.com",
     role: "client",
     rawRole: "client",
-    address: "Praça Miguel de Carvalho, Centro, Cantagalo - RJ",
+    address: "Praça do Suspiro, Centro, Nova Friburgo - RJ",
     wage: 0.0,
   },
   {
@@ -542,7 +542,7 @@ export const USERS: User[] = [
     role: "worker",
     rawRole: "truck_driver",
     work_position: "Truck Driver",
-    address: "Estrada Bananal, Guapimirim - RJ",
+    address: "Estrada Terê-Fri, Km 20, Teresópolis - RJ",
     wage: 51.0,
   },
   {
@@ -552,7 +552,7 @@ export const USERS: User[] = [
     role: "worker",
     rawRole: "warehouse_worker",
     work_position: "Warehouse Worker",
-    address: "Rua Pereira Sobrinho, Cordeiro - RJ",
+    address: "Rua Monte Líbano, Nova Friburgo - RJ",
     wage: 40.0,
   },
 ];
@@ -564,7 +564,7 @@ export const getUserById = (id: string): User | undefined =>
 export const TRUCKS: Truck[] = [
   {
     id: "TRK-001",
-    model: "Volvo FH16 540",
+    model: "Caminhão Serrano 01",
     size: '{"length":13.6,"width":2.5,"height":2.7}',
     volume_actual: 0.0,
     volume_max: 90.0,
@@ -584,7 +584,7 @@ export const TRUCKS: Truck[] = [
   },
   {
     id: "TRK-002",
-    model: "Scania R500 V8",
+    model: "Caminhão Serrano 02",
     size: '{"length":13.6,"width":2.5,"height":2.7}',
     volume_actual: 0.036,
     volume_max: 90.0,
@@ -606,7 +606,7 @@ export const TRUCKS: Truck[] = [
   },
   {
     id: "TRK-003",
-    model: "MAN TGX 28.480",
+    model: "Caminhão Serrano 03",
     size: '{"length":13.6,"width":2.5,"height":2.7}',
     volume_actual: 0.0,
     volume_max: 90.0,
@@ -626,7 +626,7 @@ export const TRUCKS: Truck[] = [
   },
   {
     id: "TRK-004",
-    model: "Iveco S-Way 480",
+    model: "Caminhão Serrano 04",
     size: '{"length":12,"width":2.4,"height":2.5}',
     volume_actual: 0.0,
     volume_max: 75.0,
@@ -646,7 +646,7 @@ export const TRUCKS: Truck[] = [
   },
   {
     id: "TRK-005",
-    model: "Mercedes-Benz Actros 2651",
+    model: "Caminhão Serrano 05",
     size: '{"length":14,"width":2.6,"height":2.8}',
     volume_actual: 0.12,
     volume_max: 95.0,
@@ -668,7 +668,7 @@ export const TRUCKS: Truck[] = [
   },
   {
     id: "TRK-006",
-    model: "Volkswagen Delivery 11.180",
+    model: "Caminhão Serrano 06",
     size: '{"length":8.5,"width":2.3,"height":2.4}',
     volume_actual: 0.0,
     volume_max: 45.0,
@@ -688,7 +688,7 @@ export const TRUCKS: Truck[] = [
   },
   {
     id: "TRK-007",
-    model: "DAF XF 530 Super Space",
+    model: "Caminhão Serrano 07",
     size: '{"length":13.8,"width":2.5,"height":2.7}',
     volume_actual: 0.0,
     volume_max: 92.0,
@@ -708,7 +708,7 @@ export const TRUCKS: Truck[] = [
   },
   {
     id: "TRK-008",
-    model: "Scania P360 Frigorífico",
+    model: "Caminhão Serrano 08",
     size: '{"length":10.5,"width":2.5,"height":2.6}',
     volume_actual: 0.0,
     volume_max: 60.0,
@@ -768,7 +768,7 @@ export const ORDERS: Order[] = [
   {
     id: "ORD-004",
     client_id: "USR-008",
-    final_destination: "Rua Visconde de Uruguai, Cachoeiras de Macacu - RJ",
+    final_destination: "Rua Dr. Moacyr Freijanes, Bom Jardim - RJ",
     time_limit: "2026-04-05",
     price: 2400.0,
     status: "Pending",
@@ -779,7 +779,7 @@ export const ORDERS: Order[] = [
   {
     id: "ORD-005",
     client_id: "USR-009",
-    final_destination: "Av. Dedo de Deus, Guapimirim - RJ",
+    final_destination: "Av. Alberto Torres, Teresópolis - RJ",
     time_limit: "2026-04-02",
     price: 120.0,
     status: "Cancelled",
@@ -800,7 +800,7 @@ export const ORDERS: Order[] = [
   {
     id: "ORD-007",
     client_id: "USR-014",
-    final_destination: "Av. Raul Veiga, Centro, Cordeiro - RJ",
+    final_destination: "Rua General Osório, Centro, Nova Friburgo - RJ",
     time_limit: "2026-04-12",
     price: 3200.0,
     status: "Delivered",
@@ -822,7 +822,7 @@ export const ORDERS: Order[] = [
   {
     id: "ORD-009",
     client_id: "USR-018",
-    final_destination: "Praça Miguel de Carvalho, Centro, Cantagalo - RJ",
+    final_destination: "Praça do Suspiro, Centro, Nova Friburgo - RJ",
     time_limit: "2026-04-15",
     price: 1450.0,
     status: "Delivered",
@@ -844,7 +844,7 @@ export const ORDERS: Order[] = [
   {
     id: "ORD-011",
     client_id: "USR-008",
-    final_destination: "Papucaia, Zona Rural, Cachoeiras de Macacu - RJ",
+    final_destination: "Zona Rural, Bom Jardim - RJ",
     time_limit: "2026-04-20",
     price: 890.0,
     status: "Delivered",

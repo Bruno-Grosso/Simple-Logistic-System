@@ -104,9 +104,9 @@ describe("Backend Unit Tests - Controller & Model Logic", () => {
     });
 
     test("trucks.byModel: filters fleet trucks by model", async () => {
-      const res = await controller.trucks.byModel("Volvo FH16");
+      const res = await controller.trucks.byModel("Caminhão Serrano 01");
       expect(res.length).toBeGreaterThanOrEqual(1);
-      expect(res[0].model).toBe("Volvo FH16");
+      expect(res[0].model).toBe("Caminhão Serrano 01");
     });
   });
 

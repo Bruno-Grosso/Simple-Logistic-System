@@ -1,11 +1,39 @@
 import { pg_conn } from "./model";
 import * as controller from "./controller";
+import { converterCoordenadas, converterEndereco } from "./geocoding";
 import { handleRoutes as prototypeRoutes } from "./routes";
 
 const innerFetchHandler = async (req: Request) => {
   const url = new URL(req.url);
   const path = url.pathname;
   const method = req.method;
+
+  if (path === "/geocode" && method === "GET") {
+    const address = url.searchParams.get("address");
+    if (!address?.trim()) {
+      return Response.json({ success: false, error: "Address parameter is required" }, { status: 400 });
+    }
+
+    const result = await converterEndereco(address);
+    if (typeof result === "string") {
+      return Response.json({ success: false, error: result }, { status: 502 });
+    }
+    return Response.json({ success: true, ...result });
+  }
+
+  if (path === "/reverse-geocode" && method === "GET") {
+    const lat = url.searchParams.get("lat");
+    const lon = url.searchParams.get("lon");
+    if (!lat?.trim() || !lon?.trim()) {
+      return Response.json({ success: false, error: "Latitude and longitude parameters are required" }, { status: 400 });
+    }
+
+    const result = await converterCoordenadas(lat, lon);
+    if (typeof result === "string") {
+      return Response.json({ success: false, error: result }, { status: 502 });
+    }
+    return Response.json({ success: true, ...result });
+  }
 
   // 0. Maintain prototype and original routes
   if (path === "/status") {

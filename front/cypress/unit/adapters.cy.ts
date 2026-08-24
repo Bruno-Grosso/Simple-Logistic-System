@@ -61,7 +61,7 @@ describe("Unit Tests - Data Adapters (lib/adapters.ts)", () => {
     it("should map truck status, wear percentage and fuel capacities correctly", () => {
       const raw = {
         id: 5,
-        model: "Volvo FH 540",
+        model: "Caminhão Serrano 01",
         is_delivering: 1,
         volume_current: 65,
         volume_max: 90,
@@ -73,7 +73,7 @@ describe("Unit Tests - Data Adapters (lib/adapters.ts)", () => {
       }
       const adapted = adaptTruck(raw)
       expect(adapted.id).to.equal("5")
-      expect(adapted.model).to.equal("Volvo FH 540")
+      expect(adapted.model).to.equal("Caminhão Serrano 01")
       expect(adapted.is_delivering).to.equal(true)
       expect(adapted.is_traveling).to.equal(true)
       expect(adapted.wear_percentage).to.equal(30)
@@ -144,14 +144,14 @@ describe("Unit Tests - Data Adapters (lib/adapters.ts)", () => {
         id: "ORD-500",
         status: "Shipped",
         price: 1250.75,
-        final_destination: { label: "Rio de Janeiro Port" },
+        final_destination: { label: "Petrópolis Distribution Center" },
         client_id: "USR-002",
       }
       const adapted = adaptOrder(raw)
       expect(adapted.id).to.equal("ORD-500")
       expect(adapted.status).to.equal("Shipped")
       expect(adapted.price).to.equal(1250.75)
-      expect(adapted.final_destination).to.equal("Rio de Janeiro Port")
+      expect(adapted.final_destination).to.equal("Petrópolis Distribution Center")
     })
 
     it("should handle status spelling variants like Cancelled", () => {
@@ -287,5 +287,4 @@ describe("Unit Tests - Data Adapters (lib/adapters.ts)", () => {
     })
   })
 })
-
 

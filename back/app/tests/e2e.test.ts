@@ -1,7 +1,24 @@
-import { test, expect, describe } from "vitest";
+import { afterEach, test, expect, describe } from "vitest";
+import { pg_conn } from "../src/model";
 import { testFetch } from "./test-utils";
 
 describe("Backend E2E Workflow Tests - Full Lifecycle Scenarios", () => {
+  afterEach(async () => {
+    // Keep the Compose database identical to its mock seed after each run.
+    await pg_conn`DELETE FROM freight_cost WHERE order_id LIKE 'ORD-E2E-%'`;
+    await pg_conn`DELETE FROM orders_items WHERE order_id LIKE 'ORD-E2E-%'`;
+    await pg_conn`DELETE FROM orders_route WHERE order_id LIKE 'ORD-E2E-%'`;
+    await pg_conn`DELETE FROM supplies_route WHERE order_id LIKE 'ORD-E2E-%'`;
+    await pg_conn`DELETE FROM orders WHERE id LIKE 'ORD-E2E-%'`;
+    await pg_conn`DELETE FROM online_users WHERE user_id LIKE 'USR-E2E-%'`;
+    await pg_conn`DELETE FROM users WHERE id LIKE 'USR-E2E-%'`;
+    await pg_conn`
+      UPDATE trucks
+      SET model = 'Caminhão Serrano 01', speed = 85.0, fuel_current = 450.0
+      WHERE id = 'TRK-001'
+    `;
+  });
+
   // Workflow 1: Authentication, Session Tracking & Profile Updates
   test("E2E Workflow 1: Client Registration -> Login -> Session Tracking -> Profile Update", async () => {
     const e2eUserId = `USR-E2E-${Date.now()}`;
@@ -120,7 +137,7 @@ describe("Backend E2E Workflow Tests - Full Lifecycle Scenarios", () => {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "Volvo FH16",
+        model: "Caminhão Serrano 01",
         speed: 88.0,
         is_valid: 1,
         size: { length: 13.6, width: 2.5, height: 2.7 },

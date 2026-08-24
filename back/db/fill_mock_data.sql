@@ -33,16 +33,16 @@ INSERT INTO users (id, name, password, address, role, wage) VALUES
 ('USR-005', 'Eve Client', 'evepass', '{"address": "Rua Monte Líbano, Centro, Nova Friburgo - RJ"}', 'client', 0.0),
 ('USR-006', 'Frank Driver', 'frank123', '{"address": "Estrada Terê-Fri, Km 12, Teresópolis - RJ"}', 'truck_driver', 50.0),
 ('USR-007', 'Grace Worker', 'gracepass', '{"address": "Rua General Osório, Centro, Nova Friburgo - RJ"}', 'warehouse_worker', 40.0),
-('USR-008', 'Henry Client', 'henry789', '{"address": "Rua Visconde de Uruguai, Cachoeiras de Macacu - RJ"}', 'client', 0.0),
-('USR-009', 'Ivy Client', 'ivypass', '{"address": "Av. Dedo de Deus, Guapimirim - RJ"}', 'client', 0.0),
+('USR-008', 'Henry Client', 'henry789', '{"address": "Rua Dr. Moacyr Freijanes, Bom Jardim - RJ"}', 'client', 0.0),
+('USR-009', 'Ivy Client', 'ivypass', '{"address": "Av. Alberto Torres, Teresópolis - RJ"}', 'client', 0.0),
 ('USR-010', 'Jack Worker', 'jackpass', '{"address": "Rua Cel. Veiga, Petrópolis - RJ"}', 'warehouse_worker', 38.0);
 
 -- 5. Trucks (4 entries)
 INSERT INTO trucks (id, model, speed, is_valid, is_delivering, size, volume_current, volume_max, weight_current, weight_max, has_refrigeration, current_warehouse_id, fuel_capacity, fuel_current, fuel_consumption, truck_maintenance) VALUES
-('TRK-001', 'Volvo FH16', 85.0, 1, 0, '{"length":13.6,"width":2.5,"height":2.7}', 0.0, 90.0, 0.0, 25000.0, 1, 'WH-001', 500.0, 450.0, 0.3, 2),
-('TRK-002', 'Scania R500', 80.0, 1, 1, '{"length":13.6,"width":2.5,"height":2.7}', 0.036, 90.0, 2.5, 25000.0, 0, NULL, 600.0, 300.0, 0.35, 1),
-('TRK-003', 'MAN TGX', 82.0, 1, 0, '{"length":13.6,"width":2.5,"height":2.7}', 0.0, 90.0, 0.0, 25000.0, 1, 'WH-003', 550.0, 500.0, 0.32, 0),
-('TRK-004', 'Iveco S-Way', 75.0, 1, 0, '{"length":12,"width":2.4,"height":2.5}', 0.0, 72.0, 0.0, 18000.0, 0, 'WH-002', 400.0, 380.0, 0.28, 1);
+('TRK-001', 'Caminhão Serrano 01', 85.0, 1, 0, '{"length":13.6,"width":2.5,"height":2.7}', 0.0, 90.0, 0.0, 25000.0, 1, 'WH-001', 500.0, 450.0, 0.3, 2),
+('TRK-002', 'Caminhão Serrano 02', 80.0, 1, 1, '{"length":13.6,"width":2.5,"height":2.7}', 0.036, 90.0, 2.5, 25000.0, 0, NULL, 600.0, 300.0, 0.35, 1),
+('TRK-003', 'Caminhão Serrano 03', 82.0, 1, 0, '{"length":13.6,"width":2.5,"height":2.7}', 0.0, 90.0, 0.0, 25000.0, 1, 'WH-003', 550.0, 500.0, 0.32, 0),
+('TRK-004', 'Caminhão Serrano 04', 75.0, 1, 0, '{"length":12,"width":2.4,"height":2.5}', 0.0, 72.0, 0.0, 18000.0, 0, 'WH-002', 400.0, 380.0, 0.28, 1);
 
 UPDATE trucks SET origin_warehouse_id = 'WH-001', destination_warehouse_id = 'WH-002', estimated_time = '2026-03-26 14:00:00' WHERE id = 'TRK-002';
 
@@ -59,8 +59,8 @@ INSERT INTO orders (id, client_id, final_destination, time_limit, price, status,
 ('ORD-001', 'USR-004', 'Av. Reta da Várzea, Várzea, Teresópolis - RJ', '2026-03-30', 50.00, 'Pending', 'SUP-002', 0),
 ('ORD-002', 'USR-005', 'Rua Monte Líbano, Centro, Nova Friburgo - RJ', '2026-03-28', 950.00, 'Shipped', 'SUP-001', 1),
 ('ORD-003', 'USR-004', 'Av. Reta da Várzea, Várzea, Teresópolis - RJ', '2026-03-20', 15.00, 'Delivered', NULL, 1),
-('ORD-004', 'USR-008', 'Rua Visconde de Uruguai, Cachoeiras de Macacu - RJ', '2026-04-05', 2400.00, 'Pending', 'SUP-003', 0),
-('ORD-005', 'USR-009', 'Av. Dedo de Deus, Guapimirim - RJ', '2026-04-02', 120.00, 'Canceled', NULL, 1);
+('ORD-004', 'USR-008', 'Rua Dr. Moacyr Freijanes, Bom Jardim - RJ', '2026-04-05', 2400.00, 'Pending', 'SUP-003', 0),
+('ORD-005', 'USR-009', 'Av. Alberto Torres, Teresópolis - RJ', '2026-04-02', 120.00, 'Canceled', NULL, 1);
 
 -- 8. Orders Items (8 entries)
 INSERT INTO orders_items (order_id, product_id, quantity) VALUES

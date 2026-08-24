@@ -61,8 +61,7 @@ export function parseLocationCoords(raw: any, defaultLat = -22.3842, defaultLon 
   if (str.includes("Petrópolis") || str.includes("Itaipava")) return { lat: -22.3842, lon: -43.1311 };
   if (str.includes("Teresópolis") || str.includes("Várzea") || str.includes("Alto")) return { lat: -22.4123, lon: -42.9656 };
   if (str.includes("Friburgo") || str.includes("Olaria")) return { lat: -22.2819, lon: -42.5311 };
-  if (str.includes("Cachoeiras")) return { lat: -22.4633, lon: -42.6528 };
-  if (str.includes("Guapimirim")) return { lat: -22.5367, lon: -42.9819 };
+  if (str.includes("Bom Jardim")) return { lat: -22.1500, lon: -42.4167 };
 
   return { lat: defaultLat, lon: defaultLon };
 }
@@ -906,5 +905,4 @@ export const reports = {
     };
   },
 };
-
 

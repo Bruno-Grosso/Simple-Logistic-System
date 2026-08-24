@@ -112,10 +112,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
       const loc = w.location || ""
       if (dest.includes("Teresópolis") && loc.includes("Teresópolis")) return true
       if (dest.includes("Friburgo") && loc.includes("Friburgo")) return true
-      if (dest.includes("Cachoeiras") && loc.includes("Cachoeiras")) return true
-      if (dest.includes("Guapimirim") && loc.includes("Guapimirim")) return true
       if (dest.includes("São José") && loc.includes("São José")) return true
-      if ((dest.includes("Cordeiro") || dest.includes("Cantagalo")) && (loc.includes("Cordeiro") || loc.includes("Cantagalo"))) return true
       if (dest.includes("Bom Jardim") && loc.includes("Bom Jardim")) return true
       if (dest.includes("Petrópolis") && loc.includes("Petrópolis")) return true
       return false

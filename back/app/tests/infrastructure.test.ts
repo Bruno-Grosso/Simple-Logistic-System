@@ -33,16 +33,16 @@ test("Infrastructure: GET /trucks returns all trucks", async () => {
   expect(data.length).toBeGreaterThanOrEqual(4);
 });
 
-test("Infrastructure: GET /trucks/:id returns Volvo FH16", async () => {
+test("Infrastructure: GET /trucks/:id returns the seeded fleet truck", async () => {
   const res = await testFetch("/trucks/TRK-001");
   expect(res.status).toBe(200);
   const data = (await res.json()) as any[];
-  expect(data[0].model).toBe("Volvo FH16");
+  expect(data[0].model).toBe("Caminhão Serrano 01");
   expect(data[0].current_warehouse_id).toBe("WH-001");
 });
 
-test("Infrastructure: GET /trucks?model=Scania", async () => {
-  const res = await testFetch("/trucks?model=Scania%20R500");
+test("Infrastructure: GET /trucks filters by model", async () => {
+  const res = await testFetch("/trucks?model=Caminh%C3%A3o%20Serrano%2002");
   expect(res.status).toBe(200);
   const data = (await res.json()) as any[];
   expect(data[0].id).toBe("TRK-002");
@@ -137,4 +137,3 @@ test("Infrastructure: PUT /warehouses/:id updates truck_capacity", async () => {
     }),
   });
 });
-

@@ -73,17 +73,8 @@ function resolveCoordinates(label?: string, defaultLat = -22.3842, defaultLng = 
   if (label.includes("Friburgo") || label.includes("Olaria") || label.includes("Alberto Braune") || label.includes("Monte Líbano")) {
     return [-22.2819, -42.5311]
   }
-  if (label.includes("Cachoeiras") || label.includes("Papucaia")) {
-    return [-22.4633, -42.6528]
-  }
-  if (label.includes("Guapimirim") || label.includes("Dedo de Deus") || label.includes("Bananal")) {
-    return [-22.5300, -42.9900]
-  }
   if (label.includes("São José") || label.includes("Rio Preto")) {
     return [-22.1528, -42.9239]
-  }
-  if (label.includes("Cordeiro") || label.includes("Cantagalo") || label.includes("Raul Veiga")) {
-    return [-21.9861, -42.3611]
   }
   if (label.includes("Bom Jardim") || label.includes("Moacyr Freijanes")) {
     return [-22.1500, -42.4167]
