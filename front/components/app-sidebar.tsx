@@ -40,6 +40,12 @@ const navItems = [
 
 export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
   const [currentUser, setCurrentUser] = useState<{ name: string; role: string; email?: string } | undefined>(undefined)
+  const [hasMounted, setHasMounted] = useState(false)
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setHasMounted(true))
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
 
   useEffect(() => {
     let isMounted = true
@@ -54,6 +60,8 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
     }).catch(() => {})
     return () => { isMounted = false }
   }, [])
+
+  if (!hasMounted) return null
 
   return (
     <Sidebar collapsible="icon" {...props}>

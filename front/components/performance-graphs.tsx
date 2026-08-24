@@ -27,6 +27,7 @@ export function PerformanceGraphs({ warehouseId, monthlyPerformance: initialMont
   const [activeRange, setActiveRange] = React.useState<"12M" | "6M_H1" | "6M_H2">("12M")
   const [selectedMonthIndex, setSelectedMonthIndex] = React.useState<number | null>(11)
   const [showPoiOnly, setShowPoiOnly] = React.useState(false)
+  const [hasMounted, setHasMounted] = React.useState(false)
 
   React.useEffect(() => {
     if (initialMonthlyPerformance && initialMonthlyPerformance.length > 0) {
@@ -37,6 +38,11 @@ export function PerformanceGraphs({ warehouseId, monthlyPerformance: initialMont
       })
     }
   }, [initialMonthlyPerformance])
+
+  React.useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setHasMounted(true))
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
 
   // Filter data based on selected range & warehouse multiplier if applicable
   const data = React.useMemo(() => {
@@ -71,6 +77,17 @@ export function PerformanceGraphs({ warehouseId, monthlyPerformance: initialMont
 
     return source
   }, [activeRange, fetchedData, warehouseId])
+
+  if (!hasMounted) {
+    return (
+      <Card className="border border-border">
+        <CardHeader>
+          <CardTitle className="font-display text-base">Logistics Financial & Operational Performance</CardTitle>
+          <CardDescription>Loading monthly performance data.</CardDescription>
+        </CardHeader>
+      </Card>
+    )
+  }
 
   if (data.length === 0) {
     return (
