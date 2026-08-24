@@ -22,7 +22,7 @@ import { RouteMap } from "@/components/route-map"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
 import { calculateFreightEstimate, calculateOrderETA } from "@/lib/calculations"
-import type { OrderStatus, User, Product, Deposit, Truck as TruckType, OrderETA } from "@/types"
+import type { OrderStatus, User, Product, Deposit, Truck as TruckType, OrderETA, OrderRoute } from "@/types"
 
 function parseDestination(raw: string | undefined): string {
   if (!raw) return "—"

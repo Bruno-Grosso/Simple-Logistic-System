@@ -3,8 +3,6 @@
 import * as React from "react"
 import {
   TrendingUp,
-  TrendingDown,
-  DollarSign,
   Calendar,
   Sparkles,
   Award,
@@ -12,8 +10,6 @@ import {
   Fuel,
   Users,
   Wrench,
-  Package,
-  Info,
 } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -74,7 +70,18 @@ export function PerformanceGraphs({ warehouseId, monthlyPerformance: initialMont
     }
 
     return source
-  }, [activeRange, warehouseId])
+  }, [activeRange, fetchedData, warehouseId])
+
+  if (data.length === 0) {
+    return (
+      <Card className="border border-border">
+        <CardHeader>
+          <CardTitle className="font-display text-base">Logistics Financial & Operational Performance</CardTitle>
+          <CardDescription>Monthly performance data is not available for this selection.</CardDescription>
+        </CardHeader>
+      </Card>
+    )
+  }
 
   // Summary Metrics
   const totalPeriodRevenue = data.reduce((acc, d) => acc + d.revenue, 0)

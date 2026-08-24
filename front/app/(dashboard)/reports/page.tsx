@@ -8,9 +8,6 @@ import {
   User,
   Warehouse,
   Landmark,
-  Fuel,
-  Users,
-  Wrench,
   ArrowUpRight,
   Route,
   Receipt,
@@ -28,6 +25,7 @@ import { ReportFilters } from "@/components/report-filters"
 import { PerformanceGraphs } from "@/components/performance-graphs"
 import { api } from "@/lib/api"
 import { computeDashboardStats } from "@/lib/calculations"
+import { DEPOSITS, FREIGHT_COSTS, MONTHLY_PERFORMANCE, ORDERS, PRODUCTS, TRUCKS, USERS } from "@/lib/mock-data"
 
 export const dynamic = "force-dynamic"
 
@@ -49,7 +47,7 @@ export default async function ReportsPage(props: ReportsPageProps) {
   const searchParams = await props.searchParams
   const warehouseId = searchParams?.warehouseId
 
-  const [rawOrders, rawTrucks, rawFreightCosts, users, products, warehouses, monthlyPerformance, deliveryReport] = await Promise.all([
+  const [apiOrders, apiTrucks, apiFreightCosts, apiUsers, apiProducts, apiWarehouses, apiMonthlyPerformance, deliveryReport] = await Promise.all([
     api.orders.getAll(),
     api.trucks.getAll(),
     api.freightCost.getAll(),
@@ -60,17 +58,29 @@ export default async function ReportsPage(props: ReportsPageProps) {
     api.reports.getDeliveryCosts(warehouseId),
   ])
 
+  // Preserve the dashboard's offline behavior when the local API is unavailable.
+  const usingMockData = apiOrders.length === 0
+  const rawOrders = usingMockData ? ORDERS : apiOrders
+  const rawTrucks = apiTrucks.length > 0 ? apiTrucks : TRUCKS
+  const rawFreightCosts = apiFreightCosts.length > 0 ? apiFreightCosts : FREIGHT_COSTS
+  const users = apiUsers.length > 0 ? apiUsers : USERS
+  const products = apiProducts.length > 0 ? apiProducts : PRODUCTS
+  const warehouses = apiWarehouses.length > 0 ? apiWarehouses : DEPOSITS
+  const monthlyPerformance = apiMonthlyPerformance.length > 0 ? apiMonthlyPerformance : MONTHLY_PERFORMANCE
+
   // Fetch routes for all orders to determine which warehouse they pass through
-  const orderRoutesList = await Promise.all(
-    rawOrders.map(async (o) => {
-      try {
-        const route = await api.orders.getRoute(o.id)
-        return { orderId: o.id, steps: route }
-      } catch {
-        return { orderId: o.id, steps: [] }
-      }
-    })
-  )
+  const orderRoutesList = usingMockData
+    ? rawOrders.map((o) => ({ orderId: o.id, steps: [] }))
+    : await Promise.all(
+        rawOrders.map(async (o) => {
+          try {
+            const route = await api.orders.getRoute(o.id)
+            return { orderId: o.id, steps: route }
+          } catch {
+            return { orderId: o.id, steps: [] }
+          }
+        })
+      )
 
   // Filter orders based on the selected warehouse
   const orders = warehouseId
@@ -105,7 +115,8 @@ export default async function ReportsPage(props: ReportsPageProps) {
   const stats = computeDashboardStats(orders, trucks)
   
   // Freight Cost Summary from Report or Local Aggregation
-  const reportSummary = deliveryReport?.summary
+  const hasDeliveryReport = deliveryReport.orders.length > 0
+  const reportSummary = hasDeliveryReport ? deliveryReport.summary : undefined
   const totalFreightSpent = reportSummary?.total_delivery_cost ?? freightCosts.reduce((acc, fc) => acc + (fc.total_cost || 0), 0)
   const totalFuelCost = reportSummary?.total_fuel_cost ?? freightCosts.reduce((acc, fc) => acc + (fc.fuel_cost || 0), 0)
   const totalLaborCost = reportSummary?.total_labor_cost ?? freightCosts.reduce((acc, fc) => acc + (fc.labor_cost || 0), 0)
@@ -119,7 +130,7 @@ export default async function ReportsPage(props: ReportsPageProps) {
   const marginPercent = totalRevenue > 0 ? (netMargin / totalRevenue) * 100 : 0
   const costToRevenueRatio = totalRevenue > 0 ? (totalFreightSpent / totalRevenue) * 100 : 0
 
-  const deliveryCostOrders = (deliveryReport?.orders ?? orders.map((order) => {
+  const deliveryCostOrders = (hasDeliveryReport ? deliveryReport.orders : orders.map((order) => {
     const cost = freightCosts.find((item) => item.order_id === order.id)
     const totalDeliveryCost = cost?.total_cost ?? 0
     const revenue = order.price ?? 0
