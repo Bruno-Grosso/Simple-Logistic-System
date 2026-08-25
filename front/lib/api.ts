@@ -291,16 +291,37 @@ export const api = {
       password?: string
       role?: string
       wage?: number
-    }): Promise<{ success: boolean; user?: User }> {
+      warehouse_id?: string | null
+      is_active?: number
+    }): Promise<{ success: boolean; user?: User; error?: string }> {
       try {
         const res = await apiClient.put<{ success: boolean; user?: any }>(`/users/${id}`, payload)
         if (res.data && res.data.success && res.data.user) {
           return { success: true, user: adaptUser(res.data.user) }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error(`[API] PUT /users/${id} error:`, err)
+        return { success: false, error: err.response?.data?.error || err.response?.data || err.message }
       }
-      return { success: false }
+      return { success: false, error: "The employee update was not accepted" }
+    },
+
+    async createEmployee(payload: { name: string; email?: string; password: string; address?: string; role: "warehouse_worker" | "truck_driver"; wage?: number; warehouse_id?: string | null; is_active?: number }): Promise<{ success: boolean; employee?: User; error?: string }> {
+      try {
+        const res = await apiClient.post<{ success: boolean; employee?: any }>("/employees", payload)
+        return { ...res.data, employee: res.data.employee ? adaptUser(res.data.employee) : undefined }
+      } catch (err: any) {
+        return { success: false, error: err.response?.data?.error || err.message }
+      }
+    },
+
+    async remove(id: string): Promise<{ success: boolean; error?: string }> {
+      try {
+        const res = await apiClient.delete<{ success: boolean }>(`/users/${id}`)
+        return res.data
+      } catch (err: any) {
+        return { success: false, error: err.response?.data?.error || err.message }
+      }
     },
 
     async getOnlineSessions(userId?: string): Promise<any[]> {
@@ -341,9 +362,13 @@ export const api = {
   },
 
   orders: {
-    async getAll(clientId?: string): Promise<Order[]> {
+    async getAll(filters?: { clientId?: string; driverId?: string; warehouseId?: string }): Promise<Order[]> {
       try {
-        const url = clientId ? `/orders?clientId=${encodeURIComponent(clientId)}` : "/orders"
+        const params = new URLSearchParams()
+        if (filters?.clientId) params.set("clientId", filters.clientId)
+        if (filters?.driverId) params.set("driverId", filters.driverId)
+        if (filters?.warehouseId) params.set("warehouseId", filters.warehouseId)
+        const url = params.size ? `/orders?${params}` : "/orders"
         const res = await apiClient.get<any[]>(url)
         if (Array.isArray(res.data)) {
           return res.data.map(adaptOrder)
@@ -425,6 +450,15 @@ export const api = {
       return res.data
     },
 
+    async updateStatus(id: string, status: Order["status"]): Promise<{ success: boolean; order?: any; error?: string }> {
+      try {
+        const res = await apiClient.put<{ success: boolean; order?: any }>(`/orders/${id}`, { status })
+        return res.data
+      } catch (err: any) {
+        return { success: false, error: err.response?.data?.error || err.message }
+      }
+    },
+
     async calculateETA(orderId: string, options?: {
       minSpeed?: number
       maxSpeed?: number
@@ -478,30 +512,32 @@ export const api = {
       step: number
       warehouse_id?: string | null
       truck_id?: string | null
+      driver_id?: string | null
       destination_warehouse_id?: string | null
       estimated_time?: string | null
       arrived_at?: string | null
-    }): Promise<{ success: boolean; route?: any; error?: string }> {
+    }): Promise<{ success: boolean; route?: any; error?: string; status?: number }> {
       try {
         const res = await apiClient.post<{ success: boolean; route?: any }>(`/orders/${orderId}/route`, payload)
         return res.data
       } catch (err: any) {
-        return { success: false, error: err.response?.data?.error || err.message }
+        return { success: false, error: err.response?.data?.error || err.message, status: err.response?.status }
       }
     },
 
     async updateRouteStep(orderId: string, step: number, payload: {
       warehouse_id?: string | null
       truck_id?: string | null
+      driver_id?: string | null
       destination_warehouse_id?: string | null
       estimated_time?: string | null
       arrived_at?: string | null
-    }): Promise<{ success: boolean; route?: any; error?: string }> {
+    }): Promise<{ success: boolean; route?: any; error?: string; status?: number }> {
       try {
         const res = await apiClient.put<{ success: boolean; route?: any }>(`/orders/${orderId}/route/${step}`, payload)
         return res.data
       } catch (err: any) {
-        return { success: false, error: err.response?.data?.error || err.message }
+        return { success: false, error: err.response?.data?.error || err.message, status: err.response?.status }
       }
     },
   },

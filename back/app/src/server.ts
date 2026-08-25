@@ -92,6 +92,18 @@ const innerFetchHandler = async (req: Request) => {
   if (path === "/users/drivers" && method === "GET") {
     return Response.json(await controller.users.drivers());
   }
+  if (path === "/employees" && method === "POST") {
+    try {
+      const body = await req.json() as { name: string; email?: string; password: string; address?: string; role: "warehouse_worker" | "truck_driver"; wage?: number; warehouse_id?: string | null; is_active?: number };
+      if (!body.name || !body.password || !["warehouse_worker", "truck_driver"].includes(body.role)) {
+        return Response.json({ success: false, error: "Name, password, and a valid employee role are required" }, { status: 400 });
+      }
+      const employee = await controller.users.createEmployee(body);
+      return Response.json({ success: true, employee }, { status: 201 });
+    } catch (error: any) {
+      return Response.json({ success: false, error: error.message || "Could not create employee" }, { status: 400 });
+    }
+  }
   if (path.startsWith("/users/") && method === "GET") {
     const id = path.split("/")[2];
     if (!id) return new Response("User ID required", { status: 400 });
@@ -112,6 +124,17 @@ const innerFetchHandler = async (req: Request) => {
     } catch (error: any) {
       console.error("Error updating user:", error);
       return new Response(error.message || "Internal Server Error", { status: 500 });
+    }
+  }
+  if (path.startsWith("/users/") && method === "DELETE") {
+    const id = path.split("/")[2];
+    if (!id) return new Response("User ID required", { status: 400 });
+    try {
+      const deleted = await controller.users.delete(id);
+      if (!deleted?.length) return new Response("User not found", { status: 404 });
+      return Response.json({ success: true });
+    } catch (error: any) {
+      return Response.json({ success: false, error: error.message || "Employee cannot be removed while assigned to records" }, { status: 400 });
     }
   }
   if (path === "/online-users" && method === "GET") {
@@ -139,6 +162,7 @@ const innerFetchHandler = async (req: Request) => {
     try {
       const body = await req.json();
       const updated = await controller.products.update(id, body);
+      if (!updated?.length) return new Response("Product not found", { status: 404 });
       return Response.json({ success: true, product: updated[0] });
     } catch (error: any) {
       console.error("Error updating product:", error);
@@ -189,6 +213,7 @@ const innerFetchHandler = async (req: Request) => {
     try {
       const body = await req.json();
       const updated = await controller.warehouses.update(id, body);
+      if (!updated?.length) return new Response("Warehouse not found", { status: 404 });
       return Response.json({ success: true, warehouse: updated[0] });
     } catch (error: any) {
       console.error("Error updating warehouse:", error);
@@ -223,6 +248,7 @@ const innerFetchHandler = async (req: Request) => {
     try {
       const body = await req.json();
       const updated = await controller.trucks.update(id, body);
+      if (!updated?.length) return new Response("Truck not found", { status: 404 });
       return Response.json({ success: true, truck: updated[0] });
     } catch (error: any) {
       console.error("Error updating truck:", error);
@@ -233,7 +259,11 @@ const innerFetchHandler = async (req: Request) => {
   // 4. TRANSACTION & ROUTING LAYER
   if (path === "/orders" && method === "GET") {
     const clientId = url.searchParams.get("clientId");
+    const driverId = url.searchParams.get("driverId");
+    const warehouseId = url.searchParams.get("warehouseId");
     if (clientId) return Response.json(await controller.orders.byClient(clientId));
+    if (driverId) return Response.json(await controller.orders.byDriver(driverId));
+    if (warehouseId) return Response.json(await controller.orders.byWarehouse(warehouseId));
     return Response.json(await controller.orders.all());
   }
   if (path === "/orders" && method === "POST") {
@@ -358,6 +388,7 @@ const innerFetchHandler = async (req: Request) => {
           step,
           warehouse_id: body.warehouse_id,
           truck_id: body.truck_id,
+          driver_id: body.driver_id,
           destination_warehouse_id: body.destination_warehouse_id,
           estimated_time: body.estimated_time,
           arrived_at: body.arrived_at,
@@ -374,11 +405,26 @@ const innerFetchHandler = async (req: Request) => {
     const id = parts[2];
     if (!id) return new Response("Order ID required", { status: 400 });
 
+    if (!parts[3]) {
+      const body = await req.json().catch(() => ({})) as { status?: string };
+      const validStatuses = ["Pending", "Shipped", "Delivered", "Cancelled", "Canceled"];
+      if (!body.status || !validStatuses.includes(body.status)) {
+        return Response.json({ success: false, error: "A valid order status is required" }, { status: 400 });
+      }
+      // Older database installations use the SQL spelling "Canceled", while
+      // the UI consistently exposes "Cancelled".
+      const databaseStatus = body.status === "Cancelled" ? "Canceled" : body.status;
+      const updated = await controller.orders.updateStatus(id, databaseStatus as "Pending" | "Shipped" | "Delivered" | "Canceled");
+      if (!updated?.length) return new Response("Order not found", { status: 404 });
+      return Response.json({ success: true, order: updated[0] });
+    }
+
     if (parts[3] === "route") {
       const step = Number(parts[4] || 1);
       try {
         const body = await req.json();
         const updated = await controller.orders_route.update(id, step, body);
+        if (!updated?.length) return new Response("Order route step not found", { status: 404 });
         return Response.json({ success: true, route: updated[0] });
       } catch (error: any) {
         console.error("Error updating order route:", error);

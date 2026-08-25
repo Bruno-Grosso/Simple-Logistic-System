@@ -16,6 +16,7 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
+import { requireRole } from "@/lib/auth/require-role"
 import { computeDepositUsage, computeDepositParkingUsage } from "@/lib/calculations"
 import type { Product } from "@/types"
 
@@ -41,8 +42,11 @@ export default async function DepositDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+  const user = await requireRole("admin", "warehouse_worker")
   const deposit = await api.warehouses.getById(id)
   if (!deposit) notFound()
+  const isAdmin = (user.rawRole || user.role) === "admin"
+  if (!isAdmin && user.warehouse_id !== deposit.id) notFound()
 
   const [stock, trucks, products] = await Promise.all([
     api.warehouses.getStock(deposit.id),
@@ -66,7 +70,7 @@ export default async function DepositDetailPage({
           { label: "Deposits", href: "/deposits" },
           { label: name },
         ]}
-        actions={<EditWarehouseDialog warehouse={deposit} />}
+        actions={isAdmin ? <EditWarehouseDialog warehouse={deposit} /> : undefined}
       />
       <div className="min-h-0 flex-1 overflow-auto">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">

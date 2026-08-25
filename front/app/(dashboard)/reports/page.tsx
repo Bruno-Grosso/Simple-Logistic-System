@@ -24,6 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ReportFilters } from "@/components/report-filters"
 import { PerformanceGraphs } from "@/components/performance-graphs"
 import { api } from "@/lib/api"
+import { requireRole } from "@/lib/auth/require-role"
 import { computeDashboardStats } from "@/lib/calculations"
 import { DEPOSITS, FREIGHT_COSTS, MONTHLY_PERFORMANCE, ORDERS, PRODUCTS, TRUCKS, USERS } from "@/lib/mock-data"
 
@@ -44,6 +45,7 @@ function parseDestination(raw: string | undefined): string {
 }
 
 export default async function ReportsPage(props: ReportsPageProps) {
+  await requireRole("admin")
   const searchParams = await props.searchParams
   const warehouseId = searchParams?.warehouseId
 

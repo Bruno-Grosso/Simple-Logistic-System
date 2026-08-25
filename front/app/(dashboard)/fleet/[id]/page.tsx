@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import { RouteMap } from "@/components/route-map"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
+import { requireRole } from "@/lib/auth/require-role"
 import type { Truck, Deposit } from "@/types"
 
 function truckLocation(t: Truck, depositMap: Map<string, Deposit>): string {
@@ -33,8 +34,15 @@ type PageProps = {
 
 export default async function FleetDetailPage({ params }: PageProps) {
   const { id } = await params
+  const user = await requireRole("admin", "truck_driver")
   const truck = await api.trucks.getById(id)
   if (!truck) notFound()
+  const isAdmin = (user.rawRole || user.role) === "admin"
+  if (!isAdmin) {
+    const assignedRoutes = await api.orders.getAll({ driverId: user.id })
+    const routes = (await Promise.all(assignedRoutes.map((order) => api.orders.getRoute(order.id)))).flat()
+    if (!routes.some((route) => route.driver_id === user.id && route.truck_id === truck.id)) notFound()
+  }
 
   const deposits = await api.warehouses.getAll()
   const depositMap = new Map<string, Deposit>()
@@ -83,7 +91,7 @@ export default async function FleetDetailPage({ params }: PageProps) {
           { label: "Fleet", href: "/fleet" },
           { label: title },
         ]}
-        actions={<EditTruckDialog truck={truck} warehouses={deposits} />}
+        actions={isAdmin ? <EditTruckDialog truck={truck} warehouses={deposits} /> : undefined}
       />
       <div className="min-h-0 flex-1 overflow-auto">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">

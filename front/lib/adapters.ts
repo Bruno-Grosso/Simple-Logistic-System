@@ -19,6 +19,12 @@ import type {
   OrderDeliveryCostItem,
 } from "@/types"
 
+function asBoolean(value: unknown, fallback = false): boolean {
+  if (value === undefined || value === null) return fallback
+  if (typeof value === "string") return !["0", "false", "no", "off", ""].includes(value.trim().toLowerCase())
+  return Boolean(value)
+}
+
 export function adaptWarehouse(raw: any): Deposit {
   if (!raw) return {} as Deposit
   let locationStr = raw.location
@@ -43,9 +49,18 @@ export function adaptWarehouse(raw: any): Deposit {
     }
   }
 
+  const latitude = typeof locObj === "object" && locObj !== null
+    ? Number(locObj.latitude ?? locObj.lat)
+    : undefined
+  const longitude = typeof locObj === "object" && locObj !== null
+    ? Number(locObj.longitude ?? locObj.lon)
+    : undefined
+
   return {
     id: String(raw.id),
     location: locationStr || `Warehouse ${raw.id}`,
+    latitude: Number.isFinite(latitude) ? latitude : undefined,
+    longitude: Number.isFinite(longitude) ? longitude : undefined,
     size: raw.size ? (typeof raw.size === "string" ? raw.size : JSON.stringify(raw.size)) : undefined,
     volume_actual: Number(raw.volume_current ?? raw.volume_actual ?? 0),
     volume_max: Number(raw.volume_max ?? 1000),
@@ -135,6 +150,8 @@ export function adaptUser(raw: any): User {
     role,
     rawRole: raw.role || "client",
     wage: Number(raw.wage ?? (role === "client" ? 0 : 45.0)),
+    warehouse_id: raw.warehouse_id || undefined,
+    is_active: asBoolean(raw.is_active, true),
   }
 }
 
@@ -148,6 +165,13 @@ export function adaptOrder(raw: any): Order {
   let destStr = raw.final_destination
   if (typeof raw.final_destination === "object" && raw.final_destination !== null) {
     destStr = raw.final_destination.label || raw.final_destination.address || JSON.stringify(raw.final_destination)
+  } else if (typeof raw.final_destination === "string" && raw.final_destination.trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(raw.final_destination)
+      destStr = parsed.label || parsed.address || raw.final_destination
+    } catch {
+      /* preserve the original value when it is not valid JSON */
+    }
   }
 
   return {
@@ -210,6 +234,8 @@ export function adaptOrderRoute(raw: any): OrderRoute {
     order_id: String(raw.order_id),
     step: Number(raw.step ?? 1),
     deposit_id: raw.warehouse_id || raw.deposit_id || undefined,
+    destination_deposit_id: raw.destination_warehouse_id || raw.destination_deposit_id || undefined,
+    driver_id: raw.driver_id || undefined,
     truck_id: raw.truck_id || undefined,
     estimated_time: raw.estimated_time || undefined,
     arrived_at: raw.arrived_at || undefined,
@@ -344,5 +370,3 @@ export function adaptDeliveryCostReport(raw: any): DeliveryCostReport {
     })),
   }
 }
-
-

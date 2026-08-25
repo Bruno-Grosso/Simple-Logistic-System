@@ -19,8 +19,10 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { EmptyState } from "@/components/empty-state"
 import { RouteMap } from "@/components/route-map"
+import { ManageOrderDialog } from "@/components/manage-order-dialog"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
+import { getCurrentUserProfile } from "@/lib/auth/get-user"
 import { calculateFreightEstimate, calculateOrderETA } from "@/lib/calculations"
 import type { OrderStatus, User, Product, Deposit, Truck as TruckType, OrderETA, OrderRoute } from "@/types"
 
@@ -68,6 +70,18 @@ export default async function OrderDetailPage({ params }: PageProps) {
   const { id } = await params
   const order = await api.orders.getById(id)
   if (!order) notFound()
+  const { user } = await getCurrentUserProfile()
+  const role = user.rawRole || user.role
+  const isAdmin = role === "admin"
+  const isClient = role === "client"
+  const isDriver = role === "truck_driver"
+  const accessRoutes = isAdmin ? [] : await api.orders.getRoute(order.id)
+  const isAllowed =
+    isAdmin ||
+    (isClient && order.client_id === user.id) ||
+    (isDriver && accessRoutes.some((route) => route.driver_id === user.id)) ||
+    (role === "warehouse_worker" && !!user.warehouse_id && accessRoutes.some((route) => route.deposit_id === user.warehouse_id || route.destination_deposit_id === user.warehouse_id))
+  if (!isAllowed) notFound()
 
   const [
     users,
@@ -79,10 +93,12 @@ export default async function OrderDetailPage({ params }: PageProps) {
     warehouses,
     trucks,
   ] = await Promise.all([
-    api.users.getAll(),
+    // Staff need the driver record to identify the person assigned to this order;
+    // clients still receive only their own profile data.
+    isClient ? Promise.resolve([user]) : api.users.getAll(),
     api.orders.getItems(order.id),
     api.orders.getRoute(order.id),
-    api.orders.getCost(order.id),
+    isAdmin ? api.orders.getCost(order.id) : Promise.resolve(undefined),
     api.orders.getETA(order.id),
     api.products.getAll(),
     api.warehouses.getAll(),
@@ -136,15 +152,17 @@ export default async function OrderDetailPage({ params }: PageProps) {
       : (originWarehouse?.fuel_price ?? 5.89)
 
   // Assigned truck and driver wage
-  const assignedTruckId = routeSteps.find((s) => s.truck_id && truckMap.has(s.truck_id))?.truck_id || trucks[0]?.id
+  const workRouteSteps = isDriver ? routeSteps.filter((step) => step.driver_id === user.id) : routeSteps
+  const assignedRoute = workRouteSteps.find((s) => s.truck_id || s.driver_id)
+  const assignedTruckId = assignedRoute?.truck_id && truckMap.has(assignedRoute.truck_id) ? assignedRoute.truck_id : undefined
   const assignedTruck = assignedTruckId ? truckMap.get(assignedTruckId) : trucks[0]
-  const drivers = users.filter((u) => u.rawRole === "truck_driver" || u.work_position?.includes("Driver"))
-  const driverWage = drivers[0]?.wage ?? 50.0
+  const assignedDriver = assignedRoute?.driver_id ? userMap.get(assignedRoute.driver_id) : undefined
+  const driverWage = assignedDriver?.wage ?? 50.0
 
   // Effective route tracking steps to display in timeline
   const displayRouteSteps: OrderRoute[] =
-    routeSteps.length > 0
-      ? routeSteps
+    workRouteSteps.length > 0
+      ? workRouteSteps
       : [
           {
             order_id: order.id,
@@ -183,6 +201,15 @@ export default async function OrderDetailPage({ params }: PageProps) {
           { label: "Orders", href: "/orders" },
           { label: `#${order.id}` },
         ]}
+        actions={isAdmin ? (
+          <ManageOrderDialog
+            order={order}
+            routeSteps={routeSteps}
+            trucks={trucks}
+            drivers={users.filter((candidate) => candidate.rawRole === "truck_driver")}
+            warehouses={warehouses}
+          />
+        ) : undefined}
       />
       <div className="min-h-0 flex-1 space-y-5 overflow-auto">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -193,8 +220,10 @@ export default async function OrderDetailPage({ params }: PageProps) {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <InfoField label="Client" value={client?.name ?? `Client ${order.client_id}`} />
-                  <InfoField label="Receiver" value={receiver?.name ?? "—"} />
+                  {!isClient && <InfoField label="Client" value={client?.name ?? `Client ${order.client_id}`} />}
+                  {!isClient && <InfoField label="Receiver" value={receiver?.name ?? "—"} />}
+                  {!isClient && <InfoField label="Truck driver" value={assignedDriver?.name ?? "Unassigned"} />}
+                  {!isClient && <InfoField label="Truck" value={assignedTruck ? `${assignedTruck.model ?? assignedTruck.id} (${assignedTruck.id})` : "Unassigned"} />}
                   <div className="sm:col-span-2">
                     <InfoField
                       label="Destination"
@@ -202,14 +231,8 @@ export default async function OrderDetailPage({ params }: PageProps) {
                     />
                   </div>
                   <InfoField label="Deadline" value={order.time_limit ?? "—"} />
-                  <InfoField
-                    label="Value"
-                    value={`R$ ${order.price.toLocaleString("pt-BR")}`}
-                  />
-                  <InfoField
-                    label="Supplier delivery"
-                    value={order.supplier_delivery ? "Yes" : "No"}
-                  />
+                  {isAdmin && <InfoField label="Value" value={`R$ ${order.price.toLocaleString("pt-BR")}`} />}
+                  {!isClient && <InfoField label="Supplier delivery" value={order.supplier_delivery ? "Yes" : "No"} />}
                   <div>
                     <p className="mb-0.5 text-xs uppercase tracking-wider text-muted-foreground">
                       Status
@@ -354,12 +377,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
                             <span className="text-sm text-muted-foreground">
                               Qty <span className="font-medium text-foreground">{line.quantity}</span>
                             </span>
-                            <span className="text-sm">
-                              Subtotal{" "}
-                              <span className="font-semibold">
-                                R$ {subtotal.toLocaleString("pt-BR")}
-                              </span>
-                            </span>
+                            {isAdmin && <span className="text-sm">Subtotal <span className="font-semibold">R$ {subtotal.toLocaleString("pt-BR")}</span></span>}
                           </div>
                         </li>
                       )
@@ -369,8 +387,8 @@ export default async function OrderDetailPage({ params }: PageProps) {
               </CardContent>
             </Card>
 
-            {/* Freight Cost Calculations */}
-            <Card>
+            {/* Freight costs are commercial data and are available only to administrators. */}
+            {isAdmin && <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="font-display text-lg flex items-center gap-2">
                   <DollarSign className="size-4 text-primary" />
@@ -420,7 +438,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </Card>}
           </div>
 
           <div className="lg:col-span-1">
@@ -429,7 +447,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
                 <CardTitle className="font-display text-lg">Route tracking timeline</CardTitle>
               </CardHeader>
               <CardContent>
-                {routeSteps.length === 0 ? (
+                {displayRouteSteps.length === 0 ? (
                   <EmptyState
                     icon={RouteOff}
                     title="No route steps"
@@ -437,14 +455,14 @@ export default async function OrderDetailPage({ params }: PageProps) {
                   />
                 ) : (
                   <ol className="relative ms-2 space-y-0 border-l border-border pl-6" aria-label="Route timeline">
-                    {routeSteps.map((step, idx) => {
+                    {displayRouteSteps.map((step, idx) => {
                       const completed = Boolean(step.arrived_at)
                       const deposit = step.deposit_id ? depositMap.get(step.deposit_id) : undefined
                       const truck = step.truck_id ? truckMap.get(step.truck_id) : undefined
                       const label = deposit
                         ? deposit.location
                         : truck?.model ?? "On Route"
-                      const isLast = idx === routeSteps.length - 1
+                      const isLast = idx === displayRouteSteps.length - 1
 
                       return (
                         <li key={step.step} className={cn("relative", !isLast && "pb-8")}>

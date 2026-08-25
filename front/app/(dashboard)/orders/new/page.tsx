@@ -31,6 +31,7 @@ export default function NewOrderPage() {
   const [destination, setDestination] = useState("")
   const [clientId, setClientId] = useState("")
   const [receiverId, setReceiverId] = useState("")
+  const [driverId, setDriverId] = useState("")
   const [warehouseId, setWarehouseId] = useState("")
   const [deadline, setDeadline] = useState("")
   const [products, setProducts] = useState<Product[]>([])
@@ -76,6 +77,7 @@ export default function NewOrderPage() {
   }, [])
 
   const clients = useMemo(() => users.filter((u) => u.role === "client"), [users])
+  const drivers = useMemo(() => users.filter((u) => u.rawRole === "truck_driver"), [users])
 
   const selectedWarehouse = useMemo(() => warehouses.find((w) => w.id === warehouseId), [warehouses, warehouseId])
   const selectedWhParkedTrucks = useMemo(() => trucks.filter((t) => t.current_deposit_id === warehouseId).length, [trucks, warehouseId])
@@ -130,11 +132,26 @@ export default function NewOrderPage() {
     if (!clientId || !destination || !deadline) return
     setLoading(true)
     try {
+      // Resolve the order destination before persisting it. The route handler
+      // reads these latitude/longitude values directly for Valhalla.
+      const geocodedDestination = await api.geo.addressToCoordinates(destination)
+      const latitude = geocodedDestination ? Number(geocodedDestination.latitude) : NaN
+      const longitude = geocodedDestination ? Number(geocodedDestination.longitude) : NaN
+      if (!geocodedDestination || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        alert("We could not find the delivery address. Please check it and try again.")
+        return
+      }
+
       const orderId = `ORD-${Date.now().toString().slice(-4)}${Math.floor(10 + Math.random() * 90)}`
       const payload = {
         id: orderId,
         client_id: clientId,
-        final_destination: destination,
+        final_destination: JSON.stringify({
+          address: destination,
+          normalizedAddress: geocodedDestination.endereco_completo,
+          latitude,
+          longitude,
+        }),
         time_limit: deadline,
         price: total,
         status: "Pending" as const,
@@ -147,13 +164,17 @@ export default function NewOrderPage() {
       if (res.success) {
         if (warehouseId) {
           const firstAvailTruck = trucks.find((t) => t.current_deposit_id === warehouseId && !t.is_delivering)
-          await api.orders.addRouteStep(orderId, {
+          const routeResult = await api.orders.addRouteStep(orderId, {
             step: 1,
             warehouse_id: warehouseId,
             truck_id: firstAvailTruck?.id || trucks[0]?.id || "TRK-001",
+            driver_id: driverId || null,
             destination_warehouse_id: null,
             estimated_time: deadline,
-          }).catch(() => {/* ignore if optional */})
+          })
+          if (!routeResult.success) {
+            throw new Error(routeResult.error || "The order was created, but its truck and driver assignment could not be saved.")
+          }
         }
         router.push("/orders")
         router.refresh()
@@ -217,6 +238,22 @@ export default function NewOrderPage() {
                       <option key={u.id} value={u.id}>
                         {u.name}
                       </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="order-driver">Assigned Driver</Label>
+                  <select
+                    id="order-driver"
+                    name="driver"
+                    className={selectClassName}
+                    value={driverId}
+                    onChange={(e) => setDriverId(e.target.value)}
+                    required
+                  >
+                    <option value="">Select driver</option>
+                    {drivers.map((driver) => (
+                      <option key={driver.id} value={driver.id}>{driver.name}</option>
                     ))}
                   </select>
                 </div>

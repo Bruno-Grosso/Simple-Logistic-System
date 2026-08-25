@@ -14,6 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
+import { requireRole } from "@/lib/auth/require-role"
 
 export const dynamic = "force-dynamic"
 
@@ -26,6 +27,7 @@ function isExpired(isoDate: string | undefined): boolean {
 }
 
 export default async function ProductsPage() {
+  await requireRole("admin")
   const products = await api.products.getAll()
 
   return (

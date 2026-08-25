@@ -31,8 +31,8 @@ export function EditWarehouseDialog({ warehouse }: EditWarehouseDialogProps) {
 
   // Parse location JSON safely
   let initialLabel = warehouse.location
-  let initialLat = 0
-  let initialLon = 0
+  let initialLat = warehouse.latitude ?? 0
+  let initialLon = warehouse.longitude ?? 0
 
   // Try to find if location was a JSON string or details are present
   try {

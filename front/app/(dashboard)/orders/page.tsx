@@ -13,8 +13,9 @@ import {
 } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
+import { getCurrentUserProfile } from "@/lib/auth/get-user"
 import { calculateOrderETA } from "@/lib/calculations"
-import type { OrderStatus, User, Deposit, Truck } from "@/types"
+import type { OrderStatus, User } from "@/types"
 
 export const dynamic = "force-dynamic"
 
@@ -48,15 +49,23 @@ function orderStatusBadge(status: OrderStatus) {
 }
 
 export default async function OrdersPage() {
-  const [orders, users, warehouses, trucks] = await Promise.all([
-    api.orders.getAll(),
-    api.users.getAll(),
-    api.warehouses.getAll(),
-    api.trucks.getAll(),
+  const { user } = await getCurrentUserProfile()
+  const role = user.rawRole || user.role
+  const orderFilters =
+    role === "client" ? { clientId: user.id } :
+    role === "truck_driver" ? { driverId: user.id } :
+    role === "warehouse_worker" && user.warehouse_id ? { warehouseId: user.warehouse_id } : undefined
+  const orders = await api.orders.getAll(orderFilters)
+  const [users, trucks, routeEntries] = await Promise.all([
+    role === "admin" ? api.users.getAll() : Promise.resolve([user]),
+    role === "admin" || role === "truck_driver" ? api.trucks.getAll() : Promise.resolve([]),
+    Promise.all(orders.map(async (order) => [order.id, await api.orders.getRoute(order.id)] as const)),
   ])
 
   const userMap = new Map<string, User>()
   users.forEach((u) => userMap.set(u.id, u))
+  const truckMap = new Map(trucks.map((truck) => [truck.id, truck]))
+  const assignmentByOrder = new Map(routeEntries.map(([orderId, routes]) => [orderId, routes[0]]))
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -65,7 +74,7 @@ export default async function OrdersPage() {
     <PageShell>
       <PageHeader
         crumbs={[{ label: "Orders" }]}
-        actions={
+        actions={role === "admin" ? (
           <Link
             href="/orders/new"
             className={cn(
@@ -79,7 +88,7 @@ export default async function OrdersPage() {
             <Plus className="size-4" aria-hidden />
             New Order
           </Link>
-        }
+        ) : undefined}
       />
       <div className="min-h-0 flex-1 overflow-auto">
         <div className="overflow-x-auto rounded-lg border border-border">
@@ -88,10 +97,12 @@ export default async function OrdersPage() {
               <TableRow>
                 <TableHead scope="col" className="px-4">Order</TableHead>
                 <TableHead scope="col" className="px-4">Destination</TableHead>
-                <TableHead scope="col" className="px-4">Client</TableHead>
+                {role === "admin" && <TableHead scope="col" className="px-4">Client</TableHead>}
+                {role === "admin" && <TableHead scope="col" className="px-4">Driver</TableHead>}
+                {role === "admin" && <TableHead scope="col" className="px-4">Truck</TableHead>}
                 <TableHead scope="col" className="px-4">Status</TableHead>
                 <TableHead scope="col" className="px-4">Deadline & ETA</TableHead>
-                <TableHead scope="col" className="px-4 text-right tabular-nums">Value</TableHead>
+                {role === "admin" && <TableHead scope="col" className="px-4 text-right tabular-nums">Value</TableHead>}
                 <TableHead scope="col" className="w-12 px-4">
                   <span className="sr-only">Open order</span>
                 </TableHead>
@@ -101,6 +112,9 @@ export default async function OrdersPage() {
               {orders.map((order) => {
                 const dest = parseDestination(order.final_destination)
                 const client = userMap.get(order.client_id)
+                const assignment = assignmentByOrder.get(order.id)
+                const driver = assignment?.driver_id ? userMap.get(assignment.driver_id) : undefined
+                const truck = assignment?.truck_id ? truckMap.get(assignment.truck_id) : undefined
                 const deadline = order.time_limit ? new Date(order.time_limit) : null
                 const isOverdue =
                   deadline !== null &&
@@ -128,7 +142,9 @@ export default async function OrdersPage() {
                     <TableCell className="max-w-[180px] truncate px-4 text-muted-foreground">
                       {dest}
                     </TableCell>
-                    <TableCell className="px-4">{client?.name ?? `Client ${order.client_id}`}</TableCell>
+                    {role === "admin" && <TableCell className="px-4">{client?.name ?? `Client ${order.client_id}`}</TableCell>}
+                    {role === "admin" && <TableCell className="px-4">{driver?.name ?? "Unassigned"}</TableCell>}
+                    {role === "admin" && <TableCell className="px-4">{truck ? `${truck.model ?? truck.id} (${truck.id})` : "Unassigned"}</TableCell>}
                     <TableCell className="px-4">{orderStatusBadge(order.status)}</TableCell>
                     <TableCell className="px-4">
                       <div className="flex flex-col gap-0.5">
@@ -148,9 +164,7 @@ export default async function OrdersPage() {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 text-right tabular-nums">
-                      R$ {order.price.toLocaleString("pt-BR")}
-                    </TableCell>
+                    {role === "admin" && <TableCell className="px-4 text-right tabular-nums">R$ {order.price.toLocaleString("pt-BR")}</TableCell>}
                     <TableCell className="px-4">
                       <Link
                         href={`/orders/${order.id}`}

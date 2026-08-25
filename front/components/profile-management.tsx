@@ -12,7 +12,6 @@ import {
   Save,
   CheckCircle2,
   RefreshCw,
-  UserIcon,
   Briefcase,
   Layers,
 } from "lucide-react"
@@ -38,7 +37,6 @@ import type { User } from "@/types"
 interface ProfileManagementProps {
   initialUser: User
   initialOnlineSession?: any
-  allMockUsers: User[]
 }
 
 function initials(name: string) {
@@ -52,10 +50,8 @@ function initials(name: string) {
 export function ProfileManagement({
   initialUser,
   initialOnlineSession,
-  allMockUsers,
 }: ProfileManagementProps) {
   const [currentUser, setCurrentUser] = useState<User>(initialUser)
-  const [selectedUserId, setSelectedUserId] = useState<string>(initialUser.id)
   const [sessions, setSessions] = useState<any[]>(
     initialOnlineSession ? [initialOnlineSession] : [],
   )
@@ -75,34 +71,15 @@ export function ProfileManagement({
     setEditPassword("")
   }, [currentUser])
 
-  // Switch user profile view
-  async function handleUserSwitch(userId: string) {
-    setSelectedUserId(userId)
-    setIsRefreshing(true)
-    try {
-      const u = await api.users.getById(userId)
-      if (u) {
-        setCurrentUser(u)
-      }
-      const s = await api.users.getOnlineSessions(userId)
-      setSessions(s)
-      toast.info(`Switched profile view to ${u?.name || userId}`)
-    } catch {
-      toast.error("Failed to load user profile from backend")
-    } finally {
-      setIsRefreshing(false)
-    }
-  }
-
   // Refresh profile details from backend
   async function reloadProfile() {
     setIsRefreshing(true)
     try {
-      const u = await api.users.getById(selectedUserId)
+      const u = await api.users.getById(currentUser.id)
       if (u) {
         setCurrentUser(u)
       }
-      const s = await api.users.getOnlineSessions(selectedUserId)
+      const s = await api.users.getOnlineSessions(currentUser.id)
       setSessions(s)
       toast.success("Profile reloaded from PostgreSQL backend")
     } catch {
@@ -151,23 +128,6 @@ export function ProfileManagement({
       <div className="flex flex-wrap items-center justify-between gap-4 pb-2">
         <PageHeader crumbs={[{ label: "User Profile" }]} />
         <div className="flex items-center gap-2">
-          {/* User selector */}
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-xs">
-            <UserIcon className="size-3.5 text-muted-foreground" />
-            <span className="text-muted-foreground">Select Profile:</span>
-            <select
-              value={selectedUserId}
-              onChange={(e) => handleUserSwitch(e.target.value)}
-              className="bg-transparent font-medium text-foreground outline-none cursor-pointer"
-            >
-              {allMockUsers.map((u, index) => (
-                <option key={`${u.id}-${u.email ?? "user"}-${index}`} value={u.id} className="bg-card text-foreground">
-                  {u.id} - {u.name} ({u.rawRole || u.role})
-                </option>
-              ))}
-            </select>
-          </div>
-
           <Button
             variant="outline"
             size="sm"
@@ -350,7 +310,7 @@ export function ProfileManagement({
               <div className="divide-y divide-border rounded-lg border border-border bg-background/50">
                 {sessions.map((sess, index) => (
                   <div
-                    key={`${sess.session_id ?? selectedUserId}-${sess.login_time ?? "session"}-${index}`}
+                    key={`${sess.session_id ?? currentUser.id}-${sess.login_time ?? "session"}-${index}`}
                     className="flex items-center justify-between p-3.5 text-xs"
                   >
                     <div className="space-y-1">

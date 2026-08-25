@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
+import { requireRole } from "@/lib/auth/require-role"
+import { EmptyState } from "@/components/empty-state"
 import type { Truck, Deposit } from "@/types"
 
 export const dynamic = "force-dynamic"
@@ -49,10 +51,23 @@ function truckLocation(t: Truck, depositMap: Map<string, Deposit>): string {
 }
 
 export default async function FleetPage() {
-  const [trucks, deposits] = await Promise.all([
+  const user = await requireRole("admin", "truck_driver")
+  const role = user.rawRole || user.role
+  const [allTrucks, deposits, driverOrders] = await Promise.all([
     api.trucks.getAll(),
     api.warehouses.getAll(),
+    role === "truck_driver" ? api.orders.getAll({ driverId: user.id }) : Promise.resolve([]),
   ])
+  const assignedTruckIds = new Set(
+    (await Promise.all(driverOrders.map((order) => api.orders.getRoute(order.id))))
+      .flat()
+      .filter((route) => route.driver_id === user.id)
+      .map((route) => route.truck_id)
+      .filter((id): id is string => Boolean(id)),
+  )
+  const trucks = role === "truck_driver"
+    ? allTrucks.filter((truck) => assignedTruckIds.has(truck.id))
+    : allTrucks
 
   const depositMap = new Map<string, Deposit>()
   deposits.forEach((d) => depositMap.set(d.id, d))
@@ -65,11 +80,11 @@ export default async function FleetPage() {
     <PageShell>
       <PageHeader crumbs={[{ label: "Fleet" }]} />
       <div className="min-h-0 flex-1 space-y-6 overflow-auto">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {trucks.length === 0 ? <EmptyState icon={TruckIcon} title="No assigned trucks" description="Trucks assigned to your work will appear here." /> : <><div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard label="Total trucks" value={trucks.length} icon={TruckIcon} />
-          <StatCard label="Traveling" value={traveling} icon={Route} />
-          <StatCard label="Available" value={available} icon={Warehouse} />
-          <StatCard label="Maintenance" value={maintenance} icon={Wrench} />
+          {traveling > 0 && <StatCard label="Traveling" value={traveling} icon={Route} />}
+          {available > 0 && <StatCard label="Available" value={available} icon={Warehouse} />}
+          {maintenance > 0 && <StatCard label="Maintenance" value={maintenance} icon={Wrench} />}
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -150,7 +165,7 @@ export default async function FleetPage() {
               </Card>
             )
           })}
-        </div>
+        </div></>}
       </div>
     </PageShell>
   )

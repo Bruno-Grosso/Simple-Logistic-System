@@ -13,13 +13,19 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { api } from "@/lib/api"
+import { requireRole } from "@/lib/auth/require-role"
+import { EmptyState } from "@/components/empty-state"
 import type { Product, Deposit, Truck, Stock } from "@/types"
 
 export default async function StockPage() {
+  const user = await requireRole("admin", "warehouse_worker")
+  const isWarehouseWorker = (user.rawRole || user.role) === "warehouse_worker"
   const [warehouses, products, trucks] = await Promise.all([
-    api.warehouses.getAll(),
+    isWarehouseWorker && user.warehouse_id
+      ? api.warehouses.getById(user.warehouse_id).then((warehouse) => warehouse ? [warehouse] : [])
+      : api.warehouses.getAll(),
     api.products.getAll(),
-    api.trucks.getAll(),
+    isWarehouseWorker ? Promise.resolve([]) : api.trucks.getAll(),
   ])
 
   // Fetch stock from all warehouses
@@ -44,34 +50,34 @@ export default async function StockPage() {
     <PageShell>
       <PageHeader crumbs={[{ label: "Stock" }]} />
       <div className="min-h-0 flex-1 space-y-6 overflow-auto">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Card>
+        {allStock.length > 0 && <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {totalEntries > 0 && <Card>
             <CardContent className="pt-6">
               <p className="text-xs font-medium text-muted-foreground">Total entries</p>
               <p className="mt-1 text-2xl font-semibold tabular-nums text-primary">
                 {totalEntries}
               </p>
             </CardContent>
-          </Card>
-          <Card>
+          </Card>}
+          {inDeposits > 0 && <Card>
             <CardContent className="pt-6">
               <p className="text-xs font-medium text-muted-foreground">In deposits</p>
               <p className="mt-1 text-2xl font-semibold tabular-nums text-primary">
                 {inDeposits}
               </p>
             </CardContent>
-          </Card>
-          <Card>
+          </Card>}
+          {inTransit > 0 && <Card>
             <CardContent className="pt-6">
               <p className="text-xs font-medium text-muted-foreground">In transit</p>
               <p className="mt-1 text-2xl font-semibold tabular-nums text-primary">
                 {inTransit}
               </p>
             </CardContent>
-          </Card>
-        </div>
+          </Card>}
+        </div>}
 
-        <div className="overflow-x-auto rounded-xl ring-1 ring-border">
+        {allStock.length === 0 ? <EmptyState icon={Boxes} title="No stock recorded" description="Inventory for this warehouse will appear when products are received." /> : <div className="overflow-x-auto rounded-xl ring-1 ring-border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -138,7 +144,7 @@ export default async function StockPage() {
               )}
             </TableBody>
           </Table>
-        </div>
+        </div>}
       </div>
     </PageShell>
   )

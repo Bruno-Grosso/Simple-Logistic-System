@@ -1,9 +1,19 @@
 import { pg_conn } from "./model";
 
-// Auto-migration to ensure wage column, distance_km column, and distance calculation function exist
+// Auto-migration to ensure required columns and the distance calculation function exist.
 (async () => {
   try {
     await pg_conn`ALTER TABLE users ADD COLUMN IF NOT EXISTS wage REAL NOT NULL DEFAULT 45.0`;
+    await pg_conn`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT`;
+    await pg_conn`ALTER TABLE users ADD COLUMN IF NOT EXISTS warehouse_id TEXT REFERENCES warehouses(id)`;
+    await pg_conn`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active INTEGER NOT NULL DEFAULT 1`;
+    await pg_conn`ALTER TABLE orders_route ADD COLUMN IF NOT EXISTS driver_id TEXT REFERENCES users(id)`;
+    await pg_conn`
+      UPDATE users
+      SET email = lower(split_part(name, ' ', 1)) || '@logisys.com'
+      WHERE email IS NULL OR email = ''
+    `;
+    await pg_conn`CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users (lower(email)) WHERE email IS NOT NULL`;
     await pg_conn`ALTER TABLE orders ADD COLUMN IF NOT EXISTS distance_km REAL DEFAULT 0.0`;
     await pg_conn`UPDATE warehouses SET fuel_price = 5.89 WHERE id = 'WH-001' AND fuel_price < 4.0`;
     await pg_conn`UPDATE warehouses SET fuel_price = 6.15 WHERE id = 'WH-002' AND fuel_price < 4.0`;
@@ -142,16 +152,18 @@ export const users = {
     const matched = allUsers.find((u: any) => {
       const uId = String(u.id).toLowerCase();
       const uName = String(u.name).toLowerCase();
+      const uEmail = String(u.email || "").toLowerCase();
       const firstName = uName.split(" ")[0];
       const matchPass = String(u.password) === String(passwordInput);
 
       const matchId = uId === input || uId === cleanPrefix;
       const matchName = uName === input || firstName === cleanPrefix || uName.includes(cleanPrefix);
+      const matchEmail = uEmail === input;
 
-      return matchPass && (matchId || matchName);
+      return matchPass && (matchId || matchName || matchEmail);
     });
 
-    if (!matched) return null;
+    if (!matched || Number(matched.is_active ?? 1) === 0) return null;
 
     const sessionId = `SESS-${Date.now()}`;
     const nowStr = new Date().toISOString().replace("T", " ").slice(0, 19);
@@ -178,7 +190,7 @@ export const users = {
       },
     };
   },
-  update: async (id: string, user: { name?: string; password?: string; address?: any; role?: string; wage?: number }) => {
+  update: async (id: string, user: { name?: string; password?: string; address?: any; role?: string; wage?: number; warehouse_id?: string | null; is_active?: number }) => {
     let addressVal: string | null = null;
     if (user.address !== undefined) {
       if (typeof user.address === "object" && user.address !== null) {
@@ -205,6 +217,12 @@ export const users = {
     if (user.wage !== undefined) {
       await pg_conn`UPDATE users SET wage = ${Number(user.wage)} WHERE id = ${id}`;
     }
+    if (user.warehouse_id !== undefined) {
+      await pg_conn`UPDATE users SET warehouse_id = ${user.warehouse_id} WHERE id = ${id}`;
+    }
+    if (user.is_active !== undefined) {
+      await pg_conn`UPDATE users SET is_active = ${Number(user.is_active) ? 1 : 0} WHERE id = ${id}`;
+    }
 
     const updated = await pg_conn`SELECT * FROM users WHERE id = ${id}`;
     return updated;
@@ -215,12 +233,23 @@ export const users = {
     const wage = client.wage !== undefined ? Number(client.wage) : (role === "client" ? 0.0 : 45.0);
     const addressJson = JSON.stringify({ address: client.address || "" });
     const inserted = await pg_conn`
-      INSERT INTO users (id, name, password, address, role, wage)
-      VALUES (${id}, ${client.name}, ${client.password}, ${addressJson}, ${role}, ${wage})
-      RETURNING id, name, address, role, wage
+      INSERT INTO users (id, name, email, password, address, role, wage)
+      VALUES (${id}, ${client.name}, ${client.email || null}, ${client.password}, ${addressJson}, ${role}, ${wage})
+      RETURNING id, name, email, address, role, wage
     `;
     return inserted[0];
   },
+  createEmployee: async (employee: { name: string; email?: string; password: string; address?: string; role: "warehouse_worker" | "truck_driver"; wage?: number; warehouse_id?: string | null; is_active?: number }) => {
+    const id = `USR-${Date.now().toString().slice(-7)}`;
+    const address = JSON.stringify({ address: employee.address || "" });
+    const inserted = await pg_conn`
+      INSERT INTO users (id, name, email, password, address, role, warehouse_id, wage, is_active)
+      VALUES (${id}, ${employee.name}, ${employee.email || null}, ${employee.password}, ${address}, ${employee.role}, ${employee.warehouse_id || null}, ${Number(employee.wage ?? 45)}, ${employee.is_active === 0 ? 0 : 1})
+      RETURNING *
+    `;
+    return inserted[0];
+  },
+  delete: (id: string) => pg_conn`DELETE FROM users WHERE id = ${id} RETURNING *`,
 };
 
 export const onlineUsers = {
@@ -410,6 +439,16 @@ export const suppliers = createBaseRepo("suppliers");
 export const orders = {
   ...createBaseRepo("orders"),
   byClient: (clientId: string) => pg_conn`SELECT * FROM orders WHERE client_id = ${clientId}`,
+  byDriver: (driverId: string) => pg_conn`
+    SELECT DISTINCT o.* FROM orders o
+    JOIN orders_route r ON r.order_id = o.id
+    WHERE r.driver_id = ${driverId}
+  `,
+  byWarehouse: (warehouseId: string) => pg_conn`
+    SELECT DISTINCT o.* FROM orders o
+    JOIN orders_route r ON r.order_id = o.id
+    WHERE r.warehouse_id = ${warehouseId} OR r.destination_warehouse_id = ${warehouseId}
+  `,
   items: (orderId: string) => pg_conn`SELECT * FROM orders_items WHERE order_id = ${orderId}`,
   routes: (orderId: string) => pg_conn`SELECT * FROM orders_route WHERE order_id = ${orderId}`,
   costs: (orderId: string) => pg_conn`SELECT * FROM freight_cost WHERE order_id = ${orderId}`,
@@ -447,6 +486,8 @@ export const orders = {
       VALUES (${order.id}, ${order.client_id}, ${order.final_destination}, ${order.time_limit}, ${order.price}, ${order.status || 'Pending'})
       RETURNING *
     `,
+  updateStatus: (orderId: string, status: "Pending" | "Shipped" | "Delivered" | "Canceled") =>
+    pg_conn`UPDATE orders SET status = ${status} WHERE id = ${orderId} RETURNING *`,
   addItem: (item: { order_id: string; product_id: string; quantity: number }) =>
     pg_conn`
       INSERT INTO orders_items (order_id, product_id, quantity)
@@ -614,6 +655,7 @@ export const orders_route = {
     step: number;
     warehouse_id?: string | null;
     truck_id?: string | null;
+    driver_id?: string | null;
     destination_warehouse_id?: string | null;
     estimated_time?: string | null;
     arrived_at?: string | null;
@@ -625,14 +667,15 @@ export const orders_route = {
       }
     }
     return pg_conn`
-      INSERT INTO orders_route (order_id, step, warehouse_id, truck_id, destination_warehouse_id, estimated_time, arrived_at)
-      VALUES (${routeStep.order_id}, ${routeStep.step}, ${routeStep.warehouse_id || null}, ${routeStep.truck_id || null}, ${routeStep.destination_warehouse_id || null}, ${routeStep.estimated_time || null}, ${routeStep.arrived_at || null})
+      INSERT INTO orders_route (order_id, step, warehouse_id, truck_id, driver_id, destination_warehouse_id, estimated_time, arrived_at)
+      VALUES (${routeStep.order_id}, ${routeStep.step}, ${routeStep.warehouse_id || null}, ${routeStep.truck_id || null}, ${routeStep.driver_id || null}, ${routeStep.destination_warehouse_id || null}, ${routeStep.estimated_time || null}, ${routeStep.arrived_at || null})
       RETURNING *
     `;
   },
   update: async (orderId: string, step: number, routeStep: {
     warehouse_id?: string | null;
     truck_id?: string | null;
+    driver_id?: string | null;
     destination_warehouse_id?: string | null;
     estimated_time?: string | null;
     arrived_at?: string | null;
@@ -647,6 +690,7 @@ export const orders_route = {
       UPDATE orders_route
       SET warehouse_id = ${routeStep.warehouse_id !== undefined ? routeStep.warehouse_id : pg_conn`warehouse_id`},
           truck_id = ${routeStep.truck_id !== undefined ? routeStep.truck_id : pg_conn`truck_id`},
+          driver_id = ${routeStep.driver_id !== undefined ? routeStep.driver_id : pg_conn`driver_id`},
           destination_warehouse_id = ${routeStep.destination_warehouse_id !== undefined ? routeStep.destination_warehouse_id : pg_conn`destination_warehouse_id`},
           estimated_time = ${routeStep.estimated_time !== undefined ? routeStep.estimated_time : pg_conn`estimated_time`},
           arrived_at = ${routeStep.arrived_at !== undefined ? routeStep.arrived_at : pg_conn`arrived_at`}
@@ -905,4 +949,3 @@ export const reports = {
     };
   },
 };
-

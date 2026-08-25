@@ -61,10 +61,13 @@ CREATE TABLE trucks (
 CREATE TABLE users (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    email TEXT UNIQUE,
     password TEXT NOT NULL,
     address JSON, -- Documentation says geographic coordinates
     role TEXT CHECK(role IN ('admin','warehouse_worker','truck_driver','client')),
-    wage REAL NOT NULL DEFAULT 45.0
+    warehouse_id TEXT REFERENCES warehouses(id),
+    wage REAL NOT NULL DEFAULT 45.0,
+    is_active INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE online_users (
@@ -105,6 +108,7 @@ CREATE TABLE orders_route (
     step INTEGER NOT NULL,
     warehouse_id TEXT REFERENCES warehouses(id),
     truck_id TEXT REFERENCES trucks(id),
+    driver_id TEXT REFERENCES users(id),
     destination_warehouse_id TEXT REFERENCES warehouses(id),
     estimated_time TEXT,
     arrived_at TEXT,

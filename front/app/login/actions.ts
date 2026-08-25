@@ -27,10 +27,6 @@ export async function loginAction(
     return { error: "Enter a valid email address." }
   }
 
-  if (password.length < 8) {
-    return { error: "Password must be at least 8 characters." }
-  }
-
   const auth = await authenticateLogin(email, password)
   if (!auth.ok) {
     if (auth.reason === "backend_no_token") {

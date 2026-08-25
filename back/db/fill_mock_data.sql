@@ -25,17 +25,17 @@ INSERT INTO warehouses (id, location, size, volume_current, volume_max, has_refr
 ('WH-003', '{"latitude":-22.3000,"longitude":-42.5400,"label":"Nova Friburgo Facility (Olaria)"}', '{"length":80,"width":60,"height":10}', 0.0, 48000.0, 1, 5.95, 4);
 
 -- 4. Users (10 entries)
-INSERT INTO users (id, name, password, address, role, wage) VALUES
-('USR-001', 'Alice Admin', 'admin123', '{"address": "Rua do Imperador, Centro, Petrópolis - RJ"}', 'admin', 65.0),
-('USR-002', 'Bob Worker', 'bobpass', '{"address": "Estrada União e Indústria, Itaipava, Petrópolis - RJ"}', 'warehouse_worker', 42.0),
-('USR-003', 'Charlie Driver', 'trucker1', '{"address": "Av. Alberto Braune, Centro, Nova Friburgo - RJ"}', 'truck_driver', 55.0),
-('USR-004', 'David Client', 'client789', '{"address": "Av. Reta da Várzea, Várzea, Teresópolis - RJ"}', 'client', 0.0),
-('USR-005', 'Eve Client', 'evepass', '{"address": "Rua Monte Líbano, Centro, Nova Friburgo - RJ"}', 'client', 0.0),
-('USR-006', 'Frank Driver', 'frank123', '{"address": "Estrada Terê-Fri, Km 12, Teresópolis - RJ"}', 'truck_driver', 50.0),
-('USR-007', 'Grace Worker', 'gracepass', '{"address": "Rua General Osório, Centro, Nova Friburgo - RJ"}', 'warehouse_worker', 40.0),
-('USR-008', 'Henry Client', 'henry789', '{"address": "Rua Dr. Moacyr Freijanes, Bom Jardim - RJ"}', 'client', 0.0),
-('USR-009', 'Ivy Client', 'ivypass', '{"address": "Av. Alberto Torres, Teresópolis - RJ"}', 'client', 0.0),
-('USR-010', 'Jack Worker', 'jackpass', '{"address": "Rua Cel. Veiga, Petrópolis - RJ"}', 'warehouse_worker', 38.0);
+INSERT INTO users (id, name, email, password, address, role, warehouse_id, wage) VALUES
+('USR-001', 'Alice Admin', 'alice@logisys.com', 'admin123', '{"address": "Rua do Imperador, Centro, Petrópolis - RJ"}', 'admin', NULL, 65.0),
+('USR-002', 'Bob Worker', 'bob@logisys.com', 'bobpass', '{"address": "Estrada União e Indústria, Itaipava, Petrópolis - RJ"}', 'warehouse_worker', 'WH-001', 42.0),
+('USR-003', 'Charlie Driver', 'charlie@logisys.com', 'trucker1', '{"address": "Av. Alberto Braune, Centro, Nova Friburgo - RJ"}', 'truck_driver', NULL, 55.0),
+('USR-004', 'David Client', 'david@logisys.com', 'client789', '{"address": "Av. Reta da Várzea, Várzea, Teresópolis - RJ"}', 'client', NULL, 0.0),
+('USR-005', 'Eve Client', 'eve@logisys.com', 'evepass', '{"address": "Rua Monte Líbano, Centro, Nova Friburgo - RJ"}', 'client', NULL, 0.0),
+('USR-006', 'Frank Driver', 'frank@logisys.com', 'frank123', '{"address": "Estrada Terê-Fri, Km 12, Teresópolis - RJ"}', 'truck_driver', NULL, 50.0),
+('USR-007', 'Grace Worker', 'grace@logisys.com', 'gracepass', '{"address": "Rua General Osório, Centro, Nova Friburgo - RJ"}', 'warehouse_worker', 'WH-002', 40.0),
+('USR-008', 'Henry Client', 'henry@logisys.com', 'henry789', '{"address": "Rua Dr. Moacyr Freijanes, Bom Jardim - RJ"}', 'client', NULL, 0.0),
+('USR-009', 'Ivy Client', 'ivy@logisys.com', 'ivypass', '{"address": "Av. Alberto Torres, Teresópolis - RJ"}', 'client', NULL, 0.0),
+('USR-010', 'Jack Worker', 'jack@logisys.com', 'jackpass', '{"address": "Rua Cel. Veiga, Petrópolis - RJ"}', 'warehouse_worker', 'WH-001', 38.0);
 
 -- 5. Trucks (4 entries)
 INSERT INTO trucks (id, model, speed, is_valid, is_delivering, size, volume_current, volume_max, weight_current, weight_max, has_refrigeration, current_warehouse_id, fuel_capacity, fuel_current, fuel_consumption, truck_maintenance) VALUES
@@ -79,10 +79,10 @@ INSERT INTO trucks_cargo (truck_id, product_id, quantity) VALUES
 ('TRK-002', 'PROD-003', 1);
 
 -- 10. Orders Route (3 steps)
-INSERT INTO orders_route (order_id, step, warehouse_id, truck_id, destination_warehouse_id, estimated_time, arrived_at) VALUES
-('ORD-002', 1, 'WH-001', 'TRK-002', 'WH-002', '2026-03-26 14:00:00', NULL),
-('ORD-003', 1, 'WH-001', NULL, NULL, NULL, '2026-03-19 10:00:00'),
-('ORD-004', 1, 'WH-003', 'TRK-003', NULL, '2026-04-01 10:00:00', NULL);
+INSERT INTO orders_route (order_id, step, warehouse_id, truck_id, driver_id, destination_warehouse_id, estimated_time, arrived_at) VALUES
+('ORD-002', 1, 'WH-001', 'TRK-002', 'USR-003', 'WH-002', '2026-03-26 14:00:00', NULL),
+('ORD-003', 1, 'WH-001', NULL, NULL, NULL, NULL, '2026-03-19 10:00:00'),
+('ORD-004', 1, 'WH-003', 'TRK-003', 'USR-006', NULL, '2026-04-01 10:00:00', NULL);
 
 -- 11. Supplies Route (2 entries)
 INSERT INTO supplies_route (order_id, supplier_id, truck_id, estimated_departure, estimated_arrival, actual_arrival) VALUES

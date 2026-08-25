@@ -13,13 +13,19 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
+import { requireRole } from "@/lib/auth/require-role"
 import { computeDepositUsage, computeDepositParkingUsage } from "@/lib/calculations"
+import { EmptyState } from "@/components/empty-state"
 
 export const dynamic = "force-dynamic"
 
 export default async function DepositsPage() {
+  const user = await requireRole("admin", "warehouse_worker")
+  const isWarehouseWorker = (user.rawRole || user.role) === "warehouse_worker"
   const [deposits, trucks] = await Promise.all([
-    api.warehouses.getAll(),
+    isWarehouseWorker && user.warehouse_id
+      ? api.warehouses.getById(user.warehouse_id).then((warehouse) => warehouse ? [warehouse] : [])
+      : api.warehouses.getAll(),
     api.trucks.getAll(),
   ])
 
@@ -27,7 +33,7 @@ export default async function DepositsPage() {
     <PageShell>
       <PageHeader crumbs={[{ label: "Deposits" }]} />
       <div className="min-h-0 flex-1 overflow-auto">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {deposits.length === 0 ? <EmptyState icon={Warehouse} title="No warehouse assigned" description="Warehouse activity will appear here once you are assigned to one." /> : <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {deposits.map((deposit) => {
             const label = deposit.location || `Warehouse ${deposit.id}`
             const { pct } = computeDepositUsage(deposit)
@@ -128,7 +134,7 @@ export default async function DepositsPage() {
               </Link>
             )
           })}
-        </div>
+        </div>}
       </div>
     </PageShell>
   )

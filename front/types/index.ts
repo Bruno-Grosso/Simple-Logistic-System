@@ -1,6 +1,7 @@
 // ─── Enums / unions (match SQL CHECK constraints) ───────────────────────────
 
-export type UserRole = "admin" | "worker" | "client";
+/** Roles stored by the API. `worker` remains for older records. */
+export type UserRole = "admin" | "warehouse_worker" | "truck_driver" | "worker" | "client";
 
 export type OrderStatus = "Pending" | "Shipped" | "Delivered" | "Cancelled";
 
@@ -9,6 +10,8 @@ export type OrderStatus = "Pending" | "Shipped" | "Delivered" | "Cancelled";
 export interface Deposit {
   id: string;
   location: string;
+  latitude?: number;
+  longitude?: number;
   size?: string;
   volume_actual: number;
   volume_max?: number;
@@ -74,6 +77,8 @@ export interface User {
   role: UserRole;
   rawRole?: string;
   wage?: number;
+  warehouse_id?: string;
+  is_active?: boolean;
 }
 
 // ─── 5. session ───────────────────────────────────────────────────────────────
@@ -168,7 +173,9 @@ export interface OrderRoute {
   order_id: string;
   step: number;
   deposit_id?: string;
+  destination_deposit_id?: string;
   truck_id?: string;
+  driver_id?: string;
   estimated_time?: string;
   arrived_at?: string;
 }
@@ -364,5 +371,3 @@ export interface DeliveryCostReport {
   summary: DeliveryCostSummary;
   orders: OrderDeliveryCostItem[];
 }
-
-
