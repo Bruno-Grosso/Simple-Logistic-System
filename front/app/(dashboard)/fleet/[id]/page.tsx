@@ -105,7 +105,19 @@ export default async function FleetDetailPage({ params }: PageProps) {
                   <InfoField label="Model" value={truck.model ?? "—"} />
                   <InfoField label="Truck ID" value={truck.id} />
                   <div className="sm:col-span-2">
-                    <InfoField label="Size" value={truck.size ?? "—"} />
+                    <InfoField 
+                      label="Size" 
+                      value={(() => {
+                        try {
+                          const parsed = typeof truck.size === "string" ? JSON.parse(truck.size) : truck.size;
+                          return parsed && typeof parsed === "object" 
+                            ? `${parsed.length}m x ${parsed.width}m x ${parsed.height}m` 
+                            : truck.size ?? "—";
+                        } catch {
+                          return truck.size ?? "—";
+                        }
+                      })()} 
+                    />
                   </div>
                   <InfoField
                     label="Volume capacity"
