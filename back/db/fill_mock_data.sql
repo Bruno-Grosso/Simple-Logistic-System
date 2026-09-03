@@ -3,14 +3,14 @@
 
 -- 1. Products (8 entries)
 INSERT INTO products (id, name, is_cold, is_fragile, expire_date, price, size, volume, weight) VALUES
-('PROD-001', 'Fresh Milk', 1, 0, '2026-04-10', 3.50, '{"length":10,"width":10,"height":20}', 0.002, 1.0),
-('PROD-002', 'Crystal Vase', 0, 1, NULL, 45.00, '{"length":30,"width":30,"height":40}', 0.036, 2.5),
-('PROD-003', 'Smartphone X', 0, 0, NULL, 899.99, '{"length":15,"width":8,"height":2}', 0.00024, 0.2),
-('PROD-004', 'Frozen Pizza', 1, 0, '2026-09-20', 5.99, '{"length":30,"width":30,"height":3}', 0.0027, 0.5),
-('PROD-005', 'Office Chair', 0, 0, NULL, 120.00, '{"length":60,"width":60,"height":100}', 0.36, 12.0),
-('PROD-006', 'Gaming Laptop', 0, 1, NULL, 1500.00, '{"length":40,"width":30,"height":5}', 0.006, 3.0),
-('PROD-007', 'Red Wine Box', 0, 1, '2028-12-31', 80.00, '{"length":30,"width":20,"height":30}', 0.018, 9.0),
-('PROD-008', 'Industrial Drill', 0, 0, NULL, 250.00, '{"length":40,"width":15,"height":25}', 0.015, 5.5);
+('PROD-001', 'Fresh Milk', 1, 0, '2026-04-10', 3.50, '{"length":10,"width":10,"height":20}'::json, 0.002, 1.0),
+('PROD-002', 'Crystal Vase', 0, 1, NULL, 45.00, '{"length":30,"width":30,"height":40}'::json, 0.036, 2.5),
+('PROD-003', 'Smartphone X', 0, 0, NULL, 899.99, '{"length":15,"width":8,"height":2}'::json, 0.00024, 0.2),
+('PROD-004', 'Frozen Pizza', 1, 0, '2026-09-20', 5.99, '{"length":30,"width":30,"height":3}'::json, 0.0027, 0.5),
+('PROD-005', 'Office Chair', 0, 0, NULL, 120.00, '{"length":60,"width":60,"height":100}'::json, 0.36, 12.0),
+('PROD-006', 'Gaming Laptop', 0, 1, NULL, 1500.00, '{"length":40,"width":30,"height":5}'::json, 0.006, 3.0),
+('PROD-007', 'Red Wine Box', 0, 1, '2028-12-31', 80.00, '{"length":30,"width":20,"height":30}'::json, 0.018, 9.0),
+('PROD-008', 'Industrial Drill', 0, 0, NULL, 250.00, '{"length":40,"width":15,"height":25}'::json, 0.015, 5.5);
 
 -- 2. Suppliers (3 entries)
 INSERT INTO suppliers (id, name, location) VALUES
@@ -20,29 +20,29 @@ INSERT INTO suppliers (id, name, location) VALUES
 
 -- 3. Warehouses (3 entries)
 INSERT INTO warehouses (id, location, size, volume_current, volume_max, has_refrigeration, fuel_price, truck_capacity) VALUES
-('WH-001', '{"latitude":-22.3842,"longitude":-43.1311,"label":"Petrópolis Hub (Itaipava)"}', '{"length":100,"width":100,"height":10}', 0.36, 100000.0, 1, 5.89, 5),
-('WH-002', '{"latitude":-22.4350,"longitude":-42.9800,"label":"Teresópolis Depot (Alto)"}', '{"length":50,"width":50,"height":8}', 0.0, 20000.0, 0, 6.15, 2),
-('WH-003', '{"latitude":-22.3000,"longitude":-42.5400,"label":"Nova Friburgo Facility (Olaria)"}', '{"length":80,"width":60,"height":10}', 0.0, 48000.0, 1, 5.95, 4);
+('WH-001', '{"latitude":-22.3842,"longitude":-43.1311,"label":"Petrópolis Hub (Itaipava)"}'::json, '{"length":100,"width":100,"height":10}'::json, 0.36, 100000.0, 1, 5.89, 5),
+('WH-002', '{"latitude":-22.4350,"longitude":-42.9800,"label":"Teresópolis Depot (Alto)"}'::json, '{"length":50,"width":50,"height":8}'::json, 0.0, 20000.0, 0, 6.15, 2),
+('WH-003', '{"latitude":-22.3000,"longitude":-42.5400,"label":"Nova Friburgo Facility (Olaria)"}'::json, '{"length":80,"width":60,"height":10}'::json, 0.0, 48000.0, 1, 5.95, 4);
 
 -- 4. Users (10 entries)
 INSERT INTO users (id, name, email, password, address, role, warehouse_id, wage) VALUES
-('USR-001', 'Alice Admin', 'alice@logisys.com', 'admin123', '{"address": "Rua do Imperador, Centro, Petrópolis - RJ"}', 'admin', NULL, 65.0),
-('USR-002', 'Bob Worker', 'bob@logisys.com', 'bobpass', '{"address": "Estrada União e Indústria, Itaipava, Petrópolis - RJ"}', 'warehouse_worker', 'WH-001', 42.0),
-('USR-003', 'Charlie Driver', 'charlie@logisys.com', 'trucker1', '{"address": "Av. Alberto Braune, Centro, Nova Friburgo - RJ"}', 'truck_driver', NULL, 55.0),
-('USR-004', 'David Client', 'david@logisys.com', 'client789', '{"address": "Av. Reta da Várzea, Várzea, Teresópolis - RJ"}', 'client', NULL, 0.0),
-('USR-005', 'Eve Client', 'eve@logisys.com', 'evepass', '{"address": "Rua Monte Líbano, Centro, Nova Friburgo - RJ"}', 'client', NULL, 0.0),
-('USR-006', 'Frank Driver', 'frank@logisys.com', 'frank123', '{"address": "Estrada Terê-Fri, Km 12, Teresópolis - RJ"}', 'truck_driver', NULL, 50.0),
-('USR-007', 'Grace Worker', 'grace@logisys.com', 'gracepass', '{"address": "Rua General Osório, Centro, Nova Friburgo - RJ"}', 'warehouse_worker', 'WH-002', 40.0),
-('USR-008', 'Henry Client', 'henry@logisys.com', 'henry789', '{"address": "Rua Dr. Moacyr Freijanes, Bom Jardim - RJ"}', 'client', NULL, 0.0),
-('USR-009', 'Ivy Client', 'ivy@logisys.com', 'ivypass', '{"address": "Av. Alberto Torres, Teresópolis - RJ"}', 'client', NULL, 0.0),
-('USR-010', 'Jack Worker', 'jack@logisys.com', 'jackpass', '{"address": "Rua Cel. Veiga, Petrópolis - RJ"}', 'warehouse_worker', 'WH-001', 38.0);
+('USR-001', 'Alice Admin', 'alice@logisys.com', 'admin123', '{"address": "Rua do Imperador, Centro, Petrópolis - RJ"}'::json, 'admin', NULL, 65.0),
+('USR-002', 'Bob Worker', 'bob@logisys.com', 'bobpass', '{"address": "Estrada União e Indústria, Itaipava, Petrópolis - RJ"}'::json, 'warehouse_worker', 'WH-001', 42.0),
+('USR-003', 'Charlie Driver', 'charlie@logisys.com', 'trucker1', '{"address": "Av. Alberto Braune, Centro, Nova Friburgo - RJ"}'::json, 'truck_driver', NULL, 55.0),
+('USR-004', 'David Client', 'david@logisys.com', 'client789', '{"address": "Av. Reta da Várzea, Várzea, Teresópolis - RJ"}'::json, 'client', NULL, 0.0),
+('USR-005', 'Eve Client', 'eve@logisys.com', 'evepass', '{"address": "Rua Monte Líbano, Centro, Nova Friburgo - RJ"}'::json, 'client', NULL, 0.0),
+('USR-006', 'Frank Driver', 'frank@logisys.com', 'frank123', '{"address": "Estrada Terê-Fri, Km 12, Teresópolis - RJ"}'::json, 'truck_driver', NULL, 50.0),
+('USR-007', 'Grace Worker', 'grace@logisys.com', 'gracepass', '{"address": "Rua General Osório, Centro, Nova Friburgo - RJ"}'::json, 'warehouse_worker', 'WH-002', 40.0),
+('USR-008', 'Henry Client', 'henry@logisys.com', 'henry789', '{"address": "Rua Dr. Moacyr Freijanes, Bom Jardim - RJ"}'::json, 'client', NULL, 0.0),
+('USR-009', 'Ivy Client', 'ivy@logisys.com', 'ivypass', '{"address": "Av. Alberto Torres, Teresópolis - RJ"}'::json, 'client', NULL, 0.0),
+('USR-010', 'Jack Worker', 'jack@logisys.com', 'jackpass', '{"address": "Rua Cel. Veiga, Petrópolis - RJ"}'::json, 'warehouse_worker', 'WH-001', 38.0);
 
 -- 5. Trucks (4 entries)
 INSERT INTO trucks (id, model, speed, is_valid, is_delivering, size, volume_current, volume_max, weight_current, weight_max, has_refrigeration, current_warehouse_id, fuel_capacity, fuel_current, fuel_consumption, truck_maintenance) VALUES
-('TRK-001', 'Caminhão Serrano 01', 85.0, 1, 0, '{"length":13.6,"width":2.5,"height":2.7}', 0.0, 90.0, 0.0, 25000.0, 1, 'WH-001', 500.0, 450.0, 0.3, 2),
-('TRK-002', 'Caminhão Serrano 02', 80.0, 1, 1, '{"length":13.6,"width":2.5,"height":2.7}', 0.036, 90.0, 2.5, 25000.0, 0, NULL, 600.0, 300.0, 0.35, 1),
-('TRK-003', 'Caminhão Serrano 03', 82.0, 1, 0, '{"length":13.6,"width":2.5,"height":2.7}', 0.0, 90.0, 0.0, 25000.0, 1, 'WH-003', 550.0, 500.0, 0.32, 0),
-('TRK-004', 'Caminhão Serrano 04', 75.0, 1, 0, '{"length":12,"width":2.4,"height":2.5}', 0.0, 72.0, 0.0, 18000.0, 0, 'WH-002', 400.0, 380.0, 0.28, 1);
+('TRK-001', 'Caminhão Serrano 01', 85.0, 1, 0, '{"length":13.6,"width":2.5,"height":2.7}'::json, 0.0, 90.0, 0.0, 25000.0, 1, 'WH-001', 500.0, 450.0, 0.3, 2),
+('TRK-002', 'Caminhão Serrano 02', 80.0, 1, 1, '{"length":13.6,"width":2.5,"height":2.7}'::json, 0.036, 90.0, 2.5, 25000.0, 0, NULL, 600.0, 300.0, 0.35, 1),
+('TRK-003', 'Caminhão Serrano 03', 82.0, 1, 0, '{"length":13.6,"width":2.5,"height":2.7}'::json, 0.0, 90.0, 0.0, 25000.0, 1, 'WH-003', 550.0, 500.0, 0.32, 0),
+('TRK-004', 'Caminhão Serrano 04', 75.0, 1, 0, '{"length":12,"width":2.4,"height":2.5}'::json, 0.0, 72.0, 0.0, 18000.0, 0, 'WH-002', 400.0, 380.0, 0.28, 1);
 
 UPDATE trucks SET origin_warehouse_id = 'WH-001', destination_warehouse_id = 'WH-002', estimated_time = '2026-03-26 14:00:00' WHERE id = 'TRK-002';
 
