@@ -14,7 +14,7 @@
 - [ ] Improve lighthouse score
 
 ### Fixes
-- [✔️] {"length":13.6,"width":2.5,"height":2.7} on truck
+- [X] {"length":13.6,"width":2.5,"height":2.7} on truck
 - [ ] Fix tests failing due to new login system
 
 ### Priority (graded)
