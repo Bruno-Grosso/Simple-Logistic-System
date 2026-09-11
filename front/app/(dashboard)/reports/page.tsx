@@ -45,7 +45,7 @@ function parseDestination(raw: string | undefined): string {
 }
 
 export default async function ReportsPage(props: ReportsPageProps) {
-  await requireRole("admin")
+  await requireRole("admin", "dispatcher", "manager")
   const searchParams = await props.searchParams
   const warehouseId = searchParams?.warehouseId
 

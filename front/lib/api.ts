@@ -163,6 +163,24 @@ export const api = {
       const res = await apiClient.put<{ success: boolean; warehouse?: any }>(`/warehouses/${id}`, payload)
       return res.data
     },
+
+    async updateStock(id: string, payload: { product_id: string; quantity: number }): Promise<{ success: boolean; stock?: any; error?: string }> {
+      try {
+        const res = await apiClient.put<{ success: boolean; stock?: any }>(`/warehouses/${id}/stock`, payload)
+        return res.data
+      } catch (err: any) {
+        return { success: false, error: err.response?.data || err.message }
+      }
+    },
+
+    async deleteStock(id: string, productId: string): Promise<{ success: boolean; error?: string }> {
+      try {
+        const res = await apiClient.delete<{ success: boolean }>(`/warehouses/${id}/stock/${productId}`)
+        return res.data
+      } catch (err: any) {
+        return { success: false, error: err.response?.data || err.message }
+      }
+    },
   },
 
   trucks: {
@@ -246,6 +264,32 @@ export const api = {
       const res = await apiClient.put<{ success: boolean; product?: any }>(`/products/${id}`, payload)
       return res.data
     },
+
+    async create(payload: {
+      id?: string
+      name: string
+      price: number
+      is_cold?: number | boolean
+      is_fragile?: number | boolean
+      expire_date?: string | null
+      size?: any
+      volume: number
+      weight: number
+    }): Promise<{ success: boolean; product?: Product; error?: string }> {
+      try {
+        const res = await apiClient.post<{ success: boolean; product?: any }>("/products", {
+          ...payload,
+          is_cold: payload.is_cold ? 1 : 0,
+          is_fragile: payload.is_fragile ? 1 : 0,
+        })
+        return {
+          success: true,
+          product: res.data.product ? adaptProduct(res.data.product) : undefined,
+        }
+      } catch (err: any) {
+        return { success: false, error: err.response?.data || err.message }
+      }
+    },
   },
 
   users: {
@@ -306,7 +350,7 @@ export const api = {
       return { success: false, error: "The employee update was not accepted" }
     },
 
-    async createEmployee(payload: { name: string; email?: string; password: string; address?: string; role: "warehouse_worker" | "truck_driver"; wage?: number; warehouse_id?: string | null; is_active?: number }): Promise<{ success: boolean; employee?: User; error?: string }> {
+    async createEmployee(payload: { name: string; email?: string; password: string; address?: string; role: string; wage?: number; warehouse_id?: string | null; is_active?: number }): Promise<{ success: boolean; employee?: User; error?: string }> {
       try {
         const res = await apiClient.post<{ success: boolean; employee?: any }>("/employees", payload)
         return { ...res.data, employee: res.data.employee ? adaptUser(res.data.employee) : undefined }

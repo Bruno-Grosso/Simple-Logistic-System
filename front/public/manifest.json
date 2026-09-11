@@ -1,0 +1,16 @@
+{
+  "name": "LogiSys - Logistics Platform",
+  "short_name": "LogiSys",
+  "description": "Logistics and fleet operations platform",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#d97706",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

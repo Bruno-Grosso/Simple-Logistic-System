@@ -1,21 +1,21 @@
 # LE TODO LIST
 ### Software
-- [ ] Light theme on config menu
-- [ ] Timed Logout
-- [ ] Edit warehouse/stock
-- [ ] Add/edit products
-- [ ] More employee classes
-- [ ] More/more rigorous test coverage
-- [ ] Acessibility/convenience
-- [ ] Auto select valid order data
+- [x] Light theme on config menu
+- [x] Timed Logout
+- [x] Edit warehouse/stock
+- [x] Add/edit products
+- [x] More employee classes
+- [x] More/more rigorous test coverage
+- [x] Acessibility/convenience
+- [x] Auto select valid order data
 
 ### Optional
-- [ ] Add 3d models of trucks and deposits for visualization
-- [ ] Improve lighthouse score
+- [x] Add 3d models of trucks and deposits for visualization
+- [x] Improve lighthouse score
 
 ### Fixes
-- [ ] {"length":13.6,"width":2.5,"height":2.7} on truck
-- [ ] Fix tests failing due to new login system
+- [x] {"length":13.6,"width":2.5,"height":2.7} on truck
+- [x] Fix tests failing due to new login system
 
 ### Priority (graded)
 - [ ] Update docs

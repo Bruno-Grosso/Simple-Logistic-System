@@ -15,10 +15,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import { api } from "@/lib/api"
 import { requireRole } from "@/lib/auth/require-role"
 import { EmptyState } from "@/components/empty-state"
+import { ManageStockDialog } from "@/components/manage-stock-dialog"
 import type { Product, Deposit, Truck, Stock } from "@/types"
 
 export default async function StockPage() {
-  const user = await requireRole("admin", "warehouse_worker")
+  const user = await requireRole("admin", "inventory_manager", "warehouse_worker")
   const isWarehouseWorker = (user.rawRole || user.role) === "warehouse_worker"
   const [warehouses, products, trucks] = await Promise.all([
     isWarehouseWorker && user.warehouse_id
@@ -48,34 +49,41 @@ export default async function StockPage() {
 
   return (
     <PageShell>
-      <PageHeader crumbs={[{ label: "Stock" }]} />
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <PageHeader crumbs={[{ label: "Stock" }]} />
+        <ManageStockDialog
+          warehouses={warehouses}
+          products={products}
+          triggerLabel="Update Stock"
+        />
+      </div>
       <div className="min-h-0 flex-1 space-y-6 overflow-auto">
-        {allStock.length > 0 && <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {totalEntries > 0 && <Card>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Card>
             <CardContent className="pt-6">
               <p className="text-xs font-medium text-muted-foreground">Total entries</p>
               <p className="mt-1 text-2xl font-semibold tabular-nums text-primary">
                 {totalEntries}
               </p>
             </CardContent>
-          </Card>}
-          {inDeposits > 0 && <Card>
+          </Card>
+          <Card>
             <CardContent className="pt-6">
               <p className="text-xs font-medium text-muted-foreground">In deposits</p>
               <p className="mt-1 text-2xl font-semibold tabular-nums text-primary">
                 {inDeposits}
               </p>
             </CardContent>
-          </Card>}
-          {inTransit > 0 && <Card>
+          </Card>
+          <Card>
             <CardContent className="pt-6">
               <p className="text-xs font-medium text-muted-foreground">In transit</p>
               <p className="mt-1 text-2xl font-semibold tabular-nums text-primary">
                 {inTransit}
               </p>
             </CardContent>
-          </Card>}
-        </div>}
+          </Card>
+        </div>
 
         {allStock.length === 0 ? <EmptyState icon={Boxes} title="No stock recorded" description="Inventory for this warehouse will appear when products are received." /> : <div className="overflow-x-auto rounded-xl ring-1 ring-border">
           <Table>
@@ -88,12 +96,13 @@ export default async function StockPage() {
                 <TableHead scope="col">Location</TableHead>
                 <TableHead scope="col">Type</TableHead>
                 <TableHead scope="col">Arrived</TableHead>
+                <TableHead scope="col" className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {allStock.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
                     No stock entries recorded.
                   </TableCell>
                 </TableRow>
@@ -137,6 +146,21 @@ export default async function StockPage() {
                         {new Date(row.arrived_at).toLocaleDateString(undefined, {
                           dateStyle: "medium",
                         })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {inWarehouse && row.deposit_id ? (
+                          <ManageStockDialog
+                            warehouses={warehouses}
+                            products={products}
+                            preselectedWarehouseId={row.deposit_id}
+                            preselectedProductId={row.product_id}
+                            initialQuantity={row.quantity}
+                            iconOnly={true}
+                            triggerLabel={`Edit stock for ${product?.name || row.product_id}`}
+                          />
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   )

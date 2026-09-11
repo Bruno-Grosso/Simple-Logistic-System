@@ -19,4 +19,8 @@ describe("Fleet Management E2E User Journey", () => {
     cy.url().should("match", /\/fleet\/.+/)
     cy.contains("Specs").should("be.visible")
   })
+
+  it("should format truck dimensions cleanly without raw JSON strings", () => {
+    cy.get("body").should("not.contain", '{"length":')
+  })
 })

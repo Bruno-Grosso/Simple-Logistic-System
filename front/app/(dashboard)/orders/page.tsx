@@ -51,14 +51,15 @@ function orderStatusBadge(status: OrderStatus) {
 export default async function OrdersPage() {
   const { user } = await getCurrentUserProfile()
   const role = user.rawRole || user.role
+  const isOrderManager = role === "admin" || role === "dispatcher"
   const orderFilters =
     role === "client" ? { clientId: user.id } :
     role === "truck_driver" ? { driverId: user.id } :
     role === "warehouse_worker" && user.warehouse_id ? { warehouseId: user.warehouse_id } : undefined
   const orders = await api.orders.getAll(orderFilters)
   const [users, trucks, routeEntries] = await Promise.all([
-    role === "admin" ? api.users.getAll() : Promise.resolve([user]),
-    role === "admin" || role === "truck_driver" ? api.trucks.getAll() : Promise.resolve([]),
+    isOrderManager ? api.users.getAll() : Promise.resolve([user]),
+    isOrderManager || role === "truck_driver" ? api.trucks.getAll() : Promise.resolve([]),
     Promise.all(orders.map(async (order) => [order.id, await api.orders.getRoute(order.id)] as const)),
   ])
 
@@ -74,7 +75,7 @@ export default async function OrdersPage() {
     <PageShell>
       <PageHeader
         crumbs={[{ label: "Orders" }]}
-        actions={role === "admin" ? (
+        actions={isOrderManager ? (
           <Link
             href="/orders/new"
             className={cn(
@@ -97,12 +98,12 @@ export default async function OrdersPage() {
               <TableRow>
                 <TableHead scope="col" className="px-4">Order</TableHead>
                 <TableHead scope="col" className="px-4">Destination</TableHead>
-                {role === "admin" && <TableHead scope="col" className="px-4">Client</TableHead>}
-                {role === "admin" && <TableHead scope="col" className="px-4">Driver</TableHead>}
-                {role === "admin" && <TableHead scope="col" className="px-4">Truck</TableHead>}
+                {isOrderManager && <TableHead scope="col" className="px-4">Client</TableHead>}
+                {isOrderManager && <TableHead scope="col" className="px-4">Driver</TableHead>}
+                {isOrderManager && <TableHead scope="col" className="px-4">Truck</TableHead>}
                 <TableHead scope="col" className="px-4">Status</TableHead>
                 <TableHead scope="col" className="px-4">Deadline & ETA</TableHead>
-                {role === "admin" && <TableHead scope="col" className="px-4 text-right tabular-nums">Value</TableHead>}
+                {isOrderManager && <TableHead scope="col" className="px-4 text-right tabular-nums">Value</TableHead>}
                 <TableHead scope="col" className="w-12 px-4">
                   <span className="sr-only">Open order</span>
                 </TableHead>
@@ -142,9 +143,9 @@ export default async function OrdersPage() {
                     <TableCell className="max-w-[180px] truncate px-4 text-muted-foreground">
                       {dest}
                     </TableCell>
-                    {role === "admin" && <TableCell className="px-4">{client?.name ?? `Client ${order.client_id}`}</TableCell>}
-                    {role === "admin" && <TableCell className="px-4">{driver?.name ?? "Unassigned"}</TableCell>}
-                    {role === "admin" && <TableCell className="px-4">{truck ? `${truck.model ?? truck.id} (${truck.id})` : "Unassigned"}</TableCell>}
+                    {isOrderManager && <TableCell className="px-4">{client?.name ?? `Client ${order.client_id}`}</TableCell>}
+                    {isOrderManager && <TableCell className="px-4">{driver?.name ?? "Unassigned"}</TableCell>}
+                    {isOrderManager && <TableCell className="px-4">{truck ? `${truck.model ?? truck.id} (${truck.id})` : "Unassigned"}</TableCell>}
                     <TableCell className="px-4">{orderStatusBadge(order.status)}</TableCell>
                     <TableCell className="px-4">
                       <div className="flex flex-col gap-0.5">
@@ -164,7 +165,7 @@ export default async function OrdersPage() {
                         </span>
                       </div>
                     </TableCell>
-                    {role === "admin" && <TableCell className="px-4 text-right tabular-nums">R$ {order.price.toLocaleString("pt-BR")}</TableCell>}
+                    {isOrderManager && <TableCell className="px-4 text-right tabular-nums">R$ {order.price.toLocaleString("pt-BR")}</TableCell>}
                     <TableCell className="px-4">
                       <Link
                         href={`/orders/${order.id}`}

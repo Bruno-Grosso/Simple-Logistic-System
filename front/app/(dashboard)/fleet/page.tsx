@@ -51,7 +51,7 @@ function truckLocation(t: Truck, depositMap: Map<string, Deposit>): string {
 }
 
 export default async function FleetPage() {
-  const user = await requireRole("admin", "truck_driver")
+  const user = await requireRole("admin", "dispatcher", "maintenance_technician", "truck_driver")
   const role = user.rawRole || user.role
   const [allTrucks, deposits, driverOrders] = await Promise.all([
     api.trucks.getAll(),

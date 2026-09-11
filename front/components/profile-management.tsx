@@ -203,8 +203,10 @@ export function ProfileManagement({
 
                   <div className="grid gap-4 py-4">
                     <div className="grid gap-1.5">
-                      <label className="text-xs font-medium text-foreground">Full Name</label>
+                      <label htmlFor="name" className="text-xs font-medium text-foreground">Full Name</label>
                       <input
+                        id="name"
+                        name="name"
                         type="text"
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
@@ -215,8 +217,10 @@ export function ProfileManagement({
                     </div>
 
                     <div className="grid gap-1.5">
-                      <label className="text-xs font-medium text-foreground">Physical Address</label>
+                      <label htmlFor="address" className="text-xs font-medium text-foreground">Physical Address</label>
                       <textarea
+                        id="address"
+                        name="address"
                         value={editAddress}
                         onChange={(e) => setEditAddress(e.target.value)}
                         className="min-h-[70px] rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
@@ -225,10 +229,12 @@ export function ProfileManagement({
                     </div>
 
                     <div className="grid gap-1.5">
-                      <label className="text-xs font-medium text-foreground">
+                      <label htmlFor="password" className="text-xs font-medium text-foreground">
                         New Password (optional)
                       </label>
                       <input
+                        id="password"
+                        name="password"
                         type="password"
                         value={editPassword}
                         onChange={(e) => setEditPassword(e.target.value)}

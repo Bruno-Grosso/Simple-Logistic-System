@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/sidebar"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
+import { SidebarThemeToggle } from "@/components/theme-toggle"
 import type { User } from "@/types"
 
 const navItems = [
@@ -39,9 +40,14 @@ const navItems = [
 
 const roleNavItems: Record<string, string[]> = {
   admin: navItems.map((item) => item.url),
+  dispatcher: ["/dashboard", "/orders", "/fleet", "/reports", "/profile"],
+  inventory_manager: ["/dashboard", "/deposits", "/products", "/stock", "/suppliers", "/profile"],
+  maintenance_technician: ["/dashboard", "/fleet", "/profile"],
   truck_driver: ["/dashboard", "/orders", "/fleet", "/profile"],
   warehouse_worker: ["/dashboard", "/orders", "/deposits", "/stock", "/profile"],
   client: ["/dashboard", "/orders", "/profile"],
+  worker: ["/dashboard", "/orders", "/deposits", "/stock", "/profile"],
+  manager: ["/dashboard", "/orders", "/fleet", "/deposits", "/products", "/stock", "/suppliers", "/reports", "/profile"],
 }
 
 export function AppSidebar({ user, ...props }: ComponentProps<typeof Sidebar> & { user: User }) {
@@ -70,7 +76,8 @@ export function AppSidebar({ user, ...props }: ComponentProps<typeof Sidebar> & 
       <SidebarContent className="px-2 py-2">
         <NavMain items={visibleNavItems} />
       </SidebarContent>
-      <SidebarFooter className="border-t border-sidebar-border">
+      <SidebarFooter className="border-t border-sidebar-border gap-1 p-2">
+        <SidebarThemeToggle />
         <NavUser user={currentUser} />
       </SidebarFooter>
       <SidebarRail />

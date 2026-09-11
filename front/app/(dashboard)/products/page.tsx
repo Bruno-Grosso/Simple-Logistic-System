@@ -3,6 +3,7 @@ import { Box } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { PageShell } from "@/components/page-shell"
 import { EditProductDialog } from "@/components/edit-product-dialog"
+import { AddProductDialog } from "@/components/add-product-dialog"
 import {
   Table,
   TableBody,
@@ -27,12 +28,15 @@ function isExpired(isoDate: string | undefined): boolean {
 }
 
 export default async function ProductsPage() {
-  await requireRole("admin")
+  await requireRole("admin", "inventory_manager")
   const products = await api.products.getAll()
 
   return (
     <PageShell>
-      <PageHeader crumbs={[{ label: "Products" }]} />
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <PageHeader crumbs={[{ label: "Products" }]} />
+        <AddProductDialog />
+      </div>
       <div className="min-h-0 flex-1">
         <div className="overflow-x-auto rounded-xl ring-1 ring-border">
           <Table className="min-w-[650px]">

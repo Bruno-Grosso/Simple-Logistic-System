@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { RouteMap } from "@/components/route-map"
-import { cn } from "@/lib/utils"
+import { DynamicTruckScene } from "@/components/dynamic-truck-scene"
+import { cn, formatDimensions } from "@/lib/utils"
 import { api } from "@/lib/api"
 import { requireRole } from "@/lib/auth/require-role"
 import type { Truck, Deposit } from "@/types"
@@ -34,11 +35,13 @@ type PageProps = {
 
 export default async function FleetDetailPage({ params }: PageProps) {
   const { id } = await params
-  const user = await requireRole("admin", "truck_driver")
+  const user = await requireRole("admin", "dispatcher", "maintenance_technician", "truck_driver")
   const truck = await api.trucks.getById(id)
   if (!truck) notFound()
-  const isAdmin = (user.rawRole || user.role) === "admin"
-  if (!isAdmin) {
+  const role = user.rawRole || user.role
+  const canViewAll = role === "admin" || role === "dispatcher" || role === "maintenance_technician"
+  const canEdit = role === "admin" || role === "maintenance_technician"
+  if (!canViewAll) {
     const assignedRoutes = await api.orders.getAll({ driverId: user.id })
     const routes = (await Promise.all(assignedRoutes.map((order) => api.orders.getRoute(order.id)))).flat()
     if (!routes.some((route) => route.driver_id === user.id && route.truck_id === truck.id)) notFound()
@@ -91,11 +94,14 @@ export default async function FleetDetailPage({ params }: PageProps) {
           { label: "Fleet", href: "/fleet" },
           { label: title },
         ]}
-        actions={isAdmin ? <EditTruckDialog truck={truck} warehouses={deposits} /> : undefined}
+        actions={canEdit ? <EditTruckDialog truck={truck} warehouses={deposits} /> : undefined}
       />
       <div className="min-h-0 flex-1 overflow-auto">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           <div className="space-y-5 lg:col-span-2">
+            {/* 3D Truck Digital Twin Visualization */}
+            <DynamicTruckScene truck={truck} showOverlay={true} className="h-64 w-full" />
+
             <Card>
               <CardHeader>
                 <CardTitle className="font-display text-lg">Specs</CardTitle>
@@ -105,7 +111,7 @@ export default async function FleetDetailPage({ params }: PageProps) {
                   <InfoField label="Model" value={truck.model ?? "—"} />
                   <InfoField label="Truck ID" value={truck.id} />
                   <div className="sm:col-span-2">
-                    <InfoField label="Size" value={truck.size ?? "—"} />
+                    <InfoField label="Size" value={formatDimensions(truck.size)} />
                   </div>
                   <InfoField
                     label="Volume capacity"

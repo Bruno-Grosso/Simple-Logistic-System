@@ -94,11 +94,12 @@ const innerFetchHandler = async (req: Request) => {
   }
   if (path === "/employees" && method === "POST") {
     try {
-      const body = await req.json() as { name: string; email?: string; password: string; address?: string; role: "warehouse_worker" | "truck_driver"; wage?: number; warehouse_id?: string | null; is_active?: number };
-      if (!body.name || !body.password || !["warehouse_worker", "truck_driver"].includes(body.role)) {
+      const body = await req.json() as { name: string; email?: string; password: string; address?: string; role: string; wage?: number; warehouse_id?: string | null; is_active?: number };
+      const validRoles = ["warehouse_worker", "truck_driver", "dispatcher", "inventory_manager", "maintenance_technician", "admin"];
+      if (!body.name || !body.password || !validRoles.includes(body.role)) {
         return Response.json({ success: false, error: "Name, password, and a valid employee role are required" }, { status: 400 });
       }
-      const employee = await controller.users.createEmployee(body);
+      const employee = await controller.users.createEmployee(body as any);
       return Response.json({ success: true, employee }, { status: 201 });
     } catch (error: any) {
       return Response.json({ success: false, error: error.message || "Could not create employee" }, { status: 400 });
@@ -149,6 +150,30 @@ const innerFetchHandler = async (req: Request) => {
     if (name) return Response.json(await controller.products.searchByName(name));
     return Response.json(await controller.products.all());
   }
+  if (path === "/products" && method === "POST") {
+    try {
+      const body = await req.json();
+      if (!body.name || body.price === undefined) {
+        return new Response("Product name and price are required", { status: 400 });
+      }
+      const id = body.id || `PRD-${Date.now().toString().slice(-4)}${Math.floor(10 + Math.random() * 90)}`;
+      const created = await controller.products.create({
+        id,
+        name: body.name,
+        price: Number(body.price),
+        is_cold: Number(body.is_cold ? 1 : 0),
+        is_fragile: Number(body.is_fragile ? 1 : 0),
+        expire_date: body.expire_date || null,
+        size: body.size ?? { length: 0.5, width: 0.5, height: 0.5 },
+        volume: Number(body.volume ?? 1),
+        weight: Number(body.weight ?? 1),
+      });
+      return Response.json({ success: true, product: created[0] }, { status: 201 });
+    } catch (error: any) {
+      console.error("Error creating product:", error);
+      return new Response(error.message || "Internal Server Error", { status: 500 });
+    }
+  }
   if (path.startsWith("/products/") && method === "GET") {
     const id = path.split("/")[2];
     if (!id) return new Response("Product ID required", { status: 400 });
@@ -195,29 +220,53 @@ const innerFetchHandler = async (req: Request) => {
     if (!result || result.length === 0) return new Response("Warehouse not found", { status: 404 });
     return Response.json(result);
   }
-  if (path.startsWith("/warehouses/") && method === "POST") {
+  if (path.startsWith("/warehouses/") && (method === "POST" || method === "PUT" || method === "DELETE")) {
     const parts = path.split("/");
     const id = parts[2];
     if (!id) return new Response("Warehouse ID required", { status: 400 });
 
-    if (parts[3] === "check-parking") {
+    if (parts[3] === "stock" && (method === "PUT" || method === "POST")) {
+      try {
+        const body = await req.json();
+        if (!body.product_id || body.quantity === undefined) {
+          return new Response("product_id and quantity are required", { status: 400 });
+        }
+        const updated = await controller.warehouses.upsertStock(id, body.product_id, Number(body.quantity));
+        return Response.json({ success: true, stock: updated[0] });
+      } catch (error: any) {
+        console.error("Error updating warehouse stock:", error);
+        return new Response(error.message || "Internal Server Error", { status: 500 });
+      }
+    }
+
+    if (parts[3] === "stock" && method === "DELETE") {
+      const productId = parts[4];
+      if (!productId) return new Response("Product ID required", { status: 400 });
+      try {
+        await controller.warehouses.deleteStock(id, productId);
+        return Response.json({ success: true });
+      } catch (error: any) {
+        console.error("Error deleting warehouse stock:", error);
+        return new Response(error.message || "Internal Server Error", { status: 500 });
+      }
+    }
+
+    if (parts[3] === "check-parking" && method === "POST") {
       const body = (await req.json().catch(() => ({}))) as { truck_id?: string };
       const check = await controller.warehouses.checkParkingAvailable(id, body.truck_id);
       return Response.json(check, { status: check.allowed ? 200 : 400 });
     }
-  }
-  if (path.startsWith("/warehouses/") && method === "PUT") {
-    const parts = path.split("/");
-    const id = parts[2];
-    if (!id) return new Response("Warehouse ID required", { status: 400 });
-    try {
-      const body = await req.json();
-      const updated = await controller.warehouses.update(id, body);
-      if (!updated?.length) return new Response("Warehouse not found", { status: 404 });
-      return Response.json({ success: true, warehouse: updated[0] });
-    } catch (error: any) {
-      console.error("Error updating warehouse:", error);
-      return new Response(error.message || "Internal Server Error", { status: 500 });
+
+    if (!parts[3] && method === "PUT") {
+      try {
+        const body = await req.json();
+        const updated = await controller.warehouses.update(id, body);
+        if (!updated?.length) return new Response("Warehouse not found", { status: 404 });
+        return Response.json({ success: true, warehouse: updated[0] });
+      } catch (error: any) {
+        console.error("Error updating warehouse:", error);
+        return new Response(error.message || "Internal Server Error", { status: 500 });
+      }
     }
   }
   if (path === "/suppliers" && method === "GET") {

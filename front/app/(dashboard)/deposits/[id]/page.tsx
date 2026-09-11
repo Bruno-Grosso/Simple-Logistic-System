@@ -6,6 +6,8 @@ import { InfoField } from "@/components/info-field"
 import { PageHeader } from "@/components/page-header"
 import { PageShell } from "@/components/page-shell"
 import { EditWarehouseDialog } from "@/components/edit-warehouse-dialog"
+import { ManageStockDialog } from "@/components/manage-stock-dialog"
+import { DynamicDepositScene } from "@/components/dynamic-deposit-scene"
 import {
   Card,
   CardContent,
@@ -14,27 +16,11 @@ import {
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
+import { cn, formatDimensions } from "@/lib/utils"
 import { api } from "@/lib/api"
 import { requireRole } from "@/lib/auth/require-role"
 import { computeDepositUsage, computeDepositParkingUsage } from "@/lib/calculations"
 import type { Product } from "@/types"
-
-function formatDepositSize(size: string | undefined): string {
-  if (!size) return "—"
-  try {
-    const parsed = JSON.parse(size)
-    const l = parsed.l ?? parsed.length
-    const w = parsed.w ?? parsed.width
-    const h = parsed.h ?? parsed.height
-    if (l != null && w != null && h != null) {
-      return `${l} × ${w} × ${h} m`
-    }
-  } catch {
-    /* fall through */
-  }
-  return size
-}
 
 export default async function DepositDetailPage({
   params,
@@ -42,11 +28,13 @@ export default async function DepositDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const user = await requireRole("admin", "warehouse_worker")
+  const user = await requireRole("admin", "inventory_manager", "warehouse_worker")
   const deposit = await api.warehouses.getById(id)
   if (!deposit) notFound()
-  const isAdmin = (user.rawRole || user.role) === "admin"
-  if (!isAdmin && user.warehouse_id !== deposit.id) notFound()
+  const role = user.rawRole || user.role
+  const canManage = role === "admin" || role === "inventory_manager"
+  const canViewAll = canManage
+  if (!canViewAll && user.warehouse_id !== deposit.id) notFound()
 
   const [stock, trucks, products] = await Promise.all([
     api.warehouses.getStock(deposit.id),
@@ -70,11 +58,14 @@ export default async function DepositDetailPage({
           { label: "Deposits", href: "/deposits" },
           { label: name },
         ]}
-        actions={isAdmin ? <EditWarehouseDialog warehouse={deposit} /> : undefined}
+        actions={canManage ? <EditWarehouseDialog warehouse={deposit} /> : undefined}
       />
       <div className="min-h-0 flex-1 overflow-auto">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           <div className="space-y-5 lg:col-span-2">
+            {/* 3D Facility & Yard Digital Twin */}
+            <DynamicDepositScene deposit={deposit} trucksParked={parked.length} className="h-72 w-full" />
+
             <Card>
               <CardHeader>
                 <CardTitle>Deposit details</CardTitle>
@@ -82,7 +73,7 @@ export default async function DepositDetailPage({
               <CardContent className="space-y-6">
                 <div className="grid gap-6 sm:grid-cols-5">
                   <InfoField label="Location" value={name} />
-                  <InfoField label="Size" value={formatDepositSize(deposit.size)} />
+                  <InfoField label="Size" value={formatDimensions(deposit.size)} />
                   <InfoField
                     label="Local Gas Price"
                     value={`R$ ${(deposit.fuel_price ?? 5.89).toFixed(2)} / L`}
@@ -166,8 +157,14 @@ export default async function DepositDetailPage({
             </Card>
 
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <CardTitle>Inventory</CardTitle>
+                <ManageStockDialog
+                  warehouses={[deposit]}
+                  products={products}
+                  preselectedWarehouseId={deposit.id}
+                  triggerLabel="Add / Update Stock"
+                />
               </CardHeader>
               <CardContent>
                 {stock.length === 0 ? (
@@ -188,17 +185,26 @@ export default async function DepositDetailPage({
                             />
                             <span className="font-medium">{product?.name ?? item.product_id}</span>
                           </div>
-                          <div className="flex flex-wrap items-center gap-4 text-sm tabular-nums">
+                          <div className="flex flex-wrap items-center gap-3 text-sm tabular-nums">
                             <span className="text-muted-foreground">
                               <span className="sr-only">Quantity </span>
                               {item.quantity} units
                             </span>
-                            <span className="text-muted-foreground">
+                            <span className="text-xs text-muted-foreground">
                               Arrived{" "}
                               {new Date(item.arrived_at).toLocaleDateString(undefined, {
                                 dateStyle: "medium",
                               })}
                             </span>
+                            <ManageStockDialog
+                              warehouses={[deposit]}
+                              products={products}
+                              preselectedWarehouseId={deposit.id}
+                              preselectedProductId={item.product_id}
+                              initialQuantity={item.quantity}
+                              iconOnly={true}
+                              triggerLabel={`Edit ${product?.name || item.product_id} stock`}
+                            />
                           </div>
                         </li>
                       )

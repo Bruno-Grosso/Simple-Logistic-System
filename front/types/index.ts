@@ -1,7 +1,7 @@
 // ─── Enums / unions (match SQL CHECK constraints) ───────────────────────────
 
 /** Roles stored by the API. `worker` remains for older records. */
-export type UserRole = "admin" | "warehouse_worker" | "truck_driver" | "worker" | "client";
+export type UserRole = "admin" | "warehouse_worker" | "truck_driver" | "worker" | "client" | "dispatcher" | "inventory_manager" | "maintenance_technician";
 
 export type OrderStatus = "Pending" | "Shipped" | "Delivered" | "Cancelled";
 

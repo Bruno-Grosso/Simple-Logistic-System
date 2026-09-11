@@ -62,3 +62,15 @@ export async function logoutAction(): Promise<void> {
   })
   redirect("/login")
 }
+
+export async function timedLogoutAction(): Promise<void> {
+  const store = await cookies()
+  store.set(SESSION_COOKIE_NAME, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  })
+  redirect("/login?reason=timeout")
+}

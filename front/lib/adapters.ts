@@ -122,7 +122,15 @@ export function adaptUser(raw: any): User {
   if (!raw) return {} as User
   let role: UserRole = "client"
   if (raw.role === "admin") role = "admin"
-  else if (raw.role === "warehouse_worker" || raw.role === "truck_driver" || raw.role === "worker") role = "worker"
+  else if (
+    raw.role === "warehouse_worker" ||
+    raw.role === "truck_driver" ||
+    raw.role === "worker" ||
+    raw.role === "dispatcher" ||
+    raw.role === "inventory_manager" ||
+    raw.role === "maintenance_technician"
+  )
+    role = "worker"
   else role = "client"
 
   let addressStr = raw.address

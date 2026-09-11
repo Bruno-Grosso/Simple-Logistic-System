@@ -21,4 +21,14 @@ describe("Stock Inventory E2E User Journey", () => {
     })
     cy.get("tbody tr").should("have.length.at.least", 1)
   })
+
+  it("should open manage stock dialog and show warehouse and product controls", () => {
+    cy.get("[data-testid='manage-stock-trigger']").first().click()
+    cy.contains("Edit Warehouse Stock").should("be.visible")
+    cy.get("#stock-warehouse-select").should("be.visible")
+    cy.get("#stock-product-select").should("be.visible")
+    cy.get("#stock-quantity-input").should("be.visible")
+    cy.get("[data-testid='manage-stock-submit']").should("be.visible")
+    cy.contains("button", "Cancel").click()
+  })
 })

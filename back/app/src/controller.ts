@@ -31,6 +31,11 @@ import { pg_conn } from "./model";
       END;
       $$ LANGUAGE plpgsql IMMUTABLE;
     `;
+    await pg_conn`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`;
+    await pg_conn`
+      ALTER TABLE users ADD CONSTRAINT users_role_check 
+      CHECK(role IN ('admin','warehouse_worker','truck_driver','client','worker','dispatcher','inventory_manager','maintenance_technician','manager'))
+    `;
   } catch {
     /* ignore migration errors */
   }
@@ -84,27 +89,20 @@ export async function calculateDistanceInDb(lat1: number, lon1: number, lat2: nu
     const res = await pg_conn`
       SELECT calculate_distance_km(${lat1}, ${lon1}, ${lat2}, ${lon2}) as distance_km
     `;
-    if (res && res[0] && res[0].distance_km !== null) {
+    if (res && res.length > 0 && res[0].distance_km !== null) {
       return Math.round(Number(res[0].distance_km) * 10) / 10;
     }
   } catch {
-    try {
-      const res = await pg_conn`
-        SELECT (6371.0 * acos(
-          LEAST(1.0, GREATEST(-1.0,
-            cos(radians(${lat1})) * cos(radians(${lat2})) * cos(radians(${lon2} - ${lon1})) +
-            sin(radians(${lat1})) * sin(radians(${lat2}))
-          ))
-        )) as distance_km
-      `;
-      if (res && res[0] && res[0].distance_km !== null) {
-        return Math.round(Number(res[0].distance_km) * 10) / 10;
-      }
-    } catch {
-      /* fallback to JavaScript haversine */
-    }
+    // Fallback to JS Haversine formula
   }
-  const R = 6371;
+  return haversineDistance(lat1, lon1, lat2, lon2);
+}
+
+/**
+ * JS implementation of Haversine distance in km
+ */
+export function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth radius in km
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
@@ -261,6 +259,32 @@ export const onlineUsers = {
 export const products = {
   ...createBaseRepo("products"),
   searchByName: (name: string) => pg_conn`SELECT * FROM products WHERE name ILIKE ${'%' + name + '%'}`,
+  create: (product: {
+    id: string;
+    name: string;
+    price: number;
+    is_cold?: number;
+    is_fragile?: number;
+    expire_date?: string | null;
+    size?: any;
+    volume: number;
+    weight: number;
+  }) =>
+    pg_conn`
+      INSERT INTO products (id, name, price, is_cold, is_fragile, expire_date, size, volume, weight)
+      VALUES (
+        ${product.id},
+        ${product.name},
+        ${product.price},
+        ${product.is_cold ?? 0},
+        ${product.is_fragile ?? 0},
+        ${product.expire_date ?? null},
+        ${typeof product.size === 'string' ? product.size : JSON.stringify(product.size ?? {})},
+        ${product.volume},
+        ${product.weight}
+      )
+      RETURNING *
+    `,
   update: (id: string, product: {
     name: string;
     price: number;
@@ -287,6 +311,50 @@ export const warehouses = {
   ...createBaseRepo("warehouses"),
   stock: (warehouseId: string) => 
     pg_conn`SELECT * FROM warehouses_stock WHERE warehouse_id = ${warehouseId}`,
+  upsertStock: async (warehouseId: string, productId: string, quantity: number) => {
+    return pg_conn`
+      INSERT INTO warehouses_stock (warehouse_id, product_id, quantity)
+      VALUES (${warehouseId}, ${productId}, ${quantity})
+      ON CONFLICT (warehouse_id, product_id)
+      DO UPDATE SET quantity = ${quantity}
+      RETURNING *
+    `;
+  },
+  deleteStock: async (warehouseId: string, productId: string) => {
+    return pg_conn`
+      DELETE FROM warehouses_stock
+      WHERE warehouse_id = ${warehouseId} AND product_id = ${productId}
+      RETURNING *
+    `;
+  },
+  update: async (id: string, patch: {
+    location?: any;
+    size?: any;
+    volume_max?: number;
+    volume_current?: number;
+    has_refrigeration?: number;
+    fuel_price?: number;
+    truck_capacity?: number;
+  }) => {
+    const current = await pg_conn`SELECT * FROM warehouses WHERE id = ${id}`;
+    if (!current || current.length === 0) return [];
+    const w = current[0];
+    const loc = patch.location !== undefined ? (typeof patch.location === 'string' ? patch.location : JSON.stringify(patch.location)) : (typeof w.location === 'string' ? w.location : JSON.stringify(w.location));
+    const sz = patch.size !== undefined ? (typeof patch.size === 'string' ? patch.size : JSON.stringify(patch.size)) : (typeof w.size === 'string' ? w.size : JSON.stringify(w.size));
+    const vMax = patch.volume_max !== undefined ? Number(patch.volume_max) : Number(w.volume_max);
+    const vCur = patch.volume_current !== undefined ? Number(patch.volume_current) : Number(w.volume_current);
+    const refrig = patch.has_refrigeration !== undefined ? Number(patch.has_refrigeration) : Number(w.has_refrigeration);
+    const fuel = patch.fuel_price !== undefined ? Number(patch.fuel_price) : Number(w.fuel_price);
+    const cap = patch.truck_capacity !== undefined ? Number(patch.truck_capacity) : Number(w.truck_capacity);
+
+    return pg_conn`
+      UPDATE warehouses
+      SET location = ${loc}, size = ${sz}, volume_max = ${vMax}, volume_current = ${vCur},
+          has_refrigeration = ${refrig}, fuel_price = ${fuel}, truck_capacity = ${cap}
+      WHERE id = ${id}
+      RETURNING *
+    `;
+  },
   getAverageGasPrice: async (warehouseIds?: string[]): Promise<number> => {
     if (warehouseIds && warehouseIds.length > 0) {
       const res = await pg_conn`

@@ -1,7 +1,10 @@
--- Updated Mock data for Simple Logistics System
+-- Expanded Mock data for Simple Logistics System
 -- Aligned with the schema in db/db.sql and dbdocumentation.md
 
--- 1. Products (8 entries)
+-- Clean up existing data for idempotent re-runs
+TRUNCATE TABLE freight_cost, supplies_route, orders_route, trucks_cargo, online_users, orders_items, orders, warehouses_stock, trucks, users, warehouses, suppliers, products CASCADE;
+
+-- 1. Products (36 entries across refrigerated, fragile, industrial, and consumer categories)
 INSERT INTO products (id, name, is_cold, is_fragile, expire_date, price, size, volume, weight) VALUES
 ('PROD-001', 'Fresh Milk', 1, 0, '2026-04-10', 3.50, '{"length":10,"width":10,"height":20}', 0.002, 1.0),
 ('PROD-002', 'Crystal Vase', 0, 1, NULL, 45.00, '{"length":30,"width":30,"height":40}', 0.036, 2.5),
@@ -10,92 +13,384 @@ INSERT INTO products (id, name, is_cold, is_fragile, expire_date, price, size, v
 ('PROD-005', 'Office Chair', 0, 0, NULL, 120.00, '{"length":60,"width":60,"height":100}', 0.36, 12.0),
 ('PROD-006', 'Gaming Laptop', 0, 1, NULL, 1500.00, '{"length":40,"width":30,"height":5}', 0.006, 3.0),
 ('PROD-007', 'Red Wine Box', 0, 1, '2028-12-31', 80.00, '{"length":30,"width":20,"height":30}', 0.018, 9.0),
-('PROD-008', 'Industrial Drill', 0, 0, NULL, 250.00, '{"length":40,"width":15,"height":25}', 0.015, 5.5);
+('PROD-008', 'Industrial Drill', 0, 0, NULL, 250.00, '{"length":40,"width":15,"height":25}', 0.015, 5.5),
+('PROD-009', 'Queijo Minas Padrão Artesanal Friburgo 1kg', 1, 0, '2026-06-30', 32.00, '{"length":20,"width":20,"height":10}', 0.004, 1.2),
+('PROD-010', 'Filé de Truta Salmonada Congelada 1kg', 1, 0, '2026-11-15', 48.50, '{"length":30,"width":15,"height":5}', 0.0022, 1.0),
+('PROD-011', 'Cerveja Artesanal Imperial IPA Pack 6x500ml', 0, 1, '2026-12-01', 65.00, '{"length":25,"width":18,"height":25}', 0.011, 3.8),
+('PROD-012', 'Iogurte Natural Integral da Serra Frasco 1L', 1, 0, '2026-05-20', 8.50, '{"length":10,"width":10,"height":22}', 0.0022, 1.05),
+('PROD-013', 'Manteiga da Fazenda Extra sem Sal Pote 500g', 1, 0, '2026-07-15', 18.00, '{"length":12,"width":12,"height":8}', 0.0011, 0.52),
+('PROD-014', 'Picanha Bovina Angus Congelada Peça 1.4kg', 1, 0, '2026-10-10', 95.00, '{"length":25,"width":15,"height":8}', 0.003, 1.4),
+('PROD-015', 'Aparelho de Jantar Porcelana Monte Sião 20 Pçs', 0, 1, NULL, 220.00, '{"length":45,"width":35,"height":30}', 0.047, 8.5),
+('PROD-016', 'Monitor Profissional 4K 32 Polegadas HDR', 0, 1, NULL, 2800.00, '{"length":80,"width":15,"height":50}', 0.06, 7.2),
+('PROD-017', 'Tablet Corporativo Robusto 10.5 Pol IP68', 0, 1, NULL, 1950.00, '{"length":26,"width":18,"height":2}', 0.0009, 0.65),
+('PROD-018', 'Lente Fotográfica Profissional 70-200mm f/2.8', 0, 1, NULL, 3200.00, '{"length":25,"width":12,"height":12}', 0.0036, 1.5),
+('PROD-019', 'Kit Vidraria Laboratorial Borossilicato', 0, 1, NULL, 140.00, '{"length":40,"width":30,"height":20}', 0.024, 3.1),
+('PROD-020', 'Relógio Mecânico de Engenharia Automático', 0, 1, NULL, 850.00, '{"length":12,"width":12,"height":10}', 0.0014, 0.4),
+('PROD-021', 'Macaco Hidráulico Automotivo Tipo Garrafa 5T', 0, 0, NULL, 280.00, '{"length":20,"width":18,"height":30}', 0.01, 8.2),
+('PROD-022', 'Inversor Solar Híbrido Grid-Tie 5kW', 0, 0, NULL, 1850.00, '{"length":55,"width":40,"height":20}', 0.044, 15.0),
+('PROD-023', 'Gerador de Energia Portátil 3.5kVA Silenciado', 0, 0, NULL, 2200.00, '{"length":60,"width":45,"height":50}', 0.135, 32.0),
+('PROD-024', 'Jogo de Chaves Soquete Cromo Vanádio 120 Pçs', 0, 0, NULL, 340.00, '{"length":45,"width":32,"height":10}', 0.014, 6.8),
+('PROD-025', 'Compressor de Ar Odontológico Isento de Óleo', 0, 0, NULL, 690.00, '{"length":60,"width":35,"height":60}', 0.126, 22.0),
+('PROD-026', 'Bomba Submersível de Drenagem 1.5HP', 0, 0, NULL, 420.00, '{"length":25,"width":25,"height":40}', 0.025, 13.5),
+('PROD-027', 'Carretel de Cabo de Aço Alma de Aço 100m', 0, 0, NULL, 310.00, '{"length":35,"width":35,"height":25}', 0.03, 19.0),
+('PROD-028', 'Luminária Industrial LED High-Bay 200W', 0, 0, NULL, 175.00, '{"length":38,"width":38,"height":15}', 0.021, 2.9),
+('PROD-029', 'Café Especial Arábica Microlote Torrado 1kg', 0, 0, '2027-02-28', 62.00, '{"length":15,"width":10,"height":25}', 0.0037, 1.02),
+('PROD-030', 'Mel Orgânico Silvestre da Serra Pote 1kg', 0, 0, '2028-06-30', 45.00, '{"length":12,"width":12,"height":18}', 0.0026, 1.4),
+('PROD-031', 'Chocolate Gourmet Bean-to-Bar 70% Cacau 500g', 0, 0, '2027-04-15', 38.00, '{"length":20,"width":10,"height":3}', 0.0006, 0.5),
+('PROD-032', 'Azeite de Oliva Extra Virgem Frutado 500ml', 0, 0, '2027-08-30', 55.00, '{"length":8,"width":8,"height":28}', 0.0018, 0.85),
+('PROD-033', 'Palmito Pupunha em Conserva Vidro 600g', 0, 0, '2027-10-31', 26.00, '{"length":10,"width":10,"height":20}', 0.002, 0.95),
+('PROD-034', 'Botina de Segurança Couro Nobuck Bico Composite', 0, 0, NULL, 160.00, '{"length":32,"width":24,"height":14}', 0.01, 1.35),
+('PROD-035', 'Jardineira Térmica Frigorífica Baixas Temperaturas', 0, 0, NULL, 240.00, '{"length":40,"width":30,"height":8}', 0.0096, 1.6),
+('PROD-036', 'Kit de EPI Completo com Capacete e Óculos UV', 0, 0, NULL, 110.00, '{"length":35,"width":25,"height":20}', 0.0175, 1.1);
 
--- 2. Suppliers (3 entries)
+-- 2. Suppliers (12 entries across Região Serrana & surrounds)
 INSERT INTO suppliers (id, name, location) VALUES
 ('SUP-001', 'Horta Serrana Hortifruti', 'Av. Feliciano Sodré, Teresópolis, RJ'),
 ('SUP-002', 'Queijaria Suíça Friburgo', 'Circuito Terê-Fri, Nova Friburgo, RJ'),
-('SUP-003', 'Distribuidora Imperial', 'Rua do Imperador, Petrópolis, RJ');
+('SUP-003', 'Distribuidora Imperial', 'Rua do Imperador, Petrópolis, RJ'),
+('SUP-004', 'Laticínios Serra Azul', 'RJ-116 Km 85, Bom Jardim, RJ'),
+('SUP-005', 'Eletrônicos Serra Tech', 'Rua Teresa, Petrópolis, RJ'),
+('SUP-006', 'Ferragens & Ferramentas Itaipava', 'Estrada União e Indústria, Petrópolis, RJ'),
+('SUP-007', 'Vinhos & Bebidas Vale dos Frades', 'Vale dos Frades, Teresópolis, RJ'),
+('SUP-008', 'Agropecuária Cordeiro', 'Av. Raul Veiga, Cordeiro, RJ'),
+('SUP-009', 'Indústria Têxtil Friburguense', 'Conselheiro Paulino, Nova Friburgo, RJ'),
+('SUP-010', 'Frigorífico Serrano Vale do Paraíba', 'BR-393, Três Rios, RJ'),
+('SUP-011', 'Cooperativa de Café das Serras', 'RJ-160, Cantagalo, RJ'),
+('SUP-012', 'Cerâmica & Cristais Vale Encantado', 'Estrada Rio-Teresópolis, Guapimirim, RJ');
 
--- 3. Warehouses (3 entries)
+-- 3. Warehouses (6 entries in regional distribution network)
 INSERT INTO warehouses (id, location, size, volume_current, volume_max, has_refrigeration, fuel_price, truck_capacity) VALUES
-('WH-001', '{"latitude":-22.3842,"longitude":-43.1311,"label":"Petrópolis Hub (Itaipava)"}', '{"length":100,"width":100,"height":10}', 0.36, 100000.0, 1, 5.89, 5),
-('WH-002', '{"latitude":-22.4350,"longitude":-42.9800,"label":"Teresópolis Depot (Alto)"}', '{"length":50,"width":50,"height":8}', 0.0, 20000.0, 0, 6.15, 2),
-('WH-003', '{"latitude":-22.3000,"longitude":-42.5400,"label":"Nova Friburgo Facility (Olaria)"}', '{"length":80,"width":60,"height":10}', 0.0, 48000.0, 1, 5.95, 4);
+('WH-001', '{"latitude":-22.3842,"longitude":-43.1311,"label":"Petrópolis Hub (Itaipava)"}', '{"length":100,"width":100,"height":10}', 4.25, 100000.0, 1, 5.89, 8),
+('WH-002', '{"latitude":-22.4350,"longitude":-42.9800,"label":"Teresópolis Depot (Alto)"}', '{"length":50,"width":50,"height":8}', 1.82, 20000.0, 0, 6.15, 4),
+('WH-003', '{"latitude":-22.3000,"longitude":-42.5400,"label":"Nova Friburgo Facility (Olaria)"}', '{"length":80,"width":60,"height":10}', 3.15, 48000.0, 1, 5.95, 6),
+('WH-004', '{"latitude":-22.1167,"longitude":-43.2089,"label":"Três Rios Crossroads Hub"}', '{"length":90,"width":70,"height":10}', 5.40, 63000.0, 1, 5.79, 8),
+('WH-005', '{"latitude":-22.5358,"longitude":-42.9819,"label":"Guapimirim Mountain Pass Depot"}', '{"length":60,"width":40,"height":8}', 1.20, 19200.0, 0, 5.99, 4),
+('WH-006', '{"latitude":-21.9808,"longitude":-42.3681,"label":"Cantagalo Valley Logistics Center"}', '{"length":70,"width":50,"height":8}', 2.65, 28000.0, 1, 6.05, 5);
 
--- 4. Users (10 entries)
-INSERT INTO users (id, name, email, password, address, role, warehouse_id, wage) VALUES
-('USR-001', 'Alice Admin', 'alice@logisys.com', 'admin123', '{"address": "Rua do Imperador, Centro, Petrópolis - RJ"}', 'admin', NULL, 65.0),
-('USR-002', 'Bob Worker', 'bob@logisys.com', 'bobpass', '{"address": "Estrada União e Indústria, Itaipava, Petrópolis - RJ"}', 'warehouse_worker', 'WH-001', 42.0),
-('USR-003', 'Charlie Driver', 'charlie@logisys.com', 'trucker1', '{"address": "Av. Alberto Braune, Centro, Nova Friburgo - RJ"}', 'truck_driver', NULL, 55.0),
-('USR-004', 'David Client', 'david@logisys.com', 'client789', '{"address": "Av. Reta da Várzea, Várzea, Teresópolis - RJ"}', 'client', NULL, 0.0),
-('USR-005', 'Eve Client', 'eve@logisys.com', 'evepass', '{"address": "Rua Monte Líbano, Centro, Nova Friburgo - RJ"}', 'client', NULL, 0.0),
-('USR-006', 'Frank Driver', 'frank@logisys.com', 'frank123', '{"address": "Estrada Terê-Fri, Km 12, Teresópolis - RJ"}', 'truck_driver', NULL, 50.0),
-('USR-007', 'Grace Worker', 'grace@logisys.com', 'gracepass', '{"address": "Rua General Osório, Centro, Nova Friburgo - RJ"}', 'warehouse_worker', 'WH-002', 40.0),
-('USR-008', 'Henry Client', 'henry@logisys.com', 'henry789', '{"address": "Rua Dr. Moacyr Freijanes, Bom Jardim - RJ"}', 'client', NULL, 0.0),
-('USR-009', 'Ivy Client', 'ivy@logisys.com', 'ivypass', '{"address": "Av. Alberto Torres, Teresópolis - RJ"}', 'client', NULL, 0.0),
-('USR-010', 'Jack Worker', 'jack@logisys.com', 'jackpass', '{"address": "Rua Cel. Veiga, Petrópolis - RJ"}', 'warehouse_worker', 'WH-001', 38.0);
+-- 4. Users (40 entries across roles: admin, worker, driver, dispatcher, inventory, technician, client)
+INSERT INTO users (id, name, email, password, address, role, warehouse_id, wage, is_active) VALUES
+('USR-001', 'Alice Admin', 'alice@logisys.com', 'admin123', '{"address": "Rua do Imperador, Centro, Petrópolis - RJ"}', 'admin', NULL, 65.0, 1),
+('USR-002', 'Bob Worker', 'bob@logisys.com', 'bobpass', '{"address": "Estrada União e Indústria, Itaipava, Petrópolis - RJ"}', 'warehouse_worker', 'WH-001', 42.0, 1),
+('USR-003', 'Charlie Driver', 'charlie@logisys.com', 'trucker1', '{"address": "Av. Alberto Braune, Centro, Nova Friburgo - RJ"}', 'truck_driver', NULL, 55.0, 1),
+('USR-004', 'David Client', 'david@logisys.com', 'client789', '{"address": "Av. Reta da Várzea, Várzea, Teresópolis - RJ"}', 'client', NULL, 0.0, 1),
+('USR-005', 'Eve Client', 'eve@logisys.com', 'evepass', '{"address": "Rua Monte Líbano, Centro, Nova Friburgo - RJ"}', 'client', NULL, 0.0, 1),
+('USR-006', 'Frank Driver', 'frank@logisys.com', 'frank123', '{"address": "Estrada Terê-Fri, Km 12, Teresópolis - RJ"}', 'truck_driver', NULL, 50.0, 1),
+('USR-007', 'Grace Worker', 'grace@logisys.com', 'gracepass', '{"address": "Rua General Osório, Centro, Nova Friburgo - RJ"}', 'warehouse_worker', 'WH-002', 40.0, 1),
+('USR-008', 'Henry Client', 'henry@logisys.com', 'henry789', '{"address": "Rua Dr. Moacyr Freijanes, Bom Jardim - RJ"}', 'client', NULL, 0.0, 1),
+('USR-009', 'Ivy Client', 'ivy@logisys.com', 'ivypass', '{"address": "Av. Alberto Torres, Teresópolis - RJ"}', 'client', NULL, 0.0, 1),
+('USR-010', 'Jack Worker', 'jack@logisys.com', 'jackpass', '{"address": "Rua Cel. Veiga, Petrópolis - RJ"}', 'warehouse_worker', 'WH-001', 38.0, 1),
+('USR-011', 'Diana Dispatcher', 'diana@logisys.com', 'dianapass', '{"address": "Rua 16 de Março, Petrópolis - RJ"}', 'dispatcher', NULL, 58.0, 1),
+('USR-012', 'Rafael Despachante', 'rafael@logisys.com', 'rafaelpass', '{"address": "Rua Lúcio Meira, Várzea, Teresópolis - RJ"}', 'dispatcher', NULL, 56.0, 1),
+('USR-013', 'Isabela Estoque', 'isabela@logisys.com', 'isabelapass', '{"address": "Estrada das Arcas, Itaipava, Petrópolis - RJ"}', 'inventory_manager', 'WH-001', 60.0, 1),
+('USR-014', 'Thiago Gerente', 'thiago@logisys.com', 'thiagopass', '{"address": "Av. Conselheiro Julius Arp, Nova Friburgo - RJ"}', 'inventory_manager', 'WH-003', 62.0, 1),
+('USR-015', 'Paulo Manutencao', 'paulo@logisys.com', 'paulopass', '{"address": "Rua Bingen, Petrópolis - RJ"}', 'maintenance_technician', NULL, 52.0, 1),
+('USR-016', 'Fernando Mecanico', 'fernando@logisys.com', 'fernandopass', '{"address": "Rua Prefeito Sebastião Teixeira, Teresópolis - RJ"}', 'maintenance_technician', NULL, 54.0, 1),
+('USR-017', 'Luciana Silva', 'luciana@logisys.com', 'lucianapass', '{"address": "Rua Moisés Amélio, Nova Friburgo - RJ"}', 'warehouse_worker', 'WH-003', 41.0, 1),
+('USR-018', 'Marcos Oliveira', 'marcos@logisys.com', 'marcospass', '{"address": "Av. Condessa do Rio Novo, Três Rios - RJ"}', 'warehouse_worker', 'WH-004', 42.0, 1),
+('USR-019', 'Renato Santos', 'renato@logisys.com', 'renatopass', '{"address": "Rua Dedo de Deus, Guapimirim - RJ"}', 'warehouse_worker', 'WH-005', 39.0, 1),
+('USR-020', 'Patricia Lima', 'patricia@logisys.com', 'patriciapass', '{"address": "Rua Barão de Cantagalo, Cantagalo - RJ"}', 'warehouse_worker', 'WH-006', 40.0, 1),
+('USR-021', 'Gabriel Souza', 'gabriel@logisys.com', 'gabrielpass', '{"address": "Rua Teresa, Alto da Serra, Petrópolis - RJ"}', 'truck_driver', NULL, 53.0, 1),
+('USR-022', 'Lucas Ribeiro', 'lucas@logisys.com', 'lucaspass', '{"address": "Estrada Francisco Portella, Teresópolis - RJ"}', 'truck_driver', NULL, 52.0, 1),
+('USR-023', 'Sergio Almeida', 'sergio@logisys.com', 'sergiopass', '{"address": "Rua Mac Niven, Nova Friburgo - RJ"}', 'truck_driver', NULL, 54.0, 1),
+('USR-024', 'Rodrigo Costa', 'rodrigo@logisys.com', 'rodrigopass', '{"address": "Rua Dr. Vasconcelos, Três Rios - RJ"}', 'truck_driver', NULL, 55.0, 1),
+('USR-025', 'Roberto Diretor', 'roberto@logisys.com', 'robertopass', '{"address": "Av. Koeler, Petrópolis - RJ"}', 'admin', NULL, 75.0, 1),
+('USR-026', 'Mariana Farias', 'mariana@logisys.com', 'marianapass', '{"address": "Rua Gonçalves Dias, Valparaíso, Petrópolis - RJ"}', 'client', NULL, 0.0, 1),
+('USR-027', 'Bruno Cardoso', 'bruno@logisys.com', 'brunopass', '{"address": "Rua Carmela Dutra, Agriões, Teresópolis - RJ"}', 'client', NULL, 0.0, 1),
+('USR-028', 'Camila Martins', 'camila@logisys.com', 'camilapass', '{"address": "Praça Getúlio Vargas, Centro, Nova Friburgo - RJ"}', 'client', NULL, 0.0, 1),
+('USR-029', 'Carlos Eduardo', 'carlos@logisys.com', 'carlospass', '{"address": "Rua Barão de Entre-Rios, Três Rios - RJ"}', 'client', NULL, 0.0, 1),
+('USR-030', 'Larissa Nogueira', 'larissa@logisys.com', 'larissapass', '{"address": "Estrada do Bananal, Guapimirim - RJ"}', 'client', NULL, 0.0, 1),
+('USR-031', 'Leonardo Dias', 'leonardo@logisys.com', 'leonardopass', '{"address": "Rua Maestro Joaquim Naegele, Cantagalo - RJ"}', 'client', NULL, 0.0, 1),
+('USR-032', 'Juliana Moreira', 'juliana@logisys.com', 'julianapass', '{"address": "Av. Governador Roberto Silveira, Bom Jardim - RJ"}', 'client', NULL, 0.0, 1),
+('USR-033', 'Felipe Pires', 'felipe@logisys.com', 'felipepass', '{"address": "Estrada Bernardo Coutinho, Araras, Petrópolis - RJ"}', 'client', NULL, 0.0, 1),
+('USR-034', 'Vanessa Rocha', 'vanessa@logisys.com', 'vanessapass', '{"address": "Rua Heitor de Moura Estevão, Teresópolis - RJ"}', 'client', NULL, 0.0, 1),
+('USR-035', 'Guilherme Antunes', 'guilherme@logisys.com', 'guilhermepass', '{"address": "Rua Farinha Filho, Nova Friburgo - RJ"}', 'client', NULL, 0.0, 1),
+('USR-036', 'Natalia Ramos', 'natalia@logisys.com', 'nataliapass', '{"address": "Rua Presidente Vargas, Areal - RJ"}', 'client', NULL, 0.0, 1),
+('USR-037', 'Diego Monteiro', 'diego@logisys.com', 'diegopass', '{"address": "Rua Cel. José Bento, Cordeiro - RJ"}', 'client', NULL, 0.0, 1),
+('USR-038', 'Tatiana Mendes', 'tatiana@logisys.com', 'tatianapass', '{"address": "Av. Simão da Motta, Magé - RJ"}', 'client', NULL, 0.0, 1),
+('USR-039', 'Marcelo Vieira', 'marcelo@logisys.com', 'marcelopass', '{"address": "Rua Presidente Getúlio Vargas, Três Rios - RJ"}', 'client', NULL, 0.0, 1),
+('USR-040', 'Bianca Teixeira', 'bianca@logisys.com', 'biancapass', '{"address": "Rua Washington Luís, Petrópolis - RJ"}', 'client', NULL, 0.0, 1);
 
--- 5. Trucks (4 entries)
+-- 5. Trucks (16 entries across refrigerated, dry-cargo, heavy transport, and urban delivery)
 INSERT INTO trucks (id, model, speed, is_valid, is_delivering, size, volume_current, volume_max, weight_current, weight_max, has_refrigeration, current_warehouse_id, fuel_capacity, fuel_current, fuel_consumption, truck_maintenance) VALUES
-('TRK-001', 'Caminhão Serrano 01', 85.0, 1, 0, '{"length":13.6,"width":2.5,"height":2.7}', 0.0, 90.0, 0.0, 25000.0, 1, 'WH-001', 500.0, 450.0, 0.3, 2),
-('TRK-002', 'Caminhão Serrano 02', 80.0, 1, 1, '{"length":13.6,"width":2.5,"height":2.7}', 0.036, 90.0, 2.5, 25000.0, 0, NULL, 600.0, 300.0, 0.35, 1),
+('TRK-001', 'Caminhão Serrano 01', 85.0, 1, 0, '{"length":13.6,"width":2.5,"height":2.7}', 0.0, 90.0, 0.0, 25000.0, 1, 'WH-001', 500.0, 450.0, 0.30, 2),
+('TRK-002', 'Caminhão Serrano 02', 80.0, 1, 1, '{"length":13.6,"width":2.5,"height":2.7}', 0.036, 90.0, 2.7, 25000.0, 0, NULL, 600.0, 300.0, 0.35, 1),
 ('TRK-003', 'Caminhão Serrano 03', 82.0, 1, 0, '{"length":13.6,"width":2.5,"height":2.7}', 0.0, 90.0, 0.0, 25000.0, 1, 'WH-003', 550.0, 500.0, 0.32, 0),
-('TRK-004', 'Caminhão Serrano 04', 75.0, 1, 0, '{"length":12,"width":2.4,"height":2.5}', 0.0, 72.0, 0.0, 18000.0, 0, 'WH-002', 400.0, 380.0, 0.28, 1);
+('TRK-004', 'Caminhão Serrano 04', 75.0, 1, 0, '{"length":12.0,"width":2.4,"height":2.5}', 0.0, 72.0, 0.0, 18000.0, 0, 'WH-002', 400.0, 380.0, 0.28, 1),
+('TRK-005', 'Scania R450 Frigorífico 05', 86.0, 1, 0, '{"length":14.0,"width":2.6,"height":2.8}', 0.0, 100.0, 0.0, 27000.0, 1, 'WH-001', 650.0, 580.0, 0.33, 0),
+('TRK-006', 'Volvo FH 540 Graneleiro 06', 82.0, 1, 1, '{"length":14.0,"width":2.6,"height":2.8}', 1.45, 100.0, 850.0, 28000.0, 0, NULL, 700.0, 480.0, 0.36, 0),
+('TRK-007', 'Mercedes-Benz Actros 2651 07', 84.0, 1, 0, '{"length":13.8,"width":2.5,"height":2.7}', 0.0, 93.0, 0.0, 26000.0, 1, 'WH-004', 600.0, 520.0, 0.34, 1),
+('TRK-008', 'VW Constellation 24.280 08', 78.0, 1, 1, '{"length":10.5,"width":2.4,"height":2.6}', 0.85, 65.0, 420.0, 16000.0, 0, NULL, 380.0, 210.0, 0.27, 0),
+('TRK-009', 'Iveco Stralis Hi-Way 09', 83.0, 1, 0, '{"length":13.6,"width":2.5,"height":2.7}', 0.0, 90.0, 0.0, 24000.0, 1, 'WH-003', 520.0, 470.0, 0.31, 0),
+('TRK-010', 'Scania Streamline R440 10', 80.0, 1, 0, '{"length":13.6,"width":2.5,"height":2.7}', 0.0, 90.0, 0.0, 25000.0, 0, 'WH-005', 550.0, 390.0, 0.32, 2),
+('TRK-011', 'Volvo VM 330 Frigorífico 11', 81.0, 1, 1, '{"length":11.2,"width":2.5,"height":2.6}', 0.42, 70.0, 280.0, 19000.0, 1, NULL, 450.0, 310.0, 0.29, 0),
+('TRK-012', 'Mercedes-Benz Atego 1719 12', 76.0, 1, 0, '{"length":9.5,"width":2.4,"height":2.5}', 0.0, 57.0, 0.0, 14000.0, 0, 'WH-006', 320.0, 290.0, 0.25, 0),
+('TRK-013', 'DAF XF105 Super Space 13', 85.0, 1, 0, '{"length":14.2,"width":2.6,"height":2.9}', 0.0, 105.0, 0.0, 29000.0, 1, 'WH-001', 750.0, 680.0, 0.37, 0),
+('TRK-014', 'VW Delivery 11.180 Urbano 14', 74.0, 1, 0, '{"length":7.8,"width":2.3,"height":2.4}', 0.0, 43.0, 0.0, 8500.0, 0, 'WH-002', 200.0, 180.0, 0.21, 0),
+('TRK-015', 'Ford Cargo 2429 Baú 15', 77.0, 1, 0, '{"length":10.8,"width":2.4,"height":2.6}', 0.0, 67.0, 0.0, 17000.0, 1, 'WH-005', 400.0, 340.0, 0.28, 1),
+('TRK-016', 'Mercedes-Benz Accelo 1016 16', 72.0, 1, 0, '{"length":7.2,"width":2.2,"height":2.3}', 0.0, 36.0, 0.0, 7500.0, 0, 'WH-004', 180.0, 150.0, 0.19, 0);
 
 UPDATE trucks SET origin_warehouse_id = 'WH-001', destination_warehouse_id = 'WH-002', estimated_time = '2026-03-26 14:00:00' WHERE id = 'TRK-002';
+UPDATE trucks SET origin_warehouse_id = 'WH-004', destination_warehouse_id = 'WH-001', estimated_time = '2026-03-27 16:30:00' WHERE id = 'TRK-006';
+UPDATE trucks SET origin_warehouse_id = 'WH-002', destination_warehouse_id = 'WH-003', estimated_time = '2026-03-28 11:00:00' WHERE id = 'TRK-008';
+UPDATE trucks SET origin_warehouse_id = 'WH-006', destination_warehouse_id = 'WH-003', estimated_time = '2026-03-28 18:00:00' WHERE id = 'TRK-011';
 
--- 6. Warehouses Stock (5 entries)
+-- 6. Warehouses Stock (62 entries across all 6 regional facilities)
 INSERT INTO warehouses_stock (warehouse_id, product_id, quantity) VALUES
 ('WH-001', 'PROD-005', 10),
 ('WH-003', 'PROD-008', 50),
 ('WH-001', 'PROD-001', 100),
 ('WH-002', 'PROD-004', 20),
-('WH-003', 'PROD-002', 5);
+('WH-003', 'PROD-002', 5),
+('WH-001', 'PROD-003', 45),
+('WH-001', 'PROD-006', 15),
+('WH-001', 'PROD-007', 80),
+('WH-001', 'PROD-009', 60),
+('WH-001', 'PROD-010', 40),
+('WH-001', 'PROD-014', 25),
+('WH-001', 'PROD-016', 8),
+('WH-001', 'PROD-022', 12),
+('WH-001', 'PROD-024', 30),
+('WH-001', 'PROD-029', 150),
+('WH-001', 'PROD-031', 90),
+('WH-001', 'PROD-034', 40),
+('WH-002', 'PROD-001', 60),
+('WH-002', 'PROD-003', 25),
+('WH-002', 'PROD-009', 35),
+('WH-002', 'PROD-011', 50),
+('WH-002', 'PROD-012', 45),
+('WH-002', 'PROD-013', 30),
+('WH-002', 'PROD-021', 15),
+('WH-002', 'PROD-028', 25),
+('WH-002', 'PROD-030', 80),
+('WH-002', 'PROD-032', 70),
+('WH-002', 'PROD-036', 30),
+('WH-003', 'PROD-001', 80),
+('WH-003', 'PROD-003', 30),
+('WH-003', 'PROD-004', 40),
+('WH-003', 'PROD-006', 10),
+('WH-003', 'PROD-009', 120),
+('WH-003', 'PROD-010', 60),
+('WH-003', 'PROD-015', 18),
+('WH-003', 'PROD-018', 6),
+('WH-003', 'PROD-023', 8),
+('WH-003', 'PROD-025', 5),
+('WH-003', 'PROD-027', 20),
+('WH-003', 'PROD-035', 25),
+('WH-004', 'PROD-005', 25),
+('WH-004', 'PROD-008', 40),
+('WH-004', 'PROD-014', 35),
+('WH-004', 'PROD-016', 12),
+('WH-004', 'PROD-017', 20),
+('WH-004', 'PROD-021', 30),
+('WH-004', 'PROD-022', 15),
+('WH-004', 'PROD-023', 10),
+('WH-004', 'PROD-026', 18),
+('WH-004', 'PROD-028', 50),
+('WH-004', 'PROD-034', 60),
+('WH-005', 'PROD-001', 50),
+('WH-005', 'PROD-007', 40),
+('WH-005', 'PROD-011', 60),
+('WH-005', 'PROD-019', 14),
+('WH-005', 'PROD-020', 8),
+('WH-005', 'PROD-030', 45),
+('WH-005', 'PROD-032', 40),
+('WH-006', 'PROD-009', 80),
+('WH-006', 'PROD-010', 30),
+('WH-006', 'PROD-029', 120),
+('WH-006', 'PROD-031', 75);
 
--- 7. Orders (5 entries)
-INSERT INTO orders (id, client_id, final_destination, time_limit, price, status, supplier_id, supplier_delivery) VALUES
-('ORD-001', 'USR-004', 'Av. Reta da Várzea, Várzea, Teresópolis - RJ', '2026-03-30', 50.00, 'Pending', 'SUP-002', 0),
-('ORD-002', 'USR-005', 'Rua Monte Líbano, Centro, Nova Friburgo - RJ', '2026-03-28', 950.00, 'Shipped', 'SUP-001', 1),
-('ORD-003', 'USR-004', 'Av. Reta da Várzea, Várzea, Teresópolis - RJ', '2026-03-20', 15.00, 'Delivered', NULL, 1),
-('ORD-004', 'USR-008', 'Rua Dr. Moacyr Freijanes, Bom Jardim - RJ', '2026-04-05', 2400.00, 'Pending', 'SUP-003', 0),
-('ORD-005', 'USR-009', 'Av. Alberto Torres, Teresópolis - RJ', '2026-04-02', 120.00, 'Canceled', NULL, 1);
+-- 7. Orders (30 entries with rich operational lifecycle: Delivered, Shipped, Pending, Canceled)
+INSERT INTO orders (id, client_id, final_destination, time_limit, price, status, supplier_id, supplier_delivery, distance_km) VALUES
+('ORD-001', 'USR-004', 'Av. Reta da Várzea, Várzea, Teresópolis - RJ', '2026-03-30', 50.00, 'Pending', 'SUP-002', 0, 32.5),
+('ORD-002', 'USR-005', 'Rua Monte Líbano, Centro, Nova Friburgo - RJ', '2026-03-28', 950.00, 'Shipped', 'SUP-001', 1, 74.0),
+('ORD-003', 'USR-004', 'Av. Reta da Várzea, Várzea, Teresópolis - RJ', '2026-03-20', 15.00, 'Delivered', NULL, 1, 18.2),
+('ORD-004', 'USR-008', 'Rua Dr. Moacyr Freijanes, Bom Jardim - RJ', '2026-04-05', 2400.00, 'Pending', 'SUP-003', 0, 95.0),
+('ORD-005', 'USR-009', 'Av. Alberto Torres, Teresópolis - RJ', '2026-04-02', 120.00, 'Canceled', NULL, 1, 12.0),
+('ORD-006', 'USR-026', 'Rua Gonçalves Dias, Valparaíso, Petrópolis - RJ', '2026-03-15', 3120.00, 'Delivered', 'SUP-005', 1, 24.5),
+('ORD-007', 'USR-027', 'Rua Carmela Dutra, Agriões, Teresópolis - RJ', '2026-03-18', 430.00, 'Delivered', 'SUP-007', 1, 15.8),
+('ORD-008', 'USR-028', 'Praça Getúlio Vargas, Centro, Nova Friburgo - RJ', '2026-03-19', 880.00, 'Delivered', 'SUP-002', 1, 28.3),
+('ORD-009', 'USR-029', 'Rua Barão de Entre-Rios, Três Rios - RJ', '2026-03-21', 1950.00, 'Delivered', 'SUP-010', 1, 62.0),
+('ORD-010', 'USR-030', 'Estrada do Bananal, Guapimirim - RJ', '2026-03-22', 260.00, 'Delivered', 'SUP-012', 1, 35.4),
+('ORD-011', 'USR-031', 'Rua Maestro Joaquim Naegele, Cantagalo - RJ', '2026-03-23', 740.00, 'Delivered', 'SUP-011', 1, 48.0),
+('ORD-012', 'USR-032', 'Av. Governador Roberto Silveira, Bom Jardim - RJ', '2026-03-24', 510.00, 'Delivered', 'SUP-004', 1, 31.2),
+('ORD-013', 'USR-033', 'Estrada Bernardo Coutinho, Araras, Petrópolis - RJ', '2026-03-25', 1620.00, 'Delivered', 'SUP-006', 1, 29.8),
+('ORD-014', 'USR-034', 'Rua Heitor de Moura Estevão, Teresópolis - RJ', '2026-03-27', 680.00, 'Shipped', 'SUP-001', 1, 41.5),
+('ORD-015', 'USR-035', 'Rua Farinha Filho, Nova Friburgo - RJ', '2026-03-29', 3450.00, 'Shipped', 'SUP-009', 1, 55.0),
+('ORD-016', 'USR-036', 'Rua Presidente Vargas, Areal - RJ', '2026-03-28', 1280.00, 'Shipped', 'SUP-003', 1, 44.2),
+('ORD-017', 'USR-037', 'Rua Cel. José Bento, Cordeiro - RJ', '2026-03-30', 890.00, 'Shipped', 'SUP-008', 1, 68.7),
+('ORD-018', 'USR-038', 'Av. Simão da Motta, Magé - RJ', '2026-03-29', 2150.00, 'Shipped', 'SUP-012', 1, 52.0),
+('ORD-019', 'USR-039', 'Rua Presidente Getúlio Vargas, Três Rios - RJ', '2026-03-31', 1780.00, 'Shipped', 'SUP-010', 1, 71.3),
+('ORD-020', 'USR-040', 'Rua Washington Luís, Petrópolis - RJ', '2026-04-03', 390.00, 'Pending', 'SUP-003', 0, 19.5),
+('ORD-021', 'USR-026', 'Rua Gonçalves Dias, Valparaíso, Petrópolis - RJ', '2026-04-04', 980.00, 'Pending', 'SUP-006', 0, 22.0),
+('ORD-022', 'USR-027', 'Rua Carmela Dutra, Agriões, Teresópolis - RJ', '2026-04-05', 1450.00, 'Pending', 'SUP-001', 0, 36.0),
+('ORD-023', 'USR-028', 'Praça Getúlio Vargas, Centro, Nova Friburgo - RJ', '2026-04-06', 2900.00, 'Pending', 'SUP-005', 0, 48.0),
+('ORD-024', 'USR-029', 'Rua Barão de Entre-Rios, Três Rios - RJ', '2026-04-07', 830.00, 'Pending', 'SUP-010', 0, 58.5),
+('ORD-025', 'USR-030', 'Estrada do Bananal, Guapimirim - RJ', '2026-04-08', 520.00, 'Pending', 'SUP-007', 0, 27.0),
+('ORD-026', 'USR-031', 'Rua Maestro Joaquim Naegele, Cantagalo - RJ', '2026-04-09', 1150.00, 'Pending', 'SUP-011', 0, 63.0),
+('ORD-027', 'USR-033', 'Estrada Bernardo Coutinho, Araras, Petrópolis - RJ', '2026-04-10', 640.00, 'Pending', 'SUP-002', 0, 34.0),
+('ORD-028', 'USR-034', 'Rua Heitor de Moura Estevão, Teresópolis - RJ', '2026-04-01', 450.00, 'Canceled', NULL, 1, 14.0),
+('ORD-029', 'USR-037', 'Rua Cel. José Bento, Cordeiro - RJ', '2026-04-02', 1200.00, 'Canceled', 'SUP-008', 0, 65.0),
+('ORD-030', 'USR-039', 'Rua Presidente Getúlio Vargas, Três Rios - RJ', '2026-04-03', 890.00, 'Canceled', NULL, 1, 50.0);
 
--- 8. Orders Items (8 entries)
+-- 8. Orders Items (76 entries mapping products with realistic purchase orders)
 INSERT INTO orders_items (order_id, product_id, quantity) VALUES
 ('ORD-001', 'PROD-001', 5),
+('ORD-001', 'PROD-004', 3),
 ('ORD-002', 'PROD-003', 1),
 ('ORD-002', 'PROD-002', 1),
 ('ORD-003', 'PROD-004', 2),
 ('ORD-004', 'PROD-006', 2),
 ('ORD-004', 'PROD-007', 10),
 ('ORD-005', 'PROD-005', 1),
-('ORD-001', 'PROD-004', 3);
+('ORD-006', 'PROD-016', 1),
+('ORD-006', 'PROD-017', 1),
+('ORD-007', 'PROD-007', 3),
+('ORD-007', 'PROD-011', 2),
+('ORD-007', 'PROD-031', 4),
+('ORD-008', 'PROD-009', 8),
+('ORD-008', 'PROD-010', 4),
+('ORD-008', 'PROD-013', 6),
+('ORD-009', 'PROD-022', 1),
+('ORD-009', 'PROD-028', 2),
+('ORD-010', 'PROD-015', 1),
+('ORD-010', 'PROD-030', 2),
+('ORD-011', 'PROD-029', 6),
+('ORD-011', 'PROD-032', 4),
+('ORD-012', 'PROD-009', 5),
+('ORD-012', 'PROD-012', 10),
+('ORD-012', 'PROD-014', 2),
+('ORD-013', 'PROD-006', 1),
+('ORD-013', 'PROD-020', 1),
+('ORD-014', 'PROD-001', 20),
+('ORD-014', 'PROD-004', 10),
+('ORD-014', 'PROD-010', 5),
+('ORD-015', 'PROD-018', 1),
+('ORD-015', 'PROD-019', 2),
+('ORD-015', 'PROD-035', 2),
+('ORD-016', 'PROD-005', 2),
+('ORD-016', 'PROD-024', 2),
+('ORD-016', 'PROD-034', 3),
+('ORD-017', 'PROD-021', 1),
+('ORD-017', 'PROD-026', 1),
+('ORD-017', 'PROD-027', 1),
+('ORD-018', 'PROD-023', 1),
+('ORD-018', 'PROD-025', 1),
+('ORD-019', 'PROD-014', 8),
+('ORD-019', 'PROD-010', 6),
+('ORD-019', 'PROD-009', 10),
+('ORD-020', 'PROD-029', 3),
+('ORD-020', 'PROD-031', 5),
+('ORD-020', 'PROD-032', 2),
+('ORD-021', 'PROD-008', 2),
+('ORD-021', 'PROD-024', 1),
+('ORD-021', 'PROD-036', 3),
+('ORD-022', 'PROD-001', 40),
+('ORD-022', 'PROD-012', 20),
+('ORD-022', 'PROD-013', 15),
+('ORD-023', 'PROD-016', 1),
+('ORD-023', 'PROD-003', 2),
+('ORD-024', 'PROD-021', 2),
+('ORD-024', 'PROD-028', 4),
+('ORD-025', 'PROD-011', 4),
+('ORD-025', 'PROD-007', 2),
+('ORD-026', 'PROD-029', 10),
+('ORD-026', 'PROD-030', 8),
+('ORD-027', 'PROD-009', 6),
+('ORD-027', 'PROD-014', 3),
+('ORD-028', 'PROD-005', 2),
+('ORD-028', 'PROD-008', 1),
+('ORD-029', 'PROD-022', 1),
+('ORD-030', 'PROD-014', 4);
 
--- 9. Trucks Cargo (2 entries)
+-- 9. Trucks Cargo (14 entries for trucks actively delivering cargo on the road)
 INSERT INTO trucks_cargo (truck_id, product_id, quantity) VALUES
 ('TRK-002', 'PROD-002', 1),
-('TRK-002', 'PROD-003', 1);
+('TRK-002', 'PROD-003', 1),
+('TRK-006', 'PROD-005', 2),
+('TRK-006', 'PROD-024', 2),
+('TRK-006', 'PROD-034', 3),
+('TRK-008', 'PROD-001', 20),
+('TRK-008', 'PROD-004', 10),
+('TRK-008', 'PROD-010', 5),
+('TRK-008', 'PROD-018', 1),
+('TRK-011', 'PROD-014', 8),
+('TRK-011', 'PROD-010', 6),
+('TRK-011', 'PROD-009', 10),
+('TRK-011', 'PROD-021', 1),
+('TRK-011', 'PROD-026', 1);
 
--- 10. Orders Route (3 steps)
+-- 10. Orders Route (26 steps tracing hub hops, truck assignments, drivers, and arrivals)
 INSERT INTO orders_route (order_id, step, warehouse_id, truck_id, driver_id, destination_warehouse_id, estimated_time, arrived_at) VALUES
 ('ORD-002', 1, 'WH-001', 'TRK-002', 'USR-003', 'WH-002', '2026-03-26 14:00:00', NULL),
 ('ORD-003', 1, 'WH-001', NULL, NULL, NULL, NULL, '2026-03-19 10:00:00'),
-('ORD-004', 1, 'WH-003', 'TRK-003', 'USR-006', NULL, '2026-04-01 10:00:00', NULL);
+('ORD-004', 1, 'WH-003', 'TRK-003', 'USR-006', NULL, '2026-04-01 10:00:00', NULL),
+('ORD-006', 1, 'WH-001', 'TRK-001', 'USR-021', 'WH-001', '2026-03-15 08:30:00', '2026-03-15 11:45:00'),
+('ORD-007', 1, 'WH-002', 'TRK-004', 'USR-022', 'WH-002', '2026-03-18 09:00:00', '2026-03-18 12:15:00'),
+('ORD-008', 1, 'WH-003', 'TRK-003', 'USR-003', 'WH-003', '2026-03-19 10:00:00', '2026-03-19 14:20:00'),
+('ORD-009', 1, 'WH-004', 'TRK-007', 'USR-024', 'WH-004', '2026-03-21 07:45:00', '2026-03-21 12:00:00'),
+('ORD-010', 1, 'WH-005', 'TRK-010', 'USR-006', 'WH-005', '2026-03-22 09:30:00', '2026-03-22 13:10:00'),
+('ORD-011', 1, 'WH-006', 'TRK-012', 'USR-023', 'WH-006', '2026-03-23 08:00:00', '2026-03-23 11:30:00'),
+('ORD-012', 1, 'WH-003', 'TRK-009', 'USR-003', 'WH-006', '2026-03-24 07:00:00', '2026-03-24 10:15:00'),
+('ORD-012', 2, 'WH-006', 'TRK-012', 'USR-023', NULL, '2026-03-24 11:00:00', '2026-03-24 14:00:00'),
+('ORD-013', 1, 'WH-001', 'TRK-005', 'USR-021', 'WH-001', '2026-03-25 09:00:00', '2026-03-25 12:40:00'),
+('ORD-014', 1, 'WH-002', 'TRK-008', 'USR-022', 'WH-003', '2026-03-28 11:00:00', NULL),
+('ORD-015', 1, 'WH-002', 'TRK-008', 'USR-022', 'WH-003', '2026-03-28 11:00:00', NULL),
+('ORD-016', 1, 'WH-004', 'TRK-006', 'USR-024', 'WH-001', '2026-03-27 16:30:00', NULL),
+('ORD-017', 1, 'WH-006', 'TRK-011', 'USR-023', 'WH-003', '2026-03-28 18:00:00', NULL),
+('ORD-018', 1, 'WH-005', 'TRK-015', 'USR-006', 'WH-002', '2026-03-29 14:00:00', NULL),
+('ORD-019', 1, 'WH-006', 'TRK-011', 'USR-023', 'WH-003', '2026-03-28 18:00:00', NULL),
+('ORD-020', 1, 'WH-001', NULL, NULL, NULL, '2026-04-03 10:00:00', NULL),
+('ORD-021', 1, 'WH-001', NULL, NULL, NULL, '2026-04-04 11:00:00', NULL),
+('ORD-022', 1, 'WH-002', NULL, NULL, NULL, '2026-04-05 09:30:00', NULL),
+('ORD-023', 1, 'WH-003', NULL, NULL, NULL, '2026-04-06 14:00:00', NULL),
+('ORD-024', 1, 'WH-004', NULL, NULL, NULL, '2026-04-07 10:00:00', NULL),
+('ORD-025', 1, 'WH-005', NULL, NULL, NULL, '2026-04-08 15:30:00', NULL),
+('ORD-026', 1, 'WH-006', NULL, NULL, NULL, '2026-04-09 08:30:00', NULL),
+('ORD-027', 1, 'WH-001', NULL, NULL, NULL, '2026-04-10 12:00:00', NULL);
 
--- 11. Supplies Route (2 entries)
+-- 11. Supplies Route (12 entries for supplier-to-warehouse inbound logistics)
 INSERT INTO supplies_route (order_id, supplier_id, truck_id, estimated_departure, estimated_arrival, actual_arrival) VALUES
 ('ORD-001', 'SUP-002', 'TRK-001', '2026-03-26 08:00:00', '2026-03-26 12:00:00', NULL),
-('ORD-004', 'SUP-003', 'TRK-003', '2026-03-28 09:00:00', '2026-03-30 15:00:00', NULL);
+('ORD-004', 'SUP-003', 'TRK-003', '2026-03-28 09:00:00', '2026-03-30 15:00:00', NULL),
+('ORD-006', 'SUP-005', 'TRK-005', '2026-03-14 08:00:00', '2026-03-14 11:00:00', '2026-03-14 10:45:00'),
+('ORD-007', 'SUP-007', 'TRK-004', '2026-03-17 07:30:00', '2026-03-17 10:30:00', '2026-03-17 10:15:00'),
+('ORD-008', 'SUP-002', 'TRK-003', '2026-03-18 08:00:00', '2026-03-18 11:30:00', '2026-03-18 11:10:00'),
+('ORD-009', 'SUP-010', 'TRK-007', '2026-03-20 06:30:00', '2026-03-20 10:00:00', '2026-03-20 09:50:00'),
+('ORD-010', 'SUP-012', 'TRK-010', '2026-03-21 08:00:00', '2026-03-21 11:00:00', '2026-03-21 10:55:00'),
+('ORD-011', 'SUP-011', 'TRK-012', '2026-03-22 07:00:00', '2026-03-22 10:00:00', '2026-03-22 09:40:00'),
+('ORD-014', 'SUP-001', 'TRK-008', '2026-03-27 08:00:00', '2026-03-27 12:00:00', '2026-03-27 11:30:00'),
+('ORD-015', 'SUP-009', 'TRK-008', '2026-03-28 07:30:00', '2026-03-28 11:30:00', NULL),
+('ORD-017', 'SUP-008', 'TRK-011', '2026-03-28 08:00:00', '2026-03-28 12:30:00', NULL),
+('ORD-019', 'SUP-010', 'TRK-011', '2026-03-28 09:00:00', '2026-03-28 14:00:00', NULL);
 
--- 12. Freight Cost (2 entries)
+-- 12. Freight Cost (16 entries with exact cost component sums: total = fuel + labor + maintenance)
 INSERT INTO freight_cost (order_id, fuel_cost, labor_cost, maintenance_cost, total_cost, calculated_at) VALUES
+('ORD-002', 150.0, 300.0, 45.0, 495.0, '2026-03-25 10:30:00'),
 ('ORD-003', 25.0, 40.0, 5.0, 70.0, '2026-03-20 11:00:00'),
-('ORD-002', 150.0, 300.0, 45.0, 495.0, '2026-03-25 10:30:00');
+('ORD-006', 45.0, 110.0, 15.0, 170.0, '2026-03-15 12:00:00'),
+('ORD-007', 32.0, 75.0, 10.0, 117.0, '2026-03-18 12:30:00'),
+('ORD-008', 55.0, 130.0, 20.0, 205.0, '2026-03-19 14:30:00'),
+('ORD-009', 115.0, 220.0, 35.0, 370.0, '2026-03-21 12:15:00'),
+('ORD-010', 65.0, 95.0, 15.0, 175.0, '2026-03-22 13:20:00'),
+('ORD-011', 88.0, 140.0, 22.0, 250.0, '2026-03-23 11:45:00'),
+('ORD-012', 72.0, 165.0, 25.0, 262.0, '2026-03-24 14:15:00'),
+('ORD-013', 58.0, 125.0, 18.0, 201.0, '2026-03-25 12:50:00'),
+('ORD-014', 68.0, 110.0, 16.0, 194.0, '2026-03-27 10:00:00'),
+('ORD-015', 92.0, 180.0, 28.0, 300.0, '2026-03-28 09:15:00'),
+('ORD-016', 82.0, 155.0, 24.0, 261.0, '2026-03-27 15:00:00'),
+('ORD-017', 120.0, 210.0, 32.0, 362.0, '2026-03-28 10:30:00'),
+('ORD-018', 95.0, 160.0, 26.0, 281.0, '2026-03-28 11:45:00'),
+('ORD-019', 135.0, 240.0, 38.0, 413.0, '2026-03-28 12:00:00');
 
--- 13. Online Users (3 entries)
+-- 13. Online Users (10 active session entries across system roles)
 INSERT INTO online_users (session_id, user_id, login_time, last_activity) VALUES
 ('SESS-001', 'USR-001', '2026-03-25 09:00:00', '2026-03-25 10:30:00'),
 ('SESS-002', 'USR-003', '2026-03-25 08:00:00', '2026-03-25 11:00:00'),
-('SESS-003', 'USR-002', '2026-03-25 10:00:00', '2026-03-25 11:15:00');
+('SESS-003', 'USR-002', '2026-03-25 10:00:00', '2026-03-25 11:15:00'),
+('SESS-004', 'USR-011', '2026-03-25 08:30:00', '2026-03-25 11:30:00'),
+('SESS-005', 'USR-013', '2026-03-25 07:45:00', '2026-03-25 11:20:00'),
+('SESS-006', 'USR-015', '2026-03-25 09:15:00', '2026-03-25 11:05:00'),
+('SESS-007', 'USR-021', '2026-03-25 08:10:00', '2026-03-25 10:50:00'),
+('SESS-008', 'USR-025', '2026-03-25 09:30:00', '2026-03-25 11:25:00'),
+('SESS-009', 'USR-007', '2026-03-25 08:00:00', '2026-03-25 10:40:00'),
+('SESS-010', 'USR-014', '2026-03-25 08:45:00', '2026-03-25 11:10:00');

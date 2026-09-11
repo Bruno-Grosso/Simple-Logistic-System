@@ -9,7 +9,8 @@ export const dynamic = "force-dynamic"
 export default async function EmployeesPage() {
   await requireRole("admin")
   const [users, warehouses] = await Promise.all([api.users.getAll(), api.warehouses.getAll()])
-  const employees = users.filter((user) => user.rawRole === "warehouse_worker" || user.rawRole === "truck_driver")
+  const employeeRoles = ["warehouse_worker", "truck_driver", "dispatcher", "inventory_manager", "maintenance_technician"]
+  const employees = users.filter((user) => employeeRoles.includes(user.rawRole || user.role))
   return (
     <PageShell>
       <PageHeader crumbs={[{ label: "Employees" }]} />

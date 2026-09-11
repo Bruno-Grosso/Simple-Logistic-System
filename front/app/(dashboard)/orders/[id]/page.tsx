@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { EmptyState } from "@/components/empty-state"
 import { RouteMap } from "@/components/route-map"
 import { ManageOrderDialog } from "@/components/manage-order-dialog"
+import { CopyButton } from "@/components/copy-button"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
 import { getCurrentUserProfile } from "@/lib/auth/get-user"
@@ -73,11 +74,13 @@ export default async function OrderDetailPage({ params }: PageProps) {
   const { user } = await getCurrentUserProfile()
   const role = user.rawRole || user.role
   const isAdmin = role === "admin"
+  const isDispatcher = role === "dispatcher"
+  const isOrderManager = isAdmin || isDispatcher
   const isClient = role === "client"
   const isDriver = role === "truck_driver"
-  const accessRoutes = isAdmin ? [] : await api.orders.getRoute(order.id)
+  const accessRoutes = isOrderManager ? [] : await api.orders.getRoute(order.id)
   const isAllowed =
-    isAdmin ||
+    isOrderManager ||
     (isClient && order.client_id === user.id) ||
     (isDriver && accessRoutes.some((route) => route.driver_id === user.id)) ||
     (role === "warehouse_worker" && !!user.warehouse_id && accessRoutes.some((route) => route.deposit_id === user.warehouse_id || route.destination_deposit_id === user.warehouse_id))
@@ -98,7 +101,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
     isClient ? Promise.resolve([user]) : api.users.getAll(),
     api.orders.getItems(order.id),
     api.orders.getRoute(order.id),
-    isAdmin ? api.orders.getCost(order.id) : Promise.resolve(undefined),
+    isOrderManager ? api.orders.getCost(order.id) : Promise.resolve(undefined),
     api.orders.getETA(order.id),
     api.products.getAll(),
     api.warehouses.getAll(),
@@ -201,15 +204,20 @@ export default async function OrderDetailPage({ params }: PageProps) {
           { label: "Orders", href: "/orders" },
           { label: `#${order.id}` },
         ]}
-        actions={isAdmin ? (
-          <ManageOrderDialog
-            order={order}
-            routeSteps={routeSteps}
-            trucks={trucks}
-            drivers={users.filter((candidate) => candidate.rawRole === "truck_driver")}
-            warehouses={warehouses}
-          />
-        ) : undefined}
+        actions={(
+          <div className="flex items-center gap-2">
+            <CopyButton value={order.id} label="Copy order ID" />
+            {isOrderManager && (
+              <ManageOrderDialog
+                order={order}
+                routeSteps={routeSteps}
+                trucks={trucks}
+                drivers={users.filter((candidate) => candidate.rawRole === "truck_driver")}
+                warehouses={warehouses}
+              />
+            )}
+          </div>
+        )}
       />
       <div className="min-h-0 flex-1 space-y-5 overflow-auto">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -231,7 +239,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
                     />
                   </div>
                   <InfoField label="Deadline" value={order.time_limit ?? "—"} />
-                  {isAdmin && <InfoField label="Value" value={`R$ ${order.price.toLocaleString("pt-BR")}`} />}
+                  {isOrderManager && <InfoField label="Value" value={`R$ ${order.price.toLocaleString("pt-BR")}`} />}
                   {!isClient && <InfoField label="Supplier delivery" value={order.supplier_delivery ? "Yes" : "No"} />}
                   <div>
                     <p className="mb-0.5 text-xs uppercase tracking-wider text-muted-foreground">
@@ -377,7 +385,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
                             <span className="text-sm text-muted-foreground">
                               Qty <span className="font-medium text-foreground">{line.quantity}</span>
                             </span>
-                            {isAdmin && <span className="text-sm">Subtotal <span className="font-semibold">R$ {subtotal.toLocaleString("pt-BR")}</span></span>}
+                            {isOrderManager && <span className="text-sm">Subtotal <span className="font-semibold">R$ {subtotal.toLocaleString("pt-BR")}</span></span>}
                           </div>
                         </li>
                       )
@@ -387,8 +395,8 @@ export default async function OrderDetailPage({ params }: PageProps) {
               </CardContent>
             </Card>
 
-            {/* Freight costs are commercial data and are available only to administrators. */}
-            {isAdmin && <Card>
+            {/* Freight costs are commercial data and are available only to administrators and dispatchers. */}
+            {isOrderManager && <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="font-display text-lg flex items-center gap-2">
                   <DollarSign className="size-4 text-primary" />

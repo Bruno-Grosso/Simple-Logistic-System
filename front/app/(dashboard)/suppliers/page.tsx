@@ -14,7 +14,7 @@ import { api } from "@/lib/api"
 import { requireRole } from "@/lib/auth/require-role"
 
 export default async function SuppliersPage() {
-  await requireRole("admin")
+  await requireRole("admin", "inventory_manager")
   const suppliers = await api.suppliers.getAll()
 
   return (

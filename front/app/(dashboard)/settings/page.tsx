@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { getCurrentUserProfile } from "@/lib/auth/get-user"
+import { ThemeSelector } from "@/components/theme-toggle"
+import { TimeoutSettingSelector } from "@/components/timeout-setting"
+import { CopyButton } from "@/components/copy-button"
 
 export const dynamic = "force-dynamic"
 
@@ -98,23 +101,50 @@ export default async function SettingsPage() {
           </div>
         </Section>
 
+        {/* Appearance & Theme */}
+        <section>
+          <h2 className="mb-2 font-display text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Appearance & Theme
+          </h2>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground mb-3">
+              Configure interface mode. Switch to Light theme or Dark theme on demand.
+            </p>
+            <ThemeSelector />
+          </div>
+        </section>
+
         {/* System & Session Information */}
         <Section title="Active Session">
+          <SettingRow
+            label="Inactivity Auto-Logout"
+            description="Automatically log out when idle"
+          >
+            <TimeoutSettingSelector />
+          </SettingRow>
           <SettingRow
             label="Session Token"
             description={onlineSession?.session_id || "Active cookie session verified"}
           >
-            <Badge variant="outline" className="font-mono text-[10px]">
-              {onlineSession?.session_id ? "Online DB Logged" : "Active Cookie"}
-            </Badge>
+            <div className="flex items-center gap-1.5">
+              <Badge variant="outline" className="font-mono text-[10px]">
+                {onlineSession?.session_id ? "Online DB Logged" : "Active Cookie"}
+              </Badge>
+              {onlineSession?.session_id && (
+                <CopyButton value={onlineSession.session_id} label="Copy session token" />
+              )}
+            </div>
           </SettingRow>
           <SettingRow
             label="User ID"
             description="PostgreSQL Primary Key"
           >
-            <span className="font-mono text-xs font-semibold text-foreground">
-              {user.id}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-xs font-semibold text-foreground">
+                {user.id}
+              </span>
+              <CopyButton value={user.id} label="Copy user ID" />
+            </div>
           </SettingRow>
         </Section>
 

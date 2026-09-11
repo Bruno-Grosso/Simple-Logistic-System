@@ -147,7 +147,7 @@ export function TruckFleetDialog({ truck, originLabel, destinationLabel }: Truck
 
         {/* 3-D scene */}
         <div className="overflow-hidden rounded-xl border bg-muted/20">
-          <TruckScene />
+          <TruckScene truck={truck} />
         </div>
 
         {/* ── Stats grid ──────────────────────────────────────────── */}

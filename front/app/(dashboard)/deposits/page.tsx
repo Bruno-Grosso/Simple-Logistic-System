@@ -20,7 +20,7 @@ import { EmptyState } from "@/components/empty-state"
 export const dynamic = "force-dynamic"
 
 export default async function DepositsPage() {
-  const user = await requireRole("admin", "warehouse_worker")
+  const user = await requireRole("admin", "inventory_manager", "warehouse_worker")
   const isWarehouseWorker = (user.rawRole || user.role) === "warehouse_worker"
   const [deposits, trucks] = await Promise.all([
     isWarehouseWorker && user.warehouse_id

@@ -14,3 +14,11 @@ Cypress.on("uncaught:exception", (err) => {
   return true
 })
 
+beforeEach(() => {
+  const spec = Cypress.spec?.name || ""
+  // Set authenticated session for all tests except explicit auth tests (login & register)
+  if (!spec.includes("login") && !spec.includes("register")) {
+    cy.setSession()
+  }
+})
+

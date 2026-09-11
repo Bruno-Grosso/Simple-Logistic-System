@@ -64,7 +64,7 @@ CREATE TABLE users (
     email TEXT UNIQUE,
     password TEXT NOT NULL,
     address JSON, -- Documentation says geographic coordinates
-    role TEXT CHECK(role IN ('admin','warehouse_worker','truck_driver','client')),
+    role TEXT CHECK(role IN ('admin','warehouse_worker','truck_driver','client','worker','dispatcher','inventory_manager','maintenance_technician','manager')),
     warehouse_id TEXT REFERENCES warehouses(id),
     wage REAL NOT NULL DEFAULT 45.0,
     is_active INTEGER NOT NULL DEFAULT 1
