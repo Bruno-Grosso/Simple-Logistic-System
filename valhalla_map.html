@@ -49,11 +49,10 @@
         // 2. PRIMEIRO cria a instância do mapa no elemento #map
         const map = L.map('map').setView([-22.285, -42.533], 15);
 
-        // 3. Adiciona a camada de mapa sem bloqueio de HTTP Referer (CartoDB Voyager)
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            subdomains: 'abcd',
-            maxZoom: 20
+        // 3. Adiciona a camada OpenStreetMap pública (sem necessidade de API key)
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
         }).addTo(map);
 
         // 4. Decodifica a polyline do Valhalla (Valhalla usa precisão 6)

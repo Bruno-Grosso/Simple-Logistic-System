@@ -22,6 +22,9 @@ import { requireRole } from "@/lib/auth/require-role"
 import { computeDepositUsage, computeDepositParkingUsage } from "@/lib/calculations"
 import type { Product } from "@/types"
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 export default async function DepositDetailPage({
   params,
 }: {

@@ -89,30 +89,60 @@ function generateFallbackPoints(originLabel?: string, destinationLabel?: string)
   return [start, end]
 }
 
+export type Waypoint = {
+  label: string
+  lat: number
+  lon: number
+  type?: "origin" | "stop" | "destination" | "return"
+  orderId?: string
+}
+
 type RouteMapProps = {
   encodedShape?: string
+  legs?: Array<{ shape?: string | null }>
   summary?: { length?: number; time?: number }
   originLabel?: string
   destinationLabel?: string
   truckModel?: string
   title?: string
   onlyMap?: boolean
+  waypoints?: Waypoint[]
+  className?: string
 }
 
 export function RouteMap({
   encodedShape,
+  legs,
   summary,
   originLabel = "Origin Warehouse",
   destinationLabel = "Destination",
   truckModel,
   title = "Valhalla Route Map",
   onlyMap = true,
+  waypoints,
+  className,
 }: RouteMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   const [leafletLoaded, setLeafletLoaded] = useState(false)
 
   const points = useMemo(() => {
+    // If multiple legs with shapes are provided, decode and concatenate all legs
+    if (legs && legs.length > 0) {
+      const legPoints: [number, number][] = []
+      for (const leg of legs) {
+        if (leg.shape) {
+          try {
+            const decoded = decodePolyline6(leg.shape)
+            legPoints.push(...decoded)
+          } catch (e) {
+            console.warn("Error decoding leg shape:", e)
+          }
+        }
+      }
+      if (legPoints.length > 0) return legPoints
+    }
+
     if (encodedShape) {
       try {
         const decoded = decodePolyline6(encodedShape)
@@ -121,8 +151,11 @@ export function RouteMap({
         console.warn("Error decoding Valhalla polyline:", e)
       }
     }
+    if (waypoints && waypoints.length > 1) {
+      return waypoints.map((w) => [w.lat, w.lon] as [number, number])
+    }
     return generateFallbackPoints(originLabel, destinationLabel)
-  }, [encodedShape, originLabel, destinationLabel])
+  }, [legs, encodedShape, originLabel, destinationLabel, waypoints])
 
   const distanceKm = summary?.length != null ? Math.round(summary.length * 10) / 10 : null
   const durationMins = summary?.time != null ? Math.round(summary.time / 60) : null
@@ -176,12 +209,11 @@ export function RouteMap({
       zoomControl: false,
     }).setView(start, 13)
 
-    // Add CartoDB Voyager tile layer (matching valhalla_map.html)
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+    // Add OpenStreetMap tile layer (free and open, no API key required)
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: "abcd",
-      maxZoom: 20,
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
     }).addTo(map)
 
     L.control.zoom({ position: "topright" }).addTo(map)
@@ -195,28 +227,48 @@ export function RouteMap({
       lineJoin: "round",
     }).addTo(map)
 
-    // Add start/end markers
-    const startIcon = L.divIcon({
-      className: "custom-leaflet-marker",
-      html: `<div style="background-color:#22c55e;width:16px;height:16px;border-radius:50%;border:3px solid #ffffff;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>`,
-      iconSize: [16, 16],
-      iconAnchor: [8, 8],
-    })
+    if (waypoints && waypoints.length > 0) {
+      waypoints.forEach((wp, idx) => {
+        const isOrigin = idx === 0 || wp.type === "origin"
+        const isReturn = wp.type === "return" || (idx === waypoints.length - 1 && wp.type === "destination" && waypoints.length > 2)
+        const bgColor = isOrigin ? "#22c55e" : isReturn ? "#ef4444" : "#2563eb"
+        const badgeText = isOrigin ? "WH" : isReturn ? "END" : String(idx)
 
-    const endIcon = L.divIcon({
-      className: "custom-leaflet-marker",
-      html: `<div style="background-color:#ef4444;width:16px;height:16px;border-radius:50%;border:3px solid #ffffff;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>`,
-      iconSize: [16, 16],
-      iconAnchor: [8, 8],
-    })
+        const icon = L.divIcon({
+          className: "custom-leaflet-marker",
+          html: `<div style="background-color:${bgColor};color:#ffffff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;border:2px solid #ffffff;box-shadow:0 2px 6px rgba(0,0,0,0.4);">${badgeText}</div>`,
+          iconSize: [22, 22],
+          iconAnchor: [11, 11],
+        })
 
-    L.marker(start, { icon: startIcon })
-      .addTo(map)
-      .bindPopup(`<b>Origem:</b> ${originLabel}`)
+        L.marker([wp.lat, wp.lon], { icon })
+          .addTo(map)
+          .bindPopup(`<b>${wp.label}</b>${wp.orderId ? `<br/>Pedido: #${wp.orderId}` : ""}`)
+      })
+    } else {
+      // Add start/end markers
+      const startIcon = L.divIcon({
+        className: "custom-leaflet-marker",
+        html: `<div style="background-color:#22c55e;width:16px;height:16px;border-radius:50%;border:3px solid #ffffff;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      })
 
-    L.marker(end, { icon: endIcon })
-      .addTo(map)
-      .bindPopup(`<b>Destino:</b> ${destinationLabel}`)
+      const endIcon = L.divIcon({
+        className: "custom-leaflet-marker",
+        html: `<div style="background-color:#ef4444;width:16px;height:16px;border-radius:50%;border:3px solid #ffffff;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      })
+
+      L.marker(start, { icon: startIcon })
+        .addTo(map)
+        .bindPopup(`<b>Origem:</b> ${originLabel}`)
+
+      L.marker(end, { icon: endIcon })
+        .addTo(map)
+        .bindPopup(`<b>Destino:</b> ${destinationLabel}`)
+    }
 
     try {
       const bounds = routeLine.getBounds()
@@ -229,18 +281,41 @@ export function RouteMap({
       map.setView(start, 13)
     }
 
+    // Auto-invalidate map size after rendering and animation completes
+    const timer1 = setTimeout(() => {
+      map.invalidateSize()
+    }, 150)
+    const timer2 = setTimeout(() => {
+      map.invalidateSize()
+    }, 400)
+
     mapInstanceRef.current = map
 
     return () => {
+      clearTimeout(timer1)
+      clearTimeout(timer2)
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove()
         mapInstanceRef.current = null
       }
     }
-  }, [leafletLoaded, points, originLabel, destinationLabel])
+  }, [leafletLoaded, points, originLabel, destinationLabel, waypoints])
+
+  // Watch for element resize (e.g. inside animated modals or responsive grid)
+  useEffect(() => {
+    if (!mapContainerRef.current) return
+    const el = mapContainerRef.current
+    const observer = new ResizeObserver(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize()
+      }
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   const mapCanvas = (
-    <div className="relative h-72 sm:h-80 w-full overflow-hidden rounded-xl border border-border shadow-sm">
+    <div className={className || "relative h-72 sm:h-80 w-full overflow-hidden rounded-xl border border-border shadow-sm"}>
       <div ref={mapContainerRef} className="h-full w-full bg-slate-100" />
 
       {/* Header Overlay inside Map */}

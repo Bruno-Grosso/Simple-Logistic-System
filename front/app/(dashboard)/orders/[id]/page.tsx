@@ -21,11 +21,15 @@ import { EmptyState } from "@/components/empty-state"
 import { RouteMap } from "@/components/route-map"
 import { ManageOrderDialog } from "@/components/manage-order-dialog"
 import { CopyButton } from "@/components/copy-button"
+import { ExportManifestButton } from "@/components/export-manifest-button"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
 import { getCurrentUserProfile } from "@/lib/auth/get-user"
 import { calculateFreightEstimate, calculateOrderETA } from "@/lib/calculations"
 import type { OrderStatus, User, Product, Deposit, Truck as TruckType, OrderETA, OrderRoute } from "@/types"
+
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 function parseDestination(raw: string | undefined): string {
   if (!raw) return "—"
@@ -207,6 +211,15 @@ export default async function OrderDetailPage({ params }: PageProps) {
         actions={(
           <div className="flex items-center gap-2">
             <CopyButton value={order.id} label="Copy order ID" />
+            <ExportManifestButton
+              order={order}
+              items={items}
+              products={products}
+              client={client}
+              truck={assignedTruck}
+              driver={assignedDriver}
+              warehouse={originWarehouse}
+            />
             {isOrderManager && (
               <ManageOrderDialog
                 order={order}

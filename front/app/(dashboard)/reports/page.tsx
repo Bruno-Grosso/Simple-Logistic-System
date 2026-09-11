@@ -23,6 +23,7 @@ import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ReportFilters } from "@/components/report-filters"
 import { PerformanceGraphs } from "@/components/performance-graphs"
+import { ExportCsvButton } from "@/components/export-csv-button"
 import { api } from "@/lib/api"
 import { requireRole } from "@/lib/auth/require-role"
 import { computeDashboardStats } from "@/lib/calculations"
@@ -197,7 +198,16 @@ export default async function ReportsPage(props: ReportsPageProps) {
     <PageShell>
       <PageHeader 
         crumbs={[{ label: "Reports" }]} 
-        actions={<ReportFilters warehouses={warehouses} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <ReportFilters warehouses={warehouses} />
+            <ExportCsvButton
+              url={api.reports.exportDeliveryCostsCsvUrl(warehouseId)}
+              filename={`delivery-costs-report${warehouseId ? `-${warehouseId}` : ""}.csv`}
+              label="Export CSV"
+            />
+          </div>
+        }
       />
       
       <div className="min-h-0 flex-1 space-y-6 overflow-auto">

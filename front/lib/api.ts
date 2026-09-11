@@ -224,6 +224,19 @@ export const api = {
       const res = await apiClient.put<{ success: boolean; truck?: any }>(`/trucks/${id}`, payload)
       return res.data
     },
+
+    async getCargo(truckId?: string): Promise<Stock[]> {
+      try {
+        const url = truckId ? `/trucks/${truckId}/cargo` : "/trucks/cargo"
+        const res = await apiClient.get<any[]>(url)
+        if (Array.isArray(res.data)) {
+          return res.data.map(adaptStock)
+        }
+      } catch (err) {
+        console.error("[API] GET /trucks/cargo error:", err)
+      }
+      return []
+    },
   },
 
   products: {
@@ -552,6 +565,14 @@ export const api = {
       return null
     },
 
+    exportCsvUrl(): string {
+      return `${baseURL}/orders/export/csv`
+    },
+
+    exportManifestCsvUrl(orderId: string): string {
+      return `${baseURL}/orders/${encodeURIComponent(orderId)}/manifest.csv`
+    },
+
     async addRouteStep(orderId: string, payload: {
       step: number
       warehouse_id?: string | null
@@ -626,6 +647,57 @@ export const api = {
         return null
       }
     },
+
+    async calculateMultiStopRoute(options: {
+      warehouseId?: string
+      orderIds: string[]
+      truckId?: string
+      roundTrip?: boolean
+    }): Promise<{
+      success: boolean
+      error?: string
+      warehouse?: { id: string; label: string; coords: { lat: number; lon: number } }
+      truck?: { id: string; model: string; weight_max: number; volume_max: number }
+      total_orders?: number
+      collective_weight_kg?: number
+      collective_volume_m3?: number
+      total_distance_km?: number
+      total_time_seconds?: number
+      stops?: Array<{
+        stop_number: number
+        order_id: string
+        destination: string
+        coords: { lat: number; lon: number }
+        weight_kg: number
+        volume_m3: number
+        leg_distance_km: number
+        leg_time_seconds: number
+      }>
+      legs?: any[]
+      encodedShape?: string
+      waypoints?: Array<{ index: number; label: string; lat: number; lon: number; type: string }>
+    } | null> {
+      try {
+        const res = await apiClient.post<any>("/routes/multi-stop", options)
+        return res.data
+      } catch (err: any) {
+        console.warn("[API] POST /routes/multi-stop error:", err?.response?.data?.error || err.message)
+        return {
+          success: false,
+          error: err?.response?.data?.error || err.message || "Failed to calculate multi-stop route",
+        }
+      }
+    },
+
+    async getTruckMultiStopRoute(truckId: string): Promise<any | null> {
+      try {
+        const res = await apiClient.get<any>(`/trucks/${encodeURIComponent(truckId)}/routes/multi-stop`)
+        return res.data
+      } catch (err: any) {
+        console.warn(`[API] GET /trucks/${truckId}/routes/multi-stop error:`, err?.message || err)
+        return null
+      }
+    },
   },
 
   freightCost: {
@@ -685,6 +757,10 @@ export const api = {
         console.error("[API] GET /reports/delivery-costs error:", err)
       }
       return adaptDeliveryCostReport(null)
+    },
+
+    exportDeliveryCostsCsvUrl(warehouseId?: string): string {
+      return `${baseURL}/reports/delivery-costs/csv${warehouseId ? `?warehouseId=${encodeURIComponent(warehouseId)}` : ""}`
     },
   },
 

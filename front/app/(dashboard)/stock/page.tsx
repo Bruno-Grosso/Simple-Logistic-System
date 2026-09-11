@@ -1,51 +1,33 @@
-import { Boxes } from "lucide-react"
-
 import { PageHeader } from "@/components/page-header"
 import { PageShell } from "@/components/page-shell"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
 import { api } from "@/lib/api"
 import { requireRole } from "@/lib/auth/require-role"
-import { EmptyState } from "@/components/empty-state"
 import { ManageStockDialog } from "@/components/manage-stock-dialog"
-import type { Product, Deposit, Truck, Stock } from "@/types"
+import { StockTableLive } from "@/components/stock-table-live"
+import type { Stock } from "@/types"
+
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 export default async function StockPage() {
   const user = await requireRole("admin", "inventory_manager", "warehouse_worker")
   const isWarehouseWorker = (user.rawRole || user.role) === "warehouse_worker"
   const [warehouses, products, trucks] = await Promise.all([
     isWarehouseWorker && user.warehouse_id
-      ? api.warehouses.getById(user.warehouse_id).then((warehouse) => warehouse ? [warehouse] : [])
+      ? api.warehouses.getById(user.warehouse_id).then((warehouse) => (warehouse ? [warehouse] : []))
       : api.warehouses.getAll(),
     api.products.getAll(),
     isWarehouseWorker ? Promise.resolve([]) : api.trucks.getAll(),
   ])
 
-  // Fetch stock from all warehouses
+  // Fetch stock from all warehouses and truck cargo
   const stockPromises = warehouses.map((w) => api.warehouses.getStock(w.id))
-  const stockResults = await Promise.all(stockPromises)
-  const allStock: Stock[] = stockResults.flat()
-
-  const productMap = new Map<string, Product>()
-  products.forEach((p) => productMap.set(p.id, p))
-
-  const warehouseMap = new Map<string, Deposit>()
-  warehouses.forEach((w) => warehouseMap.set(w.id, w))
-
-  const truckMap = new Map<string, Truck>()
-  trucks.forEach((t) => truckMap.set(t.id, t))
-
-  const totalEntries = allStock.length
-  const inDeposits = allStock.filter((s) => s.deposit_id).length
-  const inTransit = allStock.filter((s) => s.truck_id).length
+  const cargoPromise = isWarehouseWorker ? Promise.resolve([]) : api.trucks.getCargo()
+  const [stockResults, cargoResults] = await Promise.all([
+    Promise.all(stockPromises),
+    cargoPromise,
+  ])
+  const allStock: Stock[] = [...stockResults.flat(), ...(cargoResults || [])]
 
   return (
     <PageShell>
@@ -58,117 +40,14 @@ export default async function StockPage() {
         />
       </div>
       <div className="min-h-0 flex-1 space-y-6 overflow-auto">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-xs font-medium text-muted-foreground">Total entries</p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-primary">
-                {totalEntries}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-xs font-medium text-muted-foreground">In deposits</p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-primary">
-                {inDeposits}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-xs font-medium text-muted-foreground">In transit</p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-primary">
-                {inTransit}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {allStock.length === 0 ? <EmptyState icon={Boxes} title="No stock recorded" description="Inventory for this warehouse will appear when products are received." /> : <div className="overflow-x-auto rounded-xl ring-1 ring-border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead scope="col">Product</TableHead>
-                <TableHead scope="col" className="text-right">
-                  Quantity
-                </TableHead>
-                <TableHead scope="col">Location</TableHead>
-                <TableHead scope="col">Type</TableHead>
-                <TableHead scope="col">Arrived</TableHead>
-                <TableHead scope="col" className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {allStock.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
-                    No stock entries recorded.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                allStock.map((row) => {
-                  const product = productMap.get(row.product_id)
-                  const inWarehouse = Boolean(row.deposit_id)
-                  const deposit = row.deposit_id ? warehouseMap.get(row.deposit_id) : undefined
-                  const truck = row.truck_id ? truckMap.get(row.truck_id) : undefined
-
-                  const locationLabel = inWarehouse
-                    ? deposit
-                      ? deposit.location
-                      : `Warehouse ${row.deposit_id}`
-                    : truck
-                      ? `Truck · ${truck.model ?? row.truck_id}`
-                      : "In transit"
-
-                  return (
-                    <TableRow key={row.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Boxes className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                          <span className="font-medium">{product?.name ?? row.product_id}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-semibold tabular-nums text-primary">
-                        {row.quantity}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{locationLabel}</TableCell>
-                      <TableCell>
-                        {inWarehouse ? (
-                          <Badge variant="outline" className="border-chart-2 text-chart-2">
-                            Warehouse
-                          </Badge>
-                        ) : (
-                          <Badge variant="default">In transit</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="tabular-nums text-muted-foreground">
-                        {new Date(row.arrived_at).toLocaleDateString(undefined, {
-                          dateStyle: "medium",
-                        })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {inWarehouse && row.deposit_id ? (
-                          <ManageStockDialog
-                            warehouses={warehouses}
-                            products={products}
-                            preselectedWarehouseId={row.deposit_id}
-                            preselectedProductId={row.product_id}
-                            initialQuantity={row.quantity}
-                            iconOnly={true}
-                            triggerLabel={`Edit stock for ${product?.name || row.product_id}`}
-                          />
-                        ) : (
-                          <span className="text-muted-foreground text-xs">—</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>}
+        <StockTableLive
+          initialStock={allStock}
+          warehouses={warehouses}
+          products={products}
+          trucks={trucks}
+          isWarehouseWorker={isWarehouseWorker}
+          userWarehouseId={user.warehouse_id || undefined}
+        />
       </div>
     </PageShell>
   )

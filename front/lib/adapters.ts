@@ -274,7 +274,7 @@ export function adaptSupplier(raw: any): Supplier {
 
 export function adaptStock(raw: any): Stock {
   return {
-    id: `${raw.warehouse_id || raw.deposit_id || "wh"}-${raw.product_id}`,
+    id: raw.id || `${raw.warehouse_id || raw.deposit_id || (raw.truck_id ? `truck-${raw.truck_id}` : "wh")}-${raw.product_id}`,
     product_id: String(raw.product_id),
     quantity: Number(raw.quantity ?? 0),
     deposit_id: raw.warehouse_id || raw.deposit_id || undefined,

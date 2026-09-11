@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
 import { getCurrentUserProfile } from "@/lib/auth/get-user"
 import { calculateOrderETA } from "@/lib/calculations"
+import { ExportCsvButton } from "@/components/export-csv-button"
+import { MultiStopPlannerDialog } from "@/components/multi-stop-planner-dialog"
 import type { OrderStatus, User } from "@/types"
 
 export const dynamic = "force-dynamic"
@@ -57,9 +59,10 @@ export default async function OrdersPage() {
     role === "truck_driver" ? { driverId: user.id } :
     role === "warehouse_worker" && user.warehouse_id ? { warehouseId: user.warehouse_id } : undefined
   const orders = await api.orders.getAll(orderFilters)
-  const [users, trucks, routeEntries] = await Promise.all([
+  const [users, trucks, warehouses, routeEntries] = await Promise.all([
     isOrderManager ? api.users.getAll() : Promise.resolve([user]),
     isOrderManager || role === "truck_driver" ? api.trucks.getAll() : Promise.resolve([]),
+    isOrderManager ? api.warehouses.getAll() : Promise.resolve([]),
     Promise.all(orders.map(async (order) => [order.id, await api.orders.getRoute(order.id)] as const)),
   ])
 
@@ -75,21 +78,37 @@ export default async function OrdersPage() {
     <PageShell>
       <PageHeader
         crumbs={[{ label: "Orders" }]}
-        actions={isOrderManager ? (
-          <Link
-            href="/orders/new"
-            className={cn(
-              "inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-transparent",
-              "bg-primary px-2.5 text-sm font-medium text-primary-foreground transition-all outline-none",
-              "hover:bg-primary/80 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:translate-y-px",
-              "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        actions={
+          <div className="flex items-center gap-2">
+            {isOrderManager && (
+              <MultiStopPlannerDialog
+                orders={orders}
+                trucks={trucks}
+                warehouses={warehouses}
+              />
             )}
-            aria-label="Create new order"
-          >
-            <Plus className="size-4" aria-hidden />
-            New Order
-          </Link>
-        ) : undefined}
+            <ExportCsvButton
+              url={api.orders.exportCsvUrl()}
+              filename="orders-logisys.csv"
+              label="Export CSV"
+            />
+            {isOrderManager && (
+              <Link
+                href="/orders/new"
+                className={cn(
+                  "inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-transparent",
+                  "bg-primary px-2.5 text-sm font-medium text-primary-foreground transition-all outline-none",
+                  "hover:bg-primary/80 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:translate-y-px",
+                  "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+                )}
+                aria-label="Create new order"
+              >
+                <Plus className="size-4" aria-hidden />
+                New Order
+              </Link>
+            )}
+          </div>
+        }
       />
       <div className="min-h-0 flex-1 overflow-auto">
         <div className="overflow-x-auto rounded-lg border border-border">

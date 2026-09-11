@@ -146,19 +146,23 @@ export const users = {
     const input = String(identityInput || "").trim().toLowerCase();
     const cleanPrefix = input.includes("@") ? input.split("@")[0] : input;
 
-    const allUsers = await pg_conn`SELECT * FROM users`;
-    const matched = allUsers.find((u: any) => {
-      const uId = String(u.id).toLowerCase();
-      const uName = String(u.name).toLowerCase();
-      const uEmail = String(u.email || "").toLowerCase();
-      const firstName = uName.split(" ")[0];
+    // Direct indexed query on PostgreSQL instead of loading all users into memory
+    const candidates = await pg_conn`
+      SELECT * FROM users
+      WHERE (
+        lower(email) = ${input}
+        OR lower(id) = ${input}
+        OR lower(id) = ${cleanPrefix}
+        OR lower(name) = ${input}
+        OR lower(split_part(name, ' ', 1)) = ${cleanPrefix}
+        OR name ILIKE ${'%' + cleanPrefix + '%'}
+      )
+      LIMIT 10
+    `;
+
+    const matched = candidates.find((u: any) => {
       const matchPass = String(u.password) === String(passwordInput);
-
-      const matchId = uId === input || uId === cleanPrefix;
-      const matchName = uName === input || firstName === cleanPrefix || uName.includes(cleanPrefix);
-      const matchEmail = uEmail === input;
-
-      return matchPass && (matchId || matchName || matchEmail);
+      return matchPass;
     });
 
     if (!matched || Number(matched.is_active ?? 1) === 0) return null;
@@ -433,27 +437,6 @@ export const warehouses = {
     }
     return { allowed: true, status };
   },
-  update: (id: string, warehouse: {
-    location?: any;
-    size?: any;
-    volume_max?: number;
-    has_refrigeration?: number;
-    fuel_price?: number;
-    truck_capacity?: number;
-  }) => {
-    const capacity = warehouse.truck_capacity !== undefined ? Number(warehouse.truck_capacity) : 5;
-    return pg_conn`
-      UPDATE warehouses
-      SET location = ${typeof warehouse.location === 'string' ? warehouse.location : JSON.stringify(warehouse.location)}, 
-          size = ${typeof warehouse.size === 'string' ? warehouse.size : JSON.stringify(warehouse.size)}, 
-          volume_max = ${warehouse.volume_max}, 
-          has_refrigeration = ${warehouse.has_refrigeration}, 
-          fuel_price = ${warehouse.fuel_price},
-          truck_capacity = ${capacity}
-      WHERE id = ${id}
-      RETURNING *
-    `;
-  },
 };
 
 export const trucks = {
@@ -498,6 +481,12 @@ export const trucks = {
       WHERE id = ${id}
       RETURNING *
     `;
+  },
+  cargo: (truckId?: string) => {
+    if (truckId) {
+      return pg_conn`SELECT truck_id, product_id, quantity FROM trucks_cargo WHERE truck_id = ${truckId} AND quantity > 0`;
+    }
+    return pg_conn`SELECT truck_id, product_id, quantity FROM trucks_cargo WHERE quantity > 0`;
   },
 };
 
@@ -554,8 +543,181 @@ export const orders = {
       VALUES (${order.id}, ${order.client_id}, ${order.final_destination}, ${order.time_limit}, ${order.price}, ${order.status || 'Pending'})
       RETURNING *
     `,
-  updateStatus: (orderId: string, status: "Pending" | "Shipped" | "Delivered" | "Canceled") =>
-    pg_conn`UPDATE orders SET status = ${status} WHERE id = ${orderId} RETURNING *`,
+  getOrderLoad: async (orderId: string): Promise<{ totalWeight: number; totalVolume: number; itemCount: number }> => {
+    const itemsRes = await pg_conn`
+      SELECT oi.quantity, p.weight, p.volume
+      FROM orders_items oi
+      JOIN products p ON oi.product_id = p.id
+      WHERE oi.order_id = ${orderId}
+    `;
+    let totalWeight = 0;
+    let totalVolume = 0;
+    let itemCount = 0;
+    for (const item of itemsRes) {
+      const qty = Number(item.quantity || 0);
+      itemCount += qty;
+      totalWeight += qty * Number(item.weight || 0);
+      totalVolume += qty * Number(item.volume || 0);
+    }
+    return {
+      totalWeight: Math.round(totalWeight * 100) / 100,
+      totalVolume: Math.round(totalVolume * 1000) / 1000,
+      itemCount,
+    };
+  },
+  deductStockForOrder: async (orderId: string, loadOntoTruck = true) => {
+    const items = await pg_conn`SELECT * FROM orders_items WHERE order_id = ${orderId}`;
+    if (!items || items.length === 0) return;
+
+    const routes = await pg_conn`SELECT * FROM orders_route WHERE order_id = ${orderId} ORDER BY step ASC`;
+    const defaultWarehouseId = routes[0]?.warehouse_id || "WH-001";
+
+    for (const item of items) {
+      // Check if defaultWarehouseId has stock for this product; if not, find the warehouse holding it
+      let targetWh = defaultWarehouseId;
+      const directStock = await pg_conn`
+        SELECT quantity FROM warehouses_stock 
+        WHERE warehouse_id = ${targetWh} AND product_id = ${item.product_id}
+      `;
+      if (!directStock || directStock.length === 0 || Number(directStock[0].quantity) < Number(item.quantity)) {
+        const anyStock = await pg_conn`
+          SELECT warehouse_id FROM warehouses_stock 
+          WHERE product_id = ${item.product_id} AND quantity > 0
+          ORDER BY quantity DESC LIMIT 1
+        `;
+        if (anyStock && anyStock.length > 0) {
+          targetWh = anyStock[0].warehouse_id;
+        }
+      }
+
+      await pg_conn`
+        UPDATE warehouses_stock
+        SET quantity = GREATEST(0, quantity - ${Number(item.quantity)})
+        WHERE warehouse_id = ${targetWh} AND product_id = ${item.product_id}
+      `;
+    }
+
+    if (loadOntoTruck) {
+      const truckId = routes.find((r: any) => r.truck_id)?.truck_id;
+      if (truckId) {
+        for (const item of items) {
+          await pg_conn`
+            INSERT INTO trucks_cargo (truck_id, product_id, quantity)
+            VALUES (${truckId}, ${item.product_id}, ${Number(item.quantity)})
+            ON CONFLICT (truck_id, product_id)
+            DO UPDATE SET quantity = trucks_cargo.quantity + EXCLUDED.quantity
+          `;
+        }
+        const load = await orders.getOrderLoad(orderId);
+        await pg_conn`
+          UPDATE trucks
+          SET is_delivering = 1,
+              weight_current = COALESCE(weight_current, 0) + ${load.totalWeight},
+              volume_current = COALESCE(volume_current, 0) + ${load.totalVolume}
+          WHERE id = ${truckId}
+        `;
+      }
+    }
+  },
+  restoreStockForOrder: async (orderId: string) => {
+    const items = await pg_conn`SELECT * FROM orders_items WHERE order_id = ${orderId}`;
+    if (!items || items.length === 0) return;
+
+    const routes = await pg_conn`SELECT * FROM orders_route WHERE order_id = ${orderId} ORDER BY step ASC`;
+    const defaultWarehouseId = routes[0]?.warehouse_id || "WH-001";
+
+    for (const item of items) {
+      let targetWh = defaultWarehouseId;
+      const directStock = await pg_conn`
+        SELECT quantity FROM warehouses_stock 
+        WHERE warehouse_id = ${targetWh} AND product_id = ${item.product_id}
+      `;
+      if (!directStock || directStock.length === 0) {
+        const anyStock = await pg_conn`
+          SELECT warehouse_id FROM warehouses_stock 
+          WHERE product_id = ${item.product_id}
+          LIMIT 1
+        `;
+        if (anyStock && anyStock.length > 0) {
+          targetWh = anyStock[0].warehouse_id;
+        }
+      }
+
+      await pg_conn`
+        UPDATE warehouses_stock
+        SET quantity = quantity + ${Number(item.quantity)}
+        WHERE warehouse_id = ${targetWh} AND product_id = ${item.product_id}
+      `;
+    }
+
+    const truckId = routes.find((r: any) => r.truck_id)?.truck_id;
+    if (truckId) {
+      for (const item of items) {
+        await pg_conn`
+          UPDATE trucks_cargo
+          SET quantity = GREATEST(0, quantity - ${Number(item.quantity)})
+          WHERE truck_id = ${truckId} AND product_id = ${item.product_id}
+        `;
+      }
+      const load = await orders.getOrderLoad(orderId);
+      const remainingCargo = await pg_conn`
+        SELECT SUM(quantity) as total FROM trucks_cargo WHERE truck_id = ${truckId}
+      `;
+      const hasRemaining = Number(remainingCargo[0]?.total || 0) > 0;
+      await pg_conn`
+        UPDATE trucks
+        SET is_delivering = ${hasRemaining ? 1 : 0},
+            weight_current = GREATEST(0, COALESCE(weight_current, 0) - ${load.totalWeight}),
+            volume_current = GREATEST(0, COALESCE(volume_current, 0) - ${load.totalVolume})
+        WHERE id = ${truckId}
+      `;
+    }
+  },
+  releaseTruckCargoOnDelivered: async (orderId: string) => {
+    const routes = await pg_conn`SELECT * FROM orders_route WHERE order_id = ${orderId} ORDER BY step ASC`;
+    const truckId = routes.find((r: any) => r.truck_id)?.truck_id;
+    if (!truckId) return;
+
+    const items = await pg_conn`SELECT * FROM orders_items WHERE order_id = ${orderId}`;
+    for (const item of items) {
+      await pg_conn`
+        UPDATE trucks_cargo
+        SET quantity = GREATEST(0, quantity - ${Number(item.quantity)})
+        WHERE truck_id = ${truckId} AND product_id = ${item.product_id}
+      `;
+    }
+
+    const load = await orders.getOrderLoad(orderId);
+    const remainingCargo = await pg_conn`
+      SELECT SUM(quantity) as total FROM trucks_cargo WHERE truck_id = ${truckId}
+    `;
+    const hasRemaining = Number(remainingCargo[0]?.total || 0) > 0;
+    await pg_conn`
+      UPDATE trucks
+      SET is_delivering = ${hasRemaining ? 1 : 0},
+          weight_current = GREATEST(0, COALESCE(weight_current, 0) - ${load.totalWeight}),
+          volume_current = GREATEST(0, COALESCE(volume_current, 0) - ${load.totalVolume})
+      WHERE id = ${truckId}
+    `;
+  },
+  updateStatus: async (orderId: string, status: "Pending" | "Shipped" | "Delivered" | "Canceled") => {
+    const prevOrder = await pg_conn`SELECT * FROM orders WHERE id = ${orderId}`;
+    if (!prevOrder || prevOrder.length === 0) return [];
+    const prevStatus = prevOrder[0].status;
+
+    if (status === "Shipped" && prevStatus !== "Shipped" && prevStatus !== "Delivered") {
+      await orders.deductStockForOrder(orderId, true);
+    } else if (status === "Delivered" && prevStatus !== "Shipped" && prevStatus !== "Delivered") {
+      // Direct delivery without prior Shipped step: decrement warehouse stock directly
+      await orders.deductStockForOrder(orderId, false);
+    } else if (status === "Delivered" && prevStatus === "Shipped") {
+      await orders.releaseTruckCargoOnDelivered(orderId);
+    } else if ((status === "Canceled" || status === "Pending") && (prevStatus === "Shipped" || prevStatus === "Delivered")) {
+      await orders.restoreStockForOrder(orderId);
+    }
+
+    return pg_conn`UPDATE orders SET status = ${status} WHERE id = ${orderId} RETURNING *`;
+  },
   addItem: (item: { order_id: string; product_id: string; quantity: number }) =>
     pg_conn`
       INSERT INTO orders_items (order_id, product_id, quantity)
@@ -718,6 +880,28 @@ export const orders = {
 export const orders_route = {
   ...createBaseRepo("orders_route"),
   byOrder: (orderId: string) => pg_conn`SELECT * FROM orders_route WHERE order_id = ${orderId} ORDER BY step ASC`,
+  validateTruckCapacity: async (truckId: string, orderId: string) => {
+    const truckRes = await pg_conn`SELECT * FROM trucks WHERE id = ${truckId}`;
+    if (!truckRes || truckRes.length === 0) {
+      throw new Error(`Truck ${truckId} not found`);
+    }
+    const truck = truckRes[0];
+    const weightMax = Number(truck.weight_max || 0);
+    const volumeMax = Number(truck.volume_max || 0);
+
+    const load = await orders.getOrderLoad(orderId);
+    if (weightMax > 0 && load.totalWeight > weightMax) {
+      throw new Error(
+        `Truck ${truck.model || truckId} payload capacity exceeded: order weight (${load.totalWeight}kg) exceeds vehicle limit (${weightMax}kg)`
+      );
+    }
+    if (volumeMax > 0 && load.totalVolume > volumeMax) {
+      throw new Error(
+        `Truck ${truck.model || truckId} volume capacity exceeded: order volume (${load.totalVolume}m³) exceeds vehicle limit (${volumeMax}m³)`
+      );
+    }
+    return { ok: true, truck, load };
+  },
   create: async (routeStep: {
     order_id: string;
     step: number;
@@ -728,6 +912,9 @@ export const orders_route = {
     estimated_time?: string | null;
     arrived_at?: string | null;
   }) => {
+    if (routeStep.truck_id) {
+      await orders_route.validateTruckCapacity(routeStep.truck_id, routeStep.order_id);
+    }
     if (routeStep.destination_warehouse_id) {
       const check = await warehouses.checkParkingAvailable(routeStep.destination_warehouse_id, routeStep.truck_id || undefined);
       if (!check.allowed) {
@@ -748,6 +935,9 @@ export const orders_route = {
     estimated_time?: string | null;
     arrived_at?: string | null;
   }) => {
+    if (routeStep.truck_id) {
+      await orders_route.validateTruckCapacity(routeStep.truck_id, orderId);
+    }
     if (routeStep.destination_warehouse_id) {
       const check = await warehouses.checkParkingAvailable(routeStep.destination_warehouse_id, routeStep.truck_id || undefined);
       if (!check.allowed) {
@@ -912,7 +1102,10 @@ export const monthlyPerformance = {
 
 export const reports = {
   getDeliveryCostReport: async (warehouseId?: string) => {
-    const allOrders = await pg_conn`SELECT * FROM orders`;
+    const allOrders = await pg_conn`
+      SELECT * FROM orders 
+      WHERE id NOT LIKE 'ORD-TEST-%' AND id NOT LIKE 'ORD-E2E-%'
+    `;
     const allCosts = await pg_conn`SELECT * FROM freight_cost`;
     const allWarehouses = await pg_conn`SELECT * FROM warehouses`;
     const allUsers = await pg_conn`SELECT * FROM users`;

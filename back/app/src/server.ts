@@ -3,6 +3,16 @@ import * as controller from "./controller";
 import { converterCoordenadas, converterEndereco } from "./geocoding";
 import { handleRoutes as prototypeRoutes } from "./routes";
 
+function toCsvRow(cells: any[]): string {
+  return cells
+    .map((c) => {
+      if (c === null || c === undefined) return '""';
+      const str = String(c).replace(/"/g, '""');
+      return `"${str}"`;
+    })
+    .join(",");
+}
+
 const innerFetchHandler = async (req: Request) => {
   const url = new URL(req.url);
   const path = url.pathname;
@@ -284,9 +294,39 @@ const innerFetchHandler = async (req: Request) => {
     if (model) return Response.json(await controller.trucks.byModel(model));
     return Response.json(await controller.trucks.all());
   }
+  if (path === "/trucks/cargo" && method === "GET") {
+    return Response.json(await controller.trucks.cargo());
+  }
   if (path.startsWith("/trucks/") && method === "GET") {
-    const id = path.split("/")[2];
+    const parts = path.split("/");
+    const id = parts[2];
     if (!id) return new Response("Truck ID required", { status: 400 });
+
+    if (parts[3] === "cargo") {
+      return Response.json(await controller.trucks.cargo(id));
+    }
+
+    if (parts[3] === "routes" && parts[4] === "multi-stop") {
+      const assignedRoutes = await pg_conn`
+        SELECT DISTINCT order_id FROM orders_route WHERE truck_id = ${id}
+      `;
+      const orderIds = assignedRoutes.map((r: any) => r.order_id);
+      if (orderIds.length === 0) {
+        return Response.json({
+          success: true,
+          message: "No orders currently assigned to this truck",
+          truck_id: id,
+          stops: [],
+        });
+      }
+      const { calculateMultiStopRoute } = await import("./routes");
+      const multiRoute = await calculateMultiStopRoute({
+        orderIds,
+        truckId: id,
+      });
+      return Response.json(multiRoute);
+    }
+
     const result = await controller.trucks.byId(id);
     if (!result || result.length === 0) return new Response("Truck not found", { status: 404 });
     return Response.json(result);
@@ -350,16 +390,193 @@ const innerFetchHandler = async (req: Request) => {
         }
       }
 
+      if (body.status === "Shipped") {
+        await controller.orders.deductStockForOrder(body.id, true);
+      } else if (body.status === "Delivered") {
+        await controller.orders.deductStockForOrder(body.id, false);
+      }
+
       return Response.json({ success: true, order: newOrder[0] }, { status: 201 });
     } catch (error: any) {
       console.error("Error creating order:", error);
       return new Response(error.message || "Internal Server Error", { status: 500 });
     }
   }
+  if (path === "/orders/export/csv" && method === "GET") {
+    const allOrders = await controller.orders.all();
+    const allUsers = await controller.users.all();
+    const allWarehouses = await controller.warehouses.all();
+    const allRoutes = await controller.orders_route.all();
+
+    const userMap = new Map<string, any>();
+    allUsers.forEach((u: any) => userMap.set(u.id, u));
+    const whMap = new Map<string, any>();
+    allWarehouses.forEach((w: any) => whMap.set(w.id, w));
+
+    const rows: string[] = [
+      toCsvRow([
+        "Order ID",
+        "Client ID",
+        "Client Name",
+        "Destination",
+        "Deadline",
+        "Status",
+        "Price (BRL)",
+        "Distance (km)",
+        "Origin Warehouse",
+        "Truck ID",
+        "Driver ID",
+      ]),
+    ];
+
+    for (const order of allOrders) {
+      const client = userMap.get(order.client_id);
+      const routes = allRoutes.filter((r: any) => r.order_id === order.id).sort((a: any, b: any) => a.step - b.step);
+      const firstRoute = routes[0];
+      const wh = firstRoute?.warehouse_id ? whMap.get(firstRoute.warehouse_id) : null;
+      let destStr = order.final_destination;
+      try {
+        const parsed = JSON.parse(order.final_destination);
+        if (parsed?.label) destStr = parsed.label;
+      } catch {}
+
+      rows.push(
+        toCsvRow([
+          order.id,
+          order.client_id,
+          client?.name || `Client ${order.client_id}`,
+          destStr,
+          order.time_limit,
+          order.status,
+          Number(order.price || 0).toFixed(2),
+          Number(order.distance_km || 0).toFixed(1),
+          wh?.location?.label || firstRoute?.warehouse_id || "WH-001",
+          firstRoute?.truck_id || "Unassigned",
+          firstRoute?.driver_id || "Unassigned",
+        ])
+      );
+    }
+
+    const csvContent = "\uFEFF" + rows.join("\r\n");
+    return new Response(csvContent, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="orders-${Date.now()}.csv"`,
+      },
+    });
+  }
+
   if (path.startsWith("/orders/") && method === "GET") {
     const parts = path.split("/");
     const id = parts[2];
     if (!id) return new Response("Order ID required", { status: 400 });
+
+    if (parts[3] === "manifest.csv") {
+      const orderRes = await controller.orders.byId(id);
+      if (!orderRes || orderRes.length === 0) return new Response("Order not found", { status: 404 });
+      const order = orderRes[0];
+
+      const clientRes = await controller.users.byId(order.client_id);
+      const client = clientRes[0];
+      const itemsRes = await controller.orders.items(id);
+      const productsRes = await controller.products.all();
+      const productMap = new Map<string, any>();
+      productsRes.forEach((p: any) => productMap.set(p.id, p));
+
+      const routes = await controller.orders_route.byOrder(id);
+      const firstRoute = routes[0];
+      const truckRes = firstRoute?.truck_id ? await controller.trucks.byId(firstRoute.truck_id) : [];
+      const driverRes = firstRoute?.driver_id ? await controller.users.byId(firstRoute.driver_id) : [];
+      const whRes = firstRoute?.warehouse_id ? await controller.warehouses.byId(firstRoute.warehouse_id) : [];
+
+      let destStr = order.final_destination;
+      try {
+        const parsed = JSON.parse(order.final_destination);
+        if (parsed?.label) destStr = parsed.label;
+      } catch {}
+
+      const lines: string[] = [
+        toCsvRow(["LOGISYS SHIPPING MANIFEST & FREIGHT BILL"]),
+        toCsvRow(["Generated At", new Date().toISOString().replace("T", " ").slice(0, 19)]),
+        toCsvRow(["Order ID", order.id]),
+        toCsvRow(["Order Status", order.status]),
+        toCsvRow(["Client Name", client?.name || order.client_id]),
+        toCsvRow(["Client Contact", client?.email || "N/A"]),
+        toCsvRow(["Final Destination", destStr]),
+        toCsvRow(["Delivery Deadline", order.time_limit]),
+        toCsvRow(["Declared Order Price (BRL)", Number(order.price || 0).toFixed(2)]),
+        toCsvRow([]),
+        toCsvRow(["LOGISTICS & FLEET ASSIGNMENT"]),
+        toCsvRow(["Origin Warehouse", whRes[0]?.location?.label || firstRoute?.warehouse_id || "WH-001"]),
+        toCsvRow(["Assigned Truck", truckRes[0] ? `${truckRes[0].model} (${truckRes[0].id})` : "Unassigned"]),
+        toCsvRow(["Assigned Driver", driverRes[0] ? `${driverRes[0].name} (${driverRes[0].id})` : "Unassigned"]),
+        toCsvRow(["Estimated Arrival (ETA)", firstRoute?.estimated_time || "Pending dispatch"]),
+        toCsvRow([]),
+        toCsvRow(["CARGO ITEMS MANIFEST"]),
+        toCsvRow([
+          "Product ID",
+          "Product Name",
+          "Quantity",
+          "Unit Price (BRL)",
+          "Subtotal (BRL)",
+          "Weight (kg)",
+          "Volume (m3)",
+          "Refrigerated",
+          "Fragile",
+        ]),
+      ];
+
+      let totalWeight = 0;
+      let totalVolume = 0;
+      let totalQuantity = 0;
+
+      for (const item of itemsRes) {
+        const prod = productMap.get(item.product_id);
+        const qty = Number(item.quantity || 1);
+        const price = Number(prod?.price || 0);
+        const subtotal = qty * price;
+        const weight = qty * Number(prod?.weight || 0);
+        const volume = qty * Number(prod?.volume || 0);
+
+        totalQuantity += qty;
+        totalWeight += weight;
+        totalVolume += volume;
+
+        lines.push(
+          toCsvRow([
+            item.product_id,
+            prod?.name || item.product_id,
+            qty,
+            price.toFixed(2),
+            subtotal.toFixed(2),
+            weight.toFixed(2),
+            volume.toFixed(3),
+            prod?.is_cold ? "YES" : "NO",
+            prod?.is_fragile ? "YES" : "NO",
+          ])
+        );
+      }
+
+      lines.push(toCsvRow([]));
+      lines.push(toCsvRow(["TOTALS & MANIFEST SIGN-OFF"]));
+      lines.push(toCsvRow(["Total Cargo Quantity", totalQuantity]));
+      lines.push(toCsvRow(["Total Cargo Weight (kg)", totalWeight.toFixed(2)]));
+      lines.push(toCsvRow(["Total Cargo Volume (m3)", totalVolume.toFixed(3)]));
+      lines.push(toCsvRow(["Total Value (BRL)", Number(order.price || 0).toFixed(2)]));
+      lines.push(toCsvRow(["Dispatcher Signature", "___________________________________"]));
+      lines.push(toCsvRow(["Carrier/Driver Signature", "___________________________________"]));
+      lines.push(toCsvRow(["Receiver Signature", "___________________________________"]));
+
+      const csvContent = "\uFEFF" + lines.join("\r\n");
+      return new Response(csvContent, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="shipping-manifest-${order.id}.csv"`,
+        },
+      });
+    }
     
     if (parts[3] === "items") return Response.json(await controller.orders.items(id));
     if (parts[3] === "route") return Response.json(await controller.orders.routes(id));
@@ -520,6 +737,81 @@ const innerFetchHandler = async (req: Request) => {
   if (path === "/reports/delivery-costs" && method === "GET") {
     const warehouseId = url.searchParams.get("warehouseId") || undefined;
     return Response.json(await controller.reports.getDeliveryCostReport(warehouseId));
+  }
+
+  // --- REPORTS DELIVERY COSTS CSV EXPORT ---
+  if (path === "/reports/delivery-costs/csv" && method === "GET") {
+    const warehouseId = url.searchParams.get("warehouseId") || undefined;
+    const report = await controller.reports.getDeliveryCostReport(warehouseId);
+
+    const rows: string[] = [
+      toCsvRow([
+        "Order ID",
+        "Client ID",
+        "Client Name",
+        "Destination",
+        "Origin Warehouse",
+        "Status",
+        "Distance (km)",
+        "Revenue (BRL)",
+        "Fuel Cost (BRL)",
+        "Labor Cost (BRL)",
+        "Maintenance Cost (BRL)",
+        "Total Delivery Cost (BRL)",
+        "Net Operating Margin (BRL)",
+        "Margin (%)",
+      ]),
+    ];
+
+    for (const o of report.orders) {
+      let destStr = o.destination || "—";
+      try {
+        const parsed = typeof o.destination === "string" ? JSON.parse(o.destination) : o.destination;
+        if (parsed?.label) destStr = parsed.label;
+      } catch {}
+
+      let whStr = o.origin_warehouse_id || "—";
+      if (o.origin_warehouse_label) {
+        if (typeof o.origin_warehouse_label === "object") {
+          whStr = o.origin_warehouse_label.label || o.origin_warehouse_id || "—";
+        } else if (typeof o.origin_warehouse_label === "string") {
+          try {
+            const parsed = JSON.parse(o.origin_warehouse_label);
+            whStr = parsed?.label || o.origin_warehouse_label;
+          } catch {
+            whStr = o.origin_warehouse_label;
+          }
+        }
+      }
+
+      rows.push(
+        toCsvRow([
+          o.order_id,
+          o.client_id,
+          o.client_name,
+          destStr,
+          whStr,
+          o.status,
+          Number(o.distance_km || 0).toFixed(1),
+          Number(o.revenue || 0).toFixed(2),
+          Number(o.fuel_cost || 0).toFixed(2),
+          Number(o.labor_cost || 0).toFixed(2),
+          Number(o.maintenance_cost || 0).toFixed(2),
+          Number(o.total_delivery_cost || 0).toFixed(2),
+          Number(o.net_margin || 0).toFixed(2),
+          Number(o.margin_percent || 0).toFixed(1) + "%",
+        ])
+      );
+    }
+
+    const csvContent = "\uFEFF" + rows.join("\r\n");
+    return new Response(csvContent, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="delivery-costs-report-${Date.now()}.csv"`,
+      },
+    });
   }
 
   return new Response("Not found", { status: 404 });
