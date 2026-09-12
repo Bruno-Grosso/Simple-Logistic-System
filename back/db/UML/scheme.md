@@ -1,6 +1,6 @@
 # Data Model - Logistics System
 
-Below are two visualization options for the system data model (Dark Theme and Light Theme), rendered with orthogonal right-angle connections and structured column layout.
+Below are two visualization options for the system data model (Dark Theme and Light Theme), rendered with orthogonal right-angle connections, column alignment, and distinct division container colors.
 
 ---
 
@@ -23,8 +23,6 @@ Below are two visualization options for the system data model (Dark Theme and Li
     'lineColor': '#94a3b8',
     'textColor': '#f8fafc',
     'edgeLabelBackground': '#030712',
-    'clusterBkg': '#030712',
-    'clusterBorder': '#1e293b',
     'fontSize': '12px'
   }
 }}%%
@@ -54,9 +52,10 @@ flowchart LR
         FREIGHT_COST["<b>Freight_cost</b><hr/>+ order_id: String [PK,FK]<br/>+ fuel_cost: Float<br/>+ labor_cost: Float<br/>+ maintenance_cost: Float<br/>+ total_cost: Float<br/>+ calculated_at: String"]
     end
 
-    style Core fill:#030712,stroke:#1e293b,stroke-width:1px,stroke-dasharray: 4 4,color:#94a3b8
-    style Operations fill:#030712,stroke:#1e293b,stroke-width:1px,stroke-dasharray: 4 4,color:#94a3b8
-    style Logistics fill:#030712,stroke:#1e293b,stroke-width:1px,stroke-dasharray: 4 4,color:#94a3b8
+    %% Distinct division styling (different from canvas and cards)
+    style Core fill:#0c192e,stroke:#2563eb,stroke-width:1.5px,color:#93c5fd
+    style Operations fill:#181126,stroke:#7c3aed,stroke-width:1.5px,color:#c4b5fd
+    style Logistics fill:#06211d,stroke:#059669,stroke-width:1.5px,color:#6ee7b7
 
     %% Relationships with orthogonal routing
     USERS -->|SESSIONS| ONLINE_USERS
@@ -94,21 +93,19 @@ flowchart LR
   },
   'themeVariables': {
     'darkMode': false,
-    'background': '#ffffff',
+    'background': '#f8fafc',
     'primaryColor': '#ffffff',
     'primaryTextColor': '#0f172a',
     'primaryBorderColor': '#cbd5e1',
     'lineColor': '#475569',
     'textColor': '#0f172a',
     'edgeLabelBackground': '#ffffff',
-    'clusterBkg': '#f8fafc',
-    'clusterBorder': '#cbd5e1',
     'fontSize': '12px'
   }
 }}%%
 flowchart LR
 
-    classDef default fill:#ffffff,stroke:#94a3b8,stroke-width:1.5px,color:#0f172a;
+    classDef default fill:#ffffff,stroke:#64748b,stroke-width:1.5px,color:#0f172a;
 
     subgraph Core ["Core Entities"]
         USERS["<b>Users</b><hr/>+ id: String [PK]<br/>+ name: String<br/>+ email: String<br/>+ password: String<br/>+ address: JSON<br/>+ role: String<br/>+ warehouse_id: String [FK]<br/>+ wage: Float<br/>+ is_active: Int"]
@@ -132,9 +129,10 @@ flowchart LR
         FREIGHT_COST["<b>Freight_cost</b><hr/>+ order_id: String [PK,FK]<br/>+ fuel_cost: Float<br/>+ labor_cost: Float<br/>+ maintenance_cost: Float<br/>+ total_cost: Float<br/>+ calculated_at: String"]
     end
 
-    style Core fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,stroke-dasharray: 4 4,color:#475569
-    style Operations fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,stroke-dasharray: 4 4,color:#475569
-    style Logistics fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,stroke-dasharray: 4 4,color:#475569
+    %% Distinct division styling (different from canvas and cards)
+    style Core fill:#eff6ff,stroke:#2563eb,stroke-width:1.5px,color:#1d4ed8
+    style Operations fill:#f5f3ff,stroke:#7c3aed,stroke-width:1.5px,color:#6d28d9
+    style Logistics fill:#ecfdf5,stroke:#059669,stroke-width:1.5px,color:#047857
 
     %% Relationships with orthogonal routing
     USERS -->|SESSIONS| ONLINE_USERS
@@ -156,8 +154,3 @@ flowchart LR
     ORDERS -->|ROUTE_STEPS| ORDERS_ROUTE
     ORDERS -->|SUPPLIES_ROUTE| SUPPLIES_ROUTE
     ORDERS -->|FREIGHT_COST| FREIGHT_COST
-```
-
-    
-   
-   
