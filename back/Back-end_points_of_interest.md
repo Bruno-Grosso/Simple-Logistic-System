@@ -31,37 +31,64 @@ All user credentials are seeded from [`back/db/fill_mock_data.sql`](file:///home
 
 | Category | HTTP Method | Route Endpoint | Query Parameters | Description |
 | :--- | :---: | :--- | :--- | :--- |
-| **Auth / Login** | `POST` | `/login` | Payload `{ email, password }` | Authenticates against PostgreSQL `users` table & logs session in `online_users` |
-| **Auth / Register** | `POST` | `/clients` | Payload `{ id, name, email, password, address, role }` | Registers a new client/user in PostgreSQL `users` table |
+| **Geocoding** | `GET` | `/geocode` | `?address=<text>` | Converts address string to coordinates and formatted address |
+| **Geocoding** | `GET` | `/reverse-geocode` | `?lat=<lat>&lon=<lon>` | Converts coordinates into formatted street address |
 | **System** | `GET` | `/status` | None | Returns list of existing database tables |
 | **System** | `GET` | `/db-name` | None | Returns active PostgreSQL database name |
-| **Warehouses** | `GET` | `/warehouses` | None | Retrieves all warehouse / deposit locations |
-| **Warehouses** | `GET` | `/warehouses/:id` | None | Retrieves warehouse metadata by ID |
-| **Warehouses** | `GET` | `/warehouses/:id/stock` | None | Retrieves inventory stock records for warehouse `:id` |
-| **Warehouses** | `PUT` | `/warehouses/:id` | None | Updates location, capacity, refrigeration, and fuel price |
-| **Fleet / Trucks** | `GET` | `/trucks` | `?model=<name>` | Retrieves all fleet trucks (optionally filtered by model) |
-| **Fleet / Trucks** | `GET` | `/trucks/:id` | None | Retrieves single truck record |
-| **Fleet / Trucks** | `PUT` | `/trucks/:id` | None | Updates truck state, maintenance flag, location, fuel |
-| **Products** | `GET` | `/products` | `?name=<search>` | Retrieves catalog products (optionally searched by name) |
-| **Products** | `GET` | `/products/:id` | None | Retrieves product details by ID |
-| **Products** | `PUT` | `/products/:id` | None | Updates product pricing, volume, weight, cold/fragile flags |
-| **Users / Access** | `GET` | `/users` | `?role=<role>` | Retrieves system users (`admin`, `warehouse_worker`, `truck_driver`, `client`) |
+| **Auth / Login** | `POST` | `/login` | Payload `{ email, password }` | Authenticates against PostgreSQL `users` table & logs session in `online_users` |
+| **Auth / Register** | `POST` | `/clients` | Payload `{ id, name, email, password, address, role }` | Registers a new client/user in PostgreSQL `users` table |
+| **Users / Access** | `GET` | `/users` | `?role=<role>` | Retrieves system users (`admin`, `warehouse_worker`, `truck_driver`, `client`, etc.) |
+| **Users / Access** | `GET` | `/users/drivers` | None | Retrieves all active fleet truck drivers |
+| **Users / Access** | `POST` | `/employees` | Payload `{ name, email, password, role, wage, warehouse_id, is_active }` | Registers an employee with designated role and wage |
 | **Users / Access** | `GET` | `/users/:id` | None | Retrieves user profile by ID |
+| **Users / Access** | `PUT` | `/users/:id` | Payload `{ name, email, address, role, wage, warehouse_id, is_active }` | Updates user details, wage, or warehouse assignment |
+| **Users / Access** | `DELETE` | `/users/:id` | None | Deletes user / employee record |
 | **Users / Access** | `GET` | `/online-users` | `?userId=<id>` | Retrieves active session logs from `online_users` |
+| **Products** | `GET` | `/products` | `?name=<search>` | Retrieves catalog products (optionally searched by name) |
+| **Products** | `POST` | `/products` | Payload `{ id, name, price, is_cold, is_fragile, expire_date, size, volume, weight }` | Adds a new product to the catalog |
+| **Products** | `GET` | `/products/:id` | None | Retrieves product details by ID |
+| **Products** | `PUT` | `/products/:id` | Payload `{ name, price, is_cold, is_fragile, expire_date, size, volume, weight }` | Updates product pricing, volume, weight, cold/fragile flags |
+| **Warehouses** | `GET` | `/warehouses` | None | Retrieves all warehouse / deposit locations |
+| **Warehouses** | `GET` | `/warehouses/average-gas-price` | `?ids=WH-001,WH-002` | Calculates average fuel price across selected or all warehouses |
+| **Warehouses** | `GET` | `/warehouses/:id` | None | Retrieves warehouse metadata by ID |
+| **Warehouses** | `PUT` | `/warehouses/:id` | Payload `{ location, size, volume_max, has_refrigeration, fuel_price, truck_capacity }` | Updates location, capacity, refrigeration, and fuel price |
+| **Warehouses** | `GET` | `/warehouses/:id/stock` | None | Retrieves inventory stock records for warehouse `:id` |
+| **Warehouses** | `POST` / `PUT` | `/warehouses/:id/stock` | Payload `{ product_id, quantity }` | Upserts stock quantity for product at warehouse `:id` |
+| **Warehouses** | `DELETE` | `/warehouses/:id/stock/:productId` | None | Removes product stock entry from warehouse `:id` |
+| **Warehouses** | `GET` | `/warehouses/:id/parking` | None | Returns warehouse truck parking capacity, parked count, and arriving count |
+| **Warehouses** | `POST` | `/warehouses/:id/check-parking` | Payload `{ truck_id }` | Validates if parking dock is available for a truck |
 | **Suppliers** | `GET` | `/suppliers` | None | Retrieves supplier entities |
 | **Suppliers** | `GET` | `/suppliers/:id` | None | Retrieves supplier details |
-| **Orders** | `GET` | `/orders` | `?clientId=<id>` | Retrieves logistics orders (optionally filtered by client) |
-| **Orders** | `POST` | `/orders` | None | Creates a new order and attaches line items |
+| **Fleet / Trucks** | `GET` | `/trucks` | `?model=<name>` | Retrieves all fleet trucks (optionally filtered by model) |
+| **Fleet / Trucks** | `GET` | `/trucks/cargo` | None | Retrieves cargo items across all trucks |
+| **Fleet / Trucks** | `GET` | `/trucks/:id` | None | Retrieves single truck record |
+| **Fleet / Trucks** | `PUT` | `/trucks/:id` | Payload `{ model, speed, is_valid, is_delivering, size, volume_max, weight_max, ... }` | Updates truck state, maintenance flag, location, fuel |
+| **Fleet / Trucks** | `GET` | `/trucks/:id/cargo` | None | Retrieves loaded products and quantities for truck `:id` |
+| **Fleet / Trucks** | `GET` | `/trucks/:id/routes/multi-stop` | None | Previews multi-stop route for orders assigned to truck `:id` |
+| **Orders** | `GET` | `/orders` | `?clientId=<id>&driverId=<id>&warehouseId=<id>` | Retrieves logistics orders (optionally filtered by client, driver, or warehouse) |
+| **Orders** | `POST` | `/orders` | Payload `{ id, client_id, final_destination, time_limit, price, status, items }` | Creates a new order and attaches line items |
+| **Orders** | `GET` | `/orders/export/csv` | None | Exports full orders catalog with client, warehouse, truck, and driver details as CSV |
 | **Orders** | `GET` | `/orders/:id` | None | Retrieves order header |
+| **Orders** | `PUT` | `/orders/:id` | Payload `{ status }` | Updates order status (`Pending`, `Shipped`, `Delivered`, `Canceled`) |
+| **Orders** | `GET` | `/orders/:id/manifest.csv` | None | Exports shipping manifest and freight bill for order `:id` as CSV |
 | **Orders** | `GET` | `/orders/:id/items` | None | Retrieves ordered product items and quantities |
 | **Orders** | `GET` | `/orders/:id/route` | None | Retrieves transit steps and warehouse stops |
+| **Orders** | `POST` | `/orders/:id/route` | Payload `{ step, warehouse_id, truck_id, driver_id, destination_warehouse_id, ... }` | Appends a route step to the order |
+| **Orders** | `PUT` | `/orders/:id/route/:step` | Payload `{ warehouse_id, truck_id, driver_id, destination_warehouse_id, ... }` | Updates a specific route step |
+| **Orders** | `DELETE` | `/orders/:id/route/:step` | None | Removes a route step from the order |
 | **Orders** | `GET` | `/orders/:id/cost` | None | Retrieves calculated freight cost breakdown |
+| **Orders** | `POST` | `/orders/:id/calculate-cost` | Payload `{ driverWage, fuelPrice, distanceKm, truckId, driverId }` | Computes and saves freight cost breakdown (fuel, labor, maintenance) |
 | **Orders** | `GET` | `/orders/:id/eta` | None | Calculates & retrieves order ETA window with min/max speeds and driver rest regulation |
-| **Orders** | `POST` | `/orders/:id/calculate-eta` | Payload `{ minSpeed, maxSpeed, departureTime }` | Computes transit duration with 8h/day driver limit & updates route |
+| **Orders** | `POST` | `/orders/:id/calculate-eta` | Payload `{ minSpeed, maxSpeed, departureTime, originWarehouseId, truckId }` | Computes transit duration with 8h/day driver limit & updates route |
+| **Orders** | `POST` | `/orders/:id/calculate-distance` | Payload `{ warehouse_id }` | Computes geodesic distance between warehouse and order destination in DB |
 | **Supplies** | `GET` | `/supplies-route` | `?orderId=<id>` / `?supplierId=<id>` | Retrieves supplier delivery routes |
+| **Route Steps** | `GET` | `/orders-route` | `?orderId=<id>` | Retrieves order route steps |
 | **Costs** | `GET` | `/freight-cost` | `?orderId=<id>` | Retrieves freight cost logs across all orders |
 | **Valhalla Route** | `POST` | `/route` | Payload `{ orderId, warehouseId }` | Integrates with Valhalla engine to compute truck shape |
+| **Multi-Stop Route**| `GET` / `POST` | `/routes/multi-stop` | Payload / Query `{ orderIds, warehouseId, truckId, roundTrip }` | Computes multi-order consolidated route via Valhalla |
 | **Performance Reports**| `GET` | `/monthly-performance` | None | Retrieves 12-month profit vs costs, margin spread, and points of interest (POI) |
+| **Delivery Cost Report**| `GET` | `/reports/delivery-costs` | `?warehouseId=<id>` | Retrieves delivery financial report, operating margins, and profit spreads |
+| **Delivery Cost Export**| `GET` | `/reports/delivery-costs/csv` | `?warehouseId=<id>` | Exports delivery cost report as downloadable CSV |
 
 ---
 

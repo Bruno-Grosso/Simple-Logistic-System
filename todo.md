@@ -18,8 +18,9 @@
 - [x] Fix tests failing due to new login system
 
 ### Priority (graded)
-- [ ] Update docs
+- [x] Update docs
 - [ ] Report on the project
 - [ ] Get the prints with lots of test data
 - [ ] Build the graphics for testing
-- [ ] Database UML
+- [x] Database UML
+
