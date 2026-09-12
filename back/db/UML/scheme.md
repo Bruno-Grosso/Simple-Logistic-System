@@ -1,73 +1,162 @@
-# Modelo de Dados - Projeto de Logística
+# Data Model - Logistics System
 
-Abaixo está a representação do modelo de dados em Mermaid com conexões ortogonais e estruturadas:
+Below are two visualization options for the system data model (Dark Theme and Light Theme), rendered with orthogonal right-angle connections and structured column layout.
+
+---
+
+## 1. Dark Theme
 
 ```mermaid
 %%{init: {
-  'theme': 'dark',
+  'theme': 'base',
   'flowchart': {
     'curve': 'stepBefore',
-    'nodeSpacing': 45,
-    'rankSpacing': 70
+    'nodeSpacing': 50,
+    'rankSpacing': 80
   },
   'themeVariables': {
     'darkMode': true,
-    'background': '#0d1117',
-    'primaryColor': '#161b22',
-    'primaryTextColor': '#e6edf3',
-    'primaryBorderColor': '#30363d',
-    'lineColor': '#58a6ff'
+    'background': '#030712',
+    'primaryColor': '#0f172a',
+    'primaryTextColor': '#f8fafc',
+    'primaryBorderColor': '#475569',
+    'lineColor': '#94a3b8',
+    'textColor': '#f8fafc',
+    'edgeLabelBackground': '#030712',
+    'clusterBkg': '#030712',
+    'clusterBorder': '#1e293b',
+    'fontSize': '12px'
   }
 }}%%
 flowchart LR
 
-    subgraph Core ["Entidades Principais"]
-        USERS["<b>Users</b><hr/>+String id [PK]<br/>+String name<br/>+String email<br/>+String password<br/>+JSON address<br/>+String role<br/>+String warehouse_id [FK]<br/>+Float wage<br/>+Int is_active"]
-        PRODUCTS["<b>Products</b><hr/>+String id [PK]<br/>+String name<br/>+Float price<br/>+Int is_cold<br/>+Int is_fragile<br/>+String expire_date<br/>+JSON size<br/>+Float volume<br/>+Float weight"]
-        WAREHOUSES["<b>Warehouses</b><hr/>+String id [PK]<br/>+JSON location<br/>+JSON size<br/>+Float volume_current<br/>+Float volume_max<br/>+Int has_refrigeration<br/>+Float fuel_price<br/>+Int truck_capacity"]
-        SUPPLIERS["<b>Suppliers</b><hr/>+String id [PK]<br/>+String name<br/>+String location"]
+    classDef default fill:#0b0f19,stroke:#475569,stroke-width:1.5px,color:#f8fafc;
+
+    subgraph Core ["Core Entities"]
+        USERS["<b>Users</b><hr/>+ id: String [PK]<br/>+ name: String<br/>+ email: String<br/>+ password: String<br/>+ address: JSON<br/>+ role: String<br/>+ warehouse_id: String [FK]<br/>+ wage: Float<br/>+ is_active: Int"]
+        PRODUCTS["<b>Products</b><hr/>+ id: String [PK]<br/>+ name: String<br/>+ price: Float<br/>+ is_cold: Int<br/>+ is_fragile: Int<br/>+ expire_date: String<br/>+ size: JSON<br/>+ volume: Float<br/>+ weight: Float"]
+        WAREHOUSES["<b>Warehouses</b><hr/>+ id: String [PK]<br/>+ location: JSON<br/>+ size: JSON<br/>+ volume_current: Float<br/>+ volume_max: Float<br/>+ has_refrigeration: Int<br/>+ fuel_price: Float<br/>+ truck_capacity: Int"]
+        SUPPLIERS["<b>Suppliers</b><hr/>+ id: String [PK]<br/>+ name: String<br/>+ location: String"]
     end
 
-    subgraph Operations ["Operações e Frotas"]
-        ONLINE_USERS["<b>Online_users</b><hr/>+String session_id [PK]<br/>+String user_id [FK]<br/>+String login_time<br/>+String last_activity"]
-        TRUCKS["<b>Trucks</b><hr/>+String id [PK]<br/>+String model<br/>+Float speed<br/>+Int is_valid<br/>+Int is_delivering<br/>+JSON size<br/>+Float volume_current<br/>+Float volume_max<br/>+Float weight_current<br/>+Float weight_max<br/>+Int has_refrigeration<br/>+String current_warehouse_id [FK]<br/>+String origin_warehouse_id [FK]<br/>+String destination_warehouse_id [FK]<br/>+Float fuel_capacity<br/>+Float fuel_current<br/>+Float fuel_consumption<br/>+Int truck_maintenance"]
-        WAREHOUSES_STOCK["<b>Warehouses_stock</b><hr/>+String warehouse_id [PK,FK]<br/>+String product_id [PK,FK]<br/>+Int quantity"]
-        ORDERS["<b>Orders</b><hr/>+String id [PK]<br/>+String client_id [FK]<br/>+String final_destination<br/>+String time_limit<br/>+Float price<br/>+String status<br/>+String supplier_id [FK]<br/>+Int supplier_delivery<br/>+Float distance_km"]
+    subgraph Operations ["Operations & Fleet"]
+        ONLINE_USERS["<b>Online_users</b><hr/>+ session_id: String [PK]<br/>+ user_id: String [FK]<br/>+ login_time: String<br/>+ last_activity: String"]
+        TRUCKS["<b>Trucks</b><hr/>+ id: String [PK]<br/>+ model: String<br/>+ speed: Float<br/>+ is_valid: Int<br/>+ is_delivering: Int<br/>+ size: JSON<br/>+ volume_current: Float<br/>+ volume_max: Float<br/>+ weight_current: Float<br/>+ weight_max: Float<br/>+ has_refrigeration: Int<br/>+ current_warehouse_id: String [FK]<br/>+ origin_warehouse_id: String [FK]<br/>+ destination_warehouse_id: String [FK]<br/>+ estimated_time: String<br/>+ fuel_capacity: Float<br/>+ fuel_current: Float<br/>+ fuel_consumption: Float<br/>+ truck_maintenance: Int"]
+        WAREHOUSES_STOCK["<b>Warehouses_stock</b><hr/>+ warehouse_id: String [PK,FK]<br/>+ product_id: String [PK,FK]<br/>+ quantity: Int"]
+        ORDERS["<b>Orders</b><hr/>+ id: String [PK]<br/>+ client_id: String [FK]<br/>+ final_destination: String<br/>+ time_limit: String<br/>+ price: Float<br/>+ status: String<br/>+ supplier_id: String [FK]<br/>+ supplier_delivery: Int<br/>+ distance_km: Float"]
     end
 
-    subgraph Logistics ["Carga e Rotas"]
-        TRUCKS_CARGO["<b>Trucks_cargo</b><hr/>+String truck_id [PK,FK]<br/>+String product_id [PK,FK]<br/>+Int quantity"]
-        ORDERS_ITEMS["<b>Orders_items</b><hr/>+String order_id [PK,FK]<br/>+String product_id [PK,FK]<br/>+Int quantity"]
-        ORDERS_ROUTE["<b>Orders_route</b><hr/>+String order_id [PK,FK]<br/>+Int step [PK]<br/>+String warehouse_id [FK]<br/>+String truck_id [FK]<br/>+String driver_id [FK]<br/>+String destination_warehouse_id [FK]<br/>+String estimated_time<br/>+String arrived_at"]
-        SUPPLIES_ROUTE["<b>Supplies_route</b><hr/>+String order_id [PK,FK]<br/>+String supplier_id [PK,FK]<br/>+String truck_id [FK]<br/>+String estimated_departure<br/>+String estimated_arrival<br/>+String actual_arrival"]
-        FREIGHT_COST["<b>Freight_cost</b><hr/>+String order_id [PK,FK]<br/>+Float fuel_cost<br/>+Float labor_cost<br/>+Float maintenance_cost<br/>+Float total_cost<br/>+String calculated_at"]
+    subgraph Logistics ["Cargo & Routes"]
+        TRUCKS_CARGO["<b>Trucks_cargo</b><hr/>+ truck_id: String [PK,FK]<br/>+ product_id: String [PK,FK]<br/>+ quantity: Int"]
+        ORDERS_ITEMS["<b>Orders_items</b><hr/>+ order_id: String [PK,FK]<br/>+ product_id: String [PK,FK]<br/>+ quantity: Int"]
+        ORDERS_ROUTE["<b>Orders_route</b><hr/>+ order_id: String [PK,FK]<br/>+ step: Int [PK]<br/>+ warehouse_id: String [FK]<br/>+ truck_id: String [FK]<br/>+ driver_id: String [FK]<br/>+ destination_warehouse_id: String [FK]<br/>+ estimated_time: String<br/>+ arrived_at: String"]
+        SUPPLIES_ROUTE["<b>Supplies_route</b><hr/>+ order_id: String [PK,FK]<br/>+ supplier_id: String [PK,FK]<br/>+ truck_id: String [FK]<br/>+ estimated_departure: String<br/>+ estimated_arrival: String<br/>+ actual_arrival: String"]
+        FREIGHT_COST["<b>Freight_cost</b><hr/>+ order_id: String [PK,FK]<br/>+ fuel_cost: Float<br/>+ labor_cost: Float<br/>+ maintenance_cost: Float<br/>+ total_cost: Float<br/>+ calculated_at: String"]
     end
 
-    %% Relacionamentos com conexões ortogonais (90 graus)
-    USERS -->|session| ONLINE_USERS
-    USERS -->|client| ORDERS
-    USERS -->|driver| ORDERS_ROUTE
-    WAREHOUSES -->|employs| USERS
-    WAREHOUSES -->|stocks| WAREHOUSES_STOCK
-    WAREHOUSES -->|docks| TRUCKS
-    WAREHOUSES -->|waypoint| ORDERS_ROUTE
-    PRODUCTS -->|stored| WAREHOUSES_STOCK
-    PRODUCTS -->|item| ORDERS_ITEMS
-    PRODUCTS -->|loads| TRUCKS_CARGO
-    TRUCKS -->|carries| TRUCKS_CARGO
-    TRUCKS -->|assigned| ORDERS_ROUTE
-    TRUCKS -->|transports| SUPPLIES_ROUTE
-    SUPPLIERS -->|supplies| ORDERS
-    SUPPLIERS -->|origin| SUPPLIES_ROUTE
-    ORDERS -->|contains| ORDERS_ITEMS
-    ORDERS -->|steps| ORDERS_ROUTE
-    ORDERS -->|route| SUPPLIES_ROUTE
-    ORDERS -->|calculates| FREIGHT_COST
+    style Core fill:#030712,stroke:#1e293b,stroke-width:1px,stroke-dasharray: 4 4,color:#94a3b8
+    style Operations fill:#030712,stroke:#1e293b,stroke-width:1px,stroke-dasharray: 4 4,color:#94a3b8
+    style Logistics fill:#030712,stroke:#1e293b,stroke-width:1px,stroke-dasharray: 4 4,color:#94a3b8
+
+    %% Relationships with orthogonal routing
+    USERS -->|SESSIONS| ONLINE_USERS
+    USERS -->|CLIENT_ORDER| ORDERS
+    USERS -->|DRIVER| ORDERS_ROUTE
+    WAREHOUSES -->|STATIONED_STAFF| USERS
+    WAREHOUSES -->|STOCK| WAREHOUSES_STOCK
+    WAREHOUSES -->|DOCKED_TRUCKS| TRUCKS
+    WAREHOUSES -->|WAYPOINT| ORDERS_ROUTE
+    PRODUCTS -->|PRODUCT_STOCK| WAREHOUSES_STOCK
+    PRODUCTS -->|ORDERED_ITEMS| ORDERS_ITEMS
+    PRODUCTS -->|CARGO| TRUCKS_CARGO
+    TRUCKS -->|CARRIES| TRUCKS_CARGO
+    TRUCKS -->|ASSIGNED_TRUCK| ORDERS_ROUTE
+    TRUCKS -->|SUPPLIERS_ROUTE| SUPPLIES_ROUTE
+    SUPPLIERS -->|SUPPLIED_ORDERS| ORDERS
+    SUPPLIERS -->|SUPPLIERS_ROUTE| SUPPLIES_ROUTE
+    ORDERS -->|CONTAINS_ITEMS| ORDERS_ITEMS
+    ORDERS -->|ROUTE_STEPS| ORDERS_ROUTE
+    ORDERS -->|SUPPLIES_ROUTE| SUPPLIES_ROUTE
+    ORDERS -->|FREIGHT_COST| FREIGHT_COST
 ```
-   
-    
-   
 
+---
+
+## 2. Light Theme
+
+```mermaid
+%%{init: {
+  'theme': 'base',
+  'flowchart': {
+    'curve': 'stepBefore',
+    'nodeSpacing': 50,
+    'rankSpacing': 80
+  },
+  'themeVariables': {
+    'darkMode': false,
+    'background': '#ffffff',
+    'primaryColor': '#ffffff',
+    'primaryTextColor': '#0f172a',
+    'primaryBorderColor': '#cbd5e1',
+    'lineColor': '#475569',
+    'textColor': '#0f172a',
+    'edgeLabelBackground': '#ffffff',
+    'clusterBkg': '#f8fafc',
+    'clusterBorder': '#cbd5e1',
+    'fontSize': '12px'
+  }
+}}%%
+flowchart LR
+
+    classDef default fill:#ffffff,stroke:#94a3b8,stroke-width:1.5px,color:#0f172a;
+
+    subgraph Core ["Core Entities"]
+        USERS["<b>Users</b><hr/>+ id: String [PK]<br/>+ name: String<br/>+ email: String<br/>+ password: String<br/>+ address: JSON<br/>+ role: String<br/>+ warehouse_id: String [FK]<br/>+ wage: Float<br/>+ is_active: Int"]
+        PRODUCTS["<b>Products</b><hr/>+ id: String [PK]<br/>+ name: String<br/>+ price: Float<br/>+ is_cold: Int<br/>+ is_fragile: Int<br/>+ expire_date: String<br/>+ size: JSON<br/>+ volume: Float<br/>+ weight: Float"]
+        WAREHOUSES["<b>Warehouses</b><hr/>+ id: String [PK]<br/>+ location: JSON<br/>+ size: JSON<br/>+ volume_current: Float<br/>+ volume_max: Float<br/>+ has_refrigeration: Int<br/>+ fuel_price: Float<br/>+ truck_capacity: Int"]
+        SUPPLIERS["<b>Suppliers</b><hr/>+ id: String [PK]<br/>+ name: String<br/>+ location: String"]
+    end
+
+    subgraph Operations ["Operations & Fleet"]
+        ONLINE_USERS["<b>Online_users</b><hr/>+ session_id: String [PK]<br/>+ user_id: String [FK]<br/>+ login_time: String<br/>+ last_activity: String"]
+        TRUCKS["<b>Trucks</b><hr/>+ id: String [PK]<br/>+ model: String<br/>+ speed: Float<br/>+ is_valid: Int<br/>+ is_delivering: Int<br/>+ size: JSON<br/>+ volume_current: Float<br/>+ volume_max: Float<br/>+ weight_current: Float<br/>+ weight_max: Float<br/>+ has_refrigeration: Int<br/>+ current_warehouse_id: String [FK]<br/>+ origin_warehouse_id: String [FK]<br/>+ destination_warehouse_id: String [FK]<br/>+ estimated_time: String<br/>+ fuel_capacity: Float<br/>+ fuel_current: Float<br/>+ fuel_consumption: Float<br/>+ truck_maintenance: Int"]
+        WAREHOUSES_STOCK["<b>Warehouses_stock</b><hr/>+ warehouse_id: String [PK,FK]<br/>+ product_id: String [PK,FK]<br/>+ quantity: Int"]
+        ORDERS["<b>Orders</b><hr/>+ id: String [PK]<br/>+ client_id: String [FK]<br/>+ final_destination: String<br/>+ time_limit: String<br/>+ price: Float<br/>+ status: String<br/>+ supplier_id: String [FK]<br/>+ supplier_delivery: Int<br/>+ distance_km: Float"]
+    end
+
+    subgraph Logistics ["Cargo & Routes"]
+        TRUCKS_CARGO["<b>Trucks_cargo</b><hr/>+ truck_id: String [PK,FK]<br/>+ product_id: String [PK,FK]<br/>+ quantity: Int"]
+        ORDERS_ITEMS["<b>Orders_items</b><hr/>+ order_id: String [PK,FK]<br/>+ product_id: String [PK,FK]<br/>+ quantity: Int"]
+        ORDERS_ROUTE["<b>Orders_route</b><hr/>+ order_id: String [PK,FK]<br/>+ step: Int [PK]<br/>+ warehouse_id: String [FK]<br/>+ truck_id: String [FK]<br/>+ driver_id: String [FK]<br/>+ destination_warehouse_id: String [FK]<br/>+ estimated_time: String<br/>+ arrived_at: String"]
+        SUPPLIES_ROUTE["<b>Supplies_route</b><hr/>+ order_id: String [PK,FK]<br/>+ supplier_id: String [PK,FK]<br/>+ truck_id: String [FK]<br/>+ estimated_departure: String<br/>+ estimated_arrival: String<br/>+ actual_arrival: String"]
+        FREIGHT_COST["<b>Freight_cost</b><hr/>+ order_id: String [PK,FK]<br/>+ fuel_cost: Float<br/>+ labor_cost: Float<br/>+ maintenance_cost: Float<br/>+ total_cost: Float<br/>+ calculated_at: String"]
+    end
+
+    style Core fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,stroke-dasharray: 4 4,color:#475569
+    style Operations fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,stroke-dasharray: 4 4,color:#475569
+    style Logistics fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,stroke-dasharray: 4 4,color:#475569
+
+    %% Relationships with orthogonal routing
+    USERS -->|SESSIONS| ONLINE_USERS
+    USERS -->|CLIENT_ORDER| ORDERS
+    USERS -->|DRIVER| ORDERS_ROUTE
+    WAREHOUSES -->|STATIONED_STAFF| USERS
+    WAREHOUSES -->|STOCK| WAREHOUSES_STOCK
+    WAREHOUSES -->|DOCKED_TRUCKS| TRUCKS
+    WAREHOUSES -->|WAYPOINT| ORDERS_ROUTE
+    PRODUCTS -->|PRODUCT_STOCK| WAREHOUSES_STOCK
+    PRODUCTS -->|ORDERED_ITEMS| ORDERS_ITEMS
+    PRODUCTS -->|CARGO| TRUCKS_CARGO
+    TRUCKS -->|CARRIES| TRUCKS_CARGO
+    TRUCKS -->|ASSIGNED_TRUCK| ORDERS_ROUTE
+    TRUCKS -->|SUPPLIERS_ROUTE| SUPPLIES_ROUTE
+    SUPPLIERS -->|SUPPLIED_ORDERS| ORDERS
+    SUPPLIERS -->|SUPPLIERS_ROUTE| SUPPLIES_ROUTE
+    ORDERS -->|CONTAINS_ITEMS| ORDERS_ITEMS
+    ORDERS -->|ROUTE_STEPS| ORDERS_ROUTE
+    ORDERS -->|SUPPLIES_ROUTE| SUPPLIES_ROUTE
+    ORDERS -->|FREIGHT_COST| FREIGHT_COST
+```
 
     
    
