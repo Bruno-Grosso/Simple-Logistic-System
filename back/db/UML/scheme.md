@@ -29,11 +29,11 @@ classDiagram
         +String PASSWORD
         +JSON ADDRESS
         +String ROLE
-        +Warehouses WAREHOUSE_ID
+        +String WAREHOUSE_ID
         +REAL WAGE
         +INTEGER IS_ACTIVE
     }
-    note for Users "ROLES: admin, warehouse_worker, truck_driver, client, dispatcher, inventory_manager, maintenance_technician."
+    note for Users "CARGO: Cliente, ADM, Motorista, etc."
     note for Users "SENHA: Acesso ao sistema via ID ou Email."
 
     class Online_users {
@@ -76,7 +76,7 @@ classDiagram
         +REAL FUEL_CONSUMPTION
         +INTEGER TRUCK_MAINTENANCE
     }
-    note for Truck "ESTIMATED_TIME: Chegada estimada na rota."
+    note for Truck "ETA: Chegada estimada na rota."
 
     class Trucks_cargo {
         +String TRUCK_id
@@ -97,7 +97,6 @@ classDiagram
     }
     note for Orders "CLIENT_id: Usuário cliente vinculado."
     note for Orders "STATUS: Pending, Shipped, Delivered, Canceled."
-    note for Orders "DISTANCE_KM: Distância total da rota (km)."
 
     class Orders_items {
         +String ORDER_id
@@ -121,7 +120,6 @@ classDiagram
         +String ESTIMATED_TIME
         +String ARRIVED_AT
     }
-    note for Orders_Route "DRIVER_id: Motorista responsável pelo trecho."
 
     class Suppliers {
         +String id
@@ -158,26 +156,31 @@ classDiagram
         +String CALCULATED_AT
     }
 
-    %% Relacionamentos do Sistema
-    Users " 1 " --> " * " Orders : CLIENT_ORDERS
-    Users " 1 " --> " * " Online_users : SESSIONS
-    Users " 1 " --> " * " Orders_Route : DRIVER_ASSIGNMENT
-    Warehouses " 1 " --> " * " Users : STATIONED_STAFF
-    Warehouses " 1 " --> " * " Warehouses_stock : INVENTORY
-    Products " 1 " --> " * " Warehouses_stock : STOCKED_ITEMS
-    Products " 1 " --> " * " Orders_items : ORDERED_ITEMS
-    Products " 1 " --> " * " Trucks_cargo : LOADED_CARGO
-    Orders " 1 " --> " * " Orders_items : CONTAINS_ITEMS
-    Orders " 1 " --> " * " Orders_Route : ROUTE_STEPS
-    Orders " 1 " --> " 1 " Freight_cost : FREIGHT_CALCULATION
-    Suppliers " 1 " --> " * " Orders : SUPPLIED_ORDERS
-    Suppliers " 1 " --> " * " Suppliers_route : SUPPLIER_DELIVERIES
-    Truck " 1 " --> " * " Trucks_cargo : CARRIES
-    Truck " 1 " --> " * " Orders_Route : ASSIGNED_TRUCK
-    Truck " 1 " --> " * " Suppliers_route : SUPPLIER_TRUCK
-    Warehouses " 1 " --> " * " Truck : DOCKED_TRUCKS
-    Warehouses " 1 " --> " * " Orders_Route : ROUTE_WAREHOUSE
+    %% Relacionamentos estruturados em 3 colunas (evita cruzamento diagonal)
+    Users " 1 " --> " * " Orders : ORDER
+    Users " 1 " --> " 1 " Online_users : ONLINE_USERS
+    Products " * " --> " 1 " Truck : TRUCKS_CARGO
+    Products " * " --> " 1 " Warehouses : WAREHOUSE_STOCK
+    Products " * " --> " 1 " Orders_items : ORDERS_ITEMS
+    Products " * " --> " 1 " Warehouses_stock : STOCK
+    Products " * " --> " 1 " Trucks_cargo : STOCK
+    Orders " * " --> " 1 " Orders_Route : ORDERS
+    Orders " 1 " --> " * " Orders_items : ORDERS_ITEMS
+    Orders " 1 " --> " * " Suppliers_route : SUPPLIERS_ROUTE
+    Orders " 1 " --> " 1 " Freight_cost : FREIGHT_COST
+    Suppliers " * " --> " 1 " Orders : SUPPLIERS_ROUTE
+    Suppliers " 1 " --> " 1 " Suppliers_route : SUPPLIERS_ROUTE
+    Truck " * " --> " 1 " Warehouses : TRUCKS
+    Truck " 1 " --> " 1 " Trucks_cargo : TRUCKS
+    Truck " 1 " --> " * " Orders_Route : TRUCKS_IN_ROUTE
+    Truck " 1 " --> " * " Suppliers_route : SUPPLIERS_ROUTE
+    Warehouses " 1 " --> " 1 " Warehouses_stock : STOCK
+    Warehouses " 1 " --> " * " Orders_Route : WAREHOUSE_ROUTE
 ```
+
+    
+   
+
 
     
    
