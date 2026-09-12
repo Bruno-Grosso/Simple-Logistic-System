@@ -22,5 +22,5 @@
 - [ ] Report on the project
 - [ ] Get the prints with lots of test data
 - [ ] Build the graphics for testing
-- [x] Database UML
+- [ ] Database UML
 
