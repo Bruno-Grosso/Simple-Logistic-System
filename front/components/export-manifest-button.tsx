@@ -13,6 +13,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { api } from "@/lib/api"
+import { toast } from "sonner"
+import { getErrorMessage } from "@/lib/utils"
 import type { Order, OrderItem, Product, Truck, User, Deposit } from "@/types"
 
 type Props = {
@@ -47,17 +49,30 @@ export function ExportManifestButton({
   }, 0)
 
   function handleDownloadCsv() {
-    const url = api.orders.exportManifestCsvUrl(order.id)
-    const link = document.createElement("a")
-    link.href = url
-    link.setAttribute("download", `shipping-manifest-${order.id}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    try {
+      if (!order?.id) {
+        toast.error("Invalid order identifier for manifest export.")
+        return
+      }
+      const url = api.orders.exportManifestCsvUrl(order.id)
+      const link = document.createElement("a")
+      link.href = url
+      link.setAttribute("download", `shipping-manifest-${order.id}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      toast.success("Manifest download started.")
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to download shipping manifest."))
+    }
   }
 
   function handlePrint() {
-    window.print()
+    try {
+      window.print()
+    } catch (err) {
+      toast.error("Could not trigger print dialog. Please try using your browser print shortcut.")
+    }
   }
 
   let destLabel = order.final_destination || "—"

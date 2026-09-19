@@ -6,9 +6,13 @@ import { fetchHandler } from "../src/server";
  * direct in-process fetchHandler if no HTTP server is listening on port 8080/8081.
  */
 export async function testFetch(path: string, options: RequestInit = {}): Promise<Response> {
-  const url = path.startsWith("http") ? path : `http://localhost:8080${path.startsWith("/") ? "" : "/"}${path}`;
+  const port = process.env.TEST_PORT || "8081";
+  const url = path.startsWith("http") ? path : `http://localhost:${port}${path.startsWith("/") ? "" : "/"}${path}`;
   try {
-    const res = await fetch(url, options);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2000);
+    const res = await fetch(url, { ...options, signal: options.signal || controller.signal });
+    clearTimeout(timer);
     if (res) return res;
   } catch {
     /* fallback to in-process fetch handler */

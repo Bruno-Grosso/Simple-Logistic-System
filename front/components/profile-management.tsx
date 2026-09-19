@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Briefcase,
   Layers,
+  AlertTriangle,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -32,6 +33,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { api } from "@/lib/api"
+import { getErrorMessage } from "@/lib/utils"
 import type { User } from "@/types"
 
 interface ProfileManagementProps {
@@ -63,27 +65,32 @@ export function ProfileManagement({
   const [editName, setEditName] = useState(currentUser.name)
   const [editAddress, setEditAddress] = useState(currentUser.address || "")
   const [editPassword, setEditPassword] = useState("")
+  const [profileError, setProfileError] = useState<string | null>(null)
 
   // Sync state when user changes
   useEffect(() => {
     setEditName(currentUser.name)
     setEditAddress(currentUser.address || "")
     setEditPassword("")
+    setProfileError(null)
   }, [currentUser])
 
   // Refresh profile details from backend
   async function reloadProfile() {
     setIsRefreshing(true)
+    setProfileError(null)
     try {
       const u = await api.users.getById(currentUser.id)
       if (u) {
         setCurrentUser(u)
+        setEditName(u.name)
+        setEditAddress(u.address || "")
       }
       const s = await api.users.getOnlineSessions(currentUser.id)
       setSessions(s)
-      toast.success("Profile reloaded from PostgreSQL backend")
+      toast.success("Profile reloaded from database.")
     } catch {
-      toast.error("Failed to sync profile from backend")
+      toast.error("Failed to refresh profile from database.")
     } finally {
       setIsRefreshing(false)
     }
@@ -92,9 +99,18 @@ export function ProfileManagement({
   // Save updated profile to backend database
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault()
+    setProfileError(null)
+
     if (!editName.trim()) {
-      toast.error("Full name cannot be empty")
-      return
+      const msg = "Full name cannot be empty."
+      setProfileError(msg)
+      return toast.error(msg)
+    }
+
+    if (editPassword && editPassword.length < 8) {
+      const msg = "New password must be at least 8 characters long."
+      setProfileError(msg)
+      return toast.error(msg)
     }
 
     setIsSaving(true)
@@ -108,14 +124,19 @@ export function ProfileManagement({
       if (res.success && res.user) {
         setCurrentUser(res.user)
         setIsOpen(false)
+        setEditPassword("")
         toast.success(`Profile updated successfully for ${res.user.name}!`, {
           description: "Changes persisted directly to PostgreSQL users table.",
         })
       } else {
-        toast.error("Backend error updating profile record")
+        const msg = res.error || "Backend error updating profile record."
+        setProfileError(msg)
+        toast.error(msg)
       }
-    } catch {
-      toast.error("Failed to save profile changes")
+    } catch (err) {
+      const msg = getErrorMessage(err, "Failed to save profile changes.")
+      setProfileError(msg)
+      toast.error(msg)
     } finally {
       setIsSaving(false)
     }
@@ -185,7 +206,10 @@ export function ProfileManagement({
             </div>
 
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-              <DialogTrigger render={<Button className="mt-6 w-full gap-2" variant="default" size="sm" />}>
+              <DialogTrigger
+                onClick={() => setIsOpen(true)}
+                render={<Button className="mt-6 w-full gap-2" variant="default" size="sm" />}
+              >
                 <Edit className="size-3.5" />
                 Edit Profile Information
               </DialogTrigger>
@@ -200,6 +224,17 @@ export function ProfileManagement({
                       Update account details. Changes will be saved to the PostgreSQL database.
                     </DialogDescription>
                   </DialogHeader>
+
+                  {profileError && (
+                    <div
+                      role="alert"
+                      aria-live="assertive"
+                      className="mt-3 flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive"
+                    >
+                      <AlertTriangle className="size-4 shrink-0 text-destructive" aria-hidden="true" />
+                      <span>{profileError}</span>
+                    </div>
+                  )}
 
                   <div className="grid gap-4 py-4">
                     <div className="grid gap-1.5">

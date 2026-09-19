@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Pencil, Plus, Trash2 } from "lucide-react"
+import { AlertCircle, Pencil, Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { api } from "@/lib/api"
+import { getErrorMessage } from "@/lib/utils"
 import { EmptyState } from "@/components/empty-state"
 import type { Deposit, User } from "@/types"
 
@@ -27,10 +28,12 @@ export function EmployeeManagement({ employees, warehouses }: { employees: User[
   const [wage, setWage] = useState("45")
   const [active, setActive] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [dialogError, setDialogError] = useState<string | null>(null)
 
   const rolesNeedWarehouse = ["warehouse_worker", "inventory_manager", "maintenance_technician"]
 
   function edit(employee?: User) {
+    setDialogError(null)
     setEditing(employee || null)
     setName(employee?.name || "")
     setEmail(employee?.email || "")
@@ -44,40 +47,97 @@ export function EmployeeManagement({ employees, warehouses }: { employees: User[
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
+    setDialogError(null)
+
+    if (!name.trim()) {
+      const msg = "Please enter an employee name."
+      setDialogError(msg)
+      toast.error(msg)
+      return
+    }
+
+    const wageNum = Number(wage)
+    if (isNaN(wageNum) || wageNum < 0) {
+      const msg = "Hourly wage must be a non-negative number."
+      setDialogError(msg)
+      toast.error(msg)
+      return
+    }
+
+    if (!editing && !password) {
+      const msg = "Password is required for new employees."
+      setDialogError(msg)
+      toast.error(msg)
+      return
+    }
+
+    if (password && password.length < 8) {
+      const msg = "Password must be at least 8 characters long."
+      setDialogError(msg)
+      toast.error(msg)
+      return
+    }
+
+    if (rolesNeedWarehouse.includes(role) && !warehouseId) {
+      const msg = "Please select an assigned warehouse for this role."
+      setDialogError(msg)
+      toast.error(msg)
+      return
+    }
+
     setSaving(true)
     const payload = {
-      name,
+      name: name.trim(),
       role,
       warehouse_id: rolesNeedWarehouse.includes(role) ? warehouseId || null : null,
-      wage: Number(wage),
+      wage: wageNum,
       is_active: active ? 1 : 0,
     }
 
-    if (editing) {
-      const result = await api.users.update(editing.id, { ...payload, password: password || undefined })
-      setSaving(false)
-      if (!result.success) return toast.error(result.error || "Could not save employee")
-      if (result.user) setEmployeeList((current) => current.map((employee) => employee.id === editing.id ? result.user! : employee))
-      toast.success("Employee updated")
-    } else {
-      const result = await api.users.createEmployee({ ...payload, email, password })
-      setSaving(false)
-      if (!result.success) return toast.error(result.error || "Could not save employee")
-      if (result.employee) setEmployeeList((current) => [...current, result.employee!])
-      toast.success("Employee added")
-    }
+    try {
+      if (editing) {
+        const result = await api.users.update(editing.id, { ...payload, password: password || undefined })
+        setSaving(false)
+        if (!result.success) {
+          const err = result.error || "Could not save employee"
+          setDialogError(err)
+          return toast.error(err)
+        }
+        if (result.user) setEmployeeList((current) => current.map((employee) => employee.id === editing.id ? result.user! : employee))
+        toast.success("Employee updated")
+      } else {
+        const result = await api.users.createEmployee({ ...payload, email, password })
+        setSaving(false)
+        if (!result.success) {
+          const err = result.error || "Could not save employee"
+          setDialogError(err)
+          return toast.error(err)
+        }
+        if (result.employee) setEmployeeList((current) => [...current, result.employee!])
+        toast.success("Employee added")
+      }
 
-    setOpen(false)
-    router.refresh()
+      setOpen(false)
+      router.refresh()
+    } catch (err) {
+      setSaving(false)
+      const errMessage = getErrorMessage(err, "An error occurred while saving the employee.")
+      setDialogError(errMessage)
+      toast.error(errMessage)
+    }
   }
 
   async function remove(employee: User) {
     if (!window.confirm(`Remove ${employee.name}? This cannot be undone.`)) return
-    const result = await api.users.remove(employee.id)
-    if (!result.success) return toast.error(result.error || "Could not remove employee")
-    setEmployeeList((current) => current.filter((candidate) => candidate.id !== employee.id))
-    toast.success("Employee removed")
-    router.refresh()
+    try {
+      const result = await api.users.remove(employee.id)
+      if (!result.success) return toast.error(result.error || "Could not remove employee")
+      setEmployeeList((current) => current.filter((candidate) => candidate.id !== employee.id))
+      toast.success("Employee removed")
+      router.refresh()
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to remove employee."))
+    }
   }
 
   return (
@@ -151,10 +211,20 @@ export function EmployeeManagement({ employees, warehouses }: { employees: User[
             <DialogTitle>{editing ? "Edit employee" : "Add employee"}</DialogTitle>
             <DialogDescription>Manage role, warehouse assignment, pay, and active status.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={save} className="grid gap-4 py-2">
+          <form onSubmit={save} noValidate className="grid gap-4 py-2">
+            {dialogError && (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive flex items-center gap-2 font-medium"
+              >
+                <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+                <span>{dialogError}</span>
+              </div>
+            )}
             <div className="grid gap-1.5">
-              <Label>Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} required />
+              <Label htmlFor="employee-name">Name</Label>
+              <Input id="employee-name" type="text" value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
             {!editing && (
               <>

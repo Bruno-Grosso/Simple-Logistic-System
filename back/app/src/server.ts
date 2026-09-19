@@ -84,6 +84,33 @@ const innerFetchHandler = async (req: Request) => {
       return Response.json({ ok: false, success: false, error: "Internal server error" }, { status: 500 });
     }
   }
+
+  // Elliptic Curve Cyberprotection Key & Verification Endpoints
+  if (path === "/auth/ec-public-key" && method === "GET") {
+    return Response.json({
+      success: true,
+      algorithm: "ECDSA (prime256v1 / P-256)",
+      format: "SPKI PEM",
+      publicKey: controller.ecSecurity.publicKeyPem,
+    });
+  }
+
+  if (path === "/auth/ec-verify" && method === "POST") {
+    try {
+      const body = await req.json().catch(() => ({}));
+      const token = body.token || req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+      if (!token) {
+        return Response.json({ success: false, error: "Token is required" }, { status: 400 });
+      }
+      const verifyResult = controller.ecSecurity.verifyToken(token);
+      if (!verifyResult.valid) {
+        return Response.json({ success: false, ...verifyResult }, { status: 401 });
+      }
+      return Response.json({ success: true, ...verifyResult });
+    } catch (error: any) {
+      return Response.json({ success: false, error: error.message || "Verification failed" }, { status: 500 });
+    }
+  }
   if (path === "/clients" && method === "POST") {
     try {
       const body = await req.json();
@@ -308,13 +335,17 @@ const innerFetchHandler = async (req: Request) => {
 
     if (parts[3] === "routes" && parts[4] === "multi-stop") {
       const assignedRoutes = await pg_conn`
-        SELECT DISTINCT order_id FROM orders_route WHERE truck_id = ${id}
+        SELECT DISTINCT r.order_id 
+        FROM orders_route r
+        JOIN orders o ON r.order_id = o.id
+        WHERE r.truck_id = ${id}
+          AND o.status NOT IN ('Delivered', 'Canceled', 'Cancelled')
       `;
       const orderIds = assignedRoutes.map((r: any) => r.order_id);
       if (orderIds.length === 0) {
         return Response.json({
           success: true,
-          message: "No orders currently assigned to this truck",
+          message: "No active orders currently assigned to this truck",
           truck_id: id,
           stops: [],
         });
@@ -402,6 +433,93 @@ const innerFetchHandler = async (req: Request) => {
       return new Response(error.message || "Internal Server Error", { status: 500 });
     }
   }
+  if (path === "/orders/multi-route/active" && method === "GET") {
+    try {
+      // Find all distinct trucks that currently have assigned active (non-delivered, non-canceled) orders
+      const activeTruckRows = await pg_conn`
+        SELECT DISTINCT r.truck_id, r.warehouse_id, t.model, t.weight_max, t.volume_max, t.speed
+        FROM orders_route r
+        JOIN trucks t ON r.truck_id = t.id
+        JOIN orders o ON r.order_id = o.id
+        WHERE r.truck_id IS NOT NULL
+          AND o.status NOT IN ('Delivered', 'Canceled', 'Cancelled')
+        ORDER BY r.truck_id ASC
+      `;
+
+      const allRoutes = await controller.orders_route.all();
+      const allOrders = await controller.orders.all();
+      const orderMap = new Map<string, any>();
+      allOrders.forEach((o: any) => orderMap.set(o.id, o));
+
+      const { calculateMultiStopRoute } = await import("./routes");
+      const activeFleetMultiRoutes = (
+        await Promise.all(
+          activeTruckRows.map(async (tRow) => {
+            const truckId = tRow.truck_id;
+            // Filter route steps strictly for active (non-delivered) orders
+            const truckRoutes = allRoutes
+              .filter((r: any) => {
+                if (r.truck_id !== truckId) return false;
+                const ord = orderMap.get(r.order_id);
+                return ord && ord.status !== "Delivered" && ord.status !== "Canceled" && ord.status !== "Cancelled";
+              })
+              .sort((a: any, b: any) => a.step - b.step);
+
+            const assignedOrderIds = Array.from(new Set(truckRoutes.map((r: any) => r.order_id)));
+            if (assignedOrderIds.length === 0) return null;
+
+            const originWarehouseId = tRow.warehouse_id || truckRoutes[0]?.warehouse_id || "WH-001";
+
+            let circuit: any = null;
+            try {
+              circuit = await calculateMultiStopRoute({
+                warehouseId: originWarehouseId,
+                orderIds: assignedOrderIds,
+                truckId: truckId,
+                roundTrip: true,
+              });
+            } catch (e: any) {
+              console.warn(`Could not compute Valhalla circuit for truck ${truckId}:`, e?.message);
+            }
+
+            const steps = truckRoutes.map((r: any) => {
+              const ord = orderMap.get(r.order_id);
+              return {
+                order_id: r.order_id,
+                step: r.step,
+                destination: ord?.final_destination,
+                status: ord?.status || "Shipped",
+                time_limit: ord?.time_limit,
+                warehouse_id: r.warehouse_id,
+                estimated_time: r.estimated_time,
+                arrived_at: r.arrived_at,
+              };
+            });
+
+            return {
+              truck_id: truckId,
+              truck_model: tRow.model || truckId,
+              warehouse_id: originWarehouseId,
+              total_orders: assignedOrderIds.length,
+              order_ids: assignedOrderIds,
+              steps,
+              circuit,
+            };
+          })
+        )
+      ).filter(Boolean);
+
+      return Response.json({
+        success: true,
+        total_active_multi_routes: activeFleetMultiRoutes.length,
+        multi_routes: activeFleetMultiRoutes,
+      });
+    } catch (error: any) {
+      console.error("Error fetching active multi routes:", error);
+      return Response.json({ success: false, error: error.message || "Failed to fetch active multi routes" }, { status: 500 });
+    }
+  }
+
   if (path === "/orders/export/csv" && method === "GET") {
     const allOrders = await controller.orders.all();
     const allUsers = await controller.users.all();
@@ -589,6 +707,81 @@ const innerFetchHandler = async (req: Request) => {
         return Response.json({ success: false, error: error.message || "Failed to calculate ETA" }, { status: 400 });
       }
     }
+
+    if (parts[3] === "suggest-truck") {
+      try {
+        const whId = url.searchParams.get("warehouse_id") || undefined;
+        const suggestion = await controller.orders.suggestOptimalTruck(id, whId);
+        return Response.json({ success: true, ...suggestion });
+      } catch (error: any) {
+        console.error("Error suggesting optimal truck:", error);
+        return Response.json({ success: false, error: error.message || "Failed to suggest truck" }, { status: 400 });
+      }
+    }
+
+    if (parts[3] === "multi-route") {
+      try {
+        const routeData = await controller.orders_route.byOrder(id);
+        const truckId = routeData[0]?.truck_id;
+        if (!truckId) {
+          return Response.json({
+            success: false,
+            message: "Order does not currently belong to a multi-stop route (no truck assigned)",
+            order_id: id,
+          }, { status: 404 });
+        }
+
+        // Find all active orders assigned to the same truck (ignore delivered and canceled orders)
+        const siblingSteps = await pg_conn`
+          SELECT r.*, o.final_destination, o.status as order_status, o.time_limit
+          FROM orders_route r
+          JOIN orders o ON r.order_id = o.id
+          WHERE r.truck_id = ${truckId}
+            AND o.status NOT IN ('Delivered', 'Canceled', 'Cancelled')
+          ORDER BY r.step ASC
+        `;
+
+        const uniqueOrderIds = Array.from(new Set(siblingSteps.map((s: any) => s.order_id)));
+        if (uniqueOrderIds.length === 0) {
+          return Response.json({
+            success: false,
+            message: "No active remaining orders for this truck circuit",
+            order_id: id,
+          }, { status: 404 });
+        }
+
+        const { calculateMultiStopRoute } = await import("./routes");
+        const originWarehouseId = routeData[0]?.warehouse_id || "WH-001";
+        const multiRoute = await calculateMultiStopRoute({
+          warehouseId: originWarehouseId,
+          orderIds: uniqueOrderIds,
+          truckId: truckId,
+          roundTrip: true,
+        });
+
+        // Find this order's stop step in the multi-route
+        const currentStop = multiRoute?.stops?.find((s: any) => s.order_id === id);
+        const stepNum = currentStop ? currentStop.stop_number : (routeData[0]?.step || 1);
+
+        return Response.json({
+          success: true,
+          order_id: id,
+          truck_id: truckId,
+          step: stepNum,
+          total_stops: multiRoute.stops?.length || uniqueOrderIds.length,
+          multi_route: multiRoute,
+          siblings: siblingSteps.map((s: any) => ({
+            order_id: s.order_id,
+            step: s.step,
+            status: s.order_status,
+            destination: s.final_destination,
+          })),
+        });
+      } catch (error: any) {
+        console.error("Error calculating order multi-route:", error);
+        return Response.json({ success: false, error: error.message || "Failed to calculate multi-route" }, { status: 500 });
+      }
+    }
     
     const result = await controller.orders.byId(id);
     if (!result || result.length === 0) return new Response("Order not found", { status: 404 });
@@ -640,8 +833,19 @@ const innerFetchHandler = async (req: Request) => {
         const distResult = await controller.orders.calculateDistance(id, body?.warehouse_id);
         return Response.json({ success: true, ...distResult });
       } catch (error: any) {
-        console.error("Error calculating distance in DB:", error);
+        console.error("Error calculating order distance:", error);
         return Response.json({ success: false, error: error.message || "Failed to calculate distance" }, { status: 400 });
+      }
+    }
+
+    if (parts[3] === "suggest-truck") {
+      try {
+        const body = (await req.json().catch(() => ({}))) as { warehouse_id?: string };
+        const suggestion = await controller.orders.suggestOptimalTruck(id, body?.warehouse_id);
+        return Response.json({ success: true, ...suggestion });
+      } catch (error: any) {
+        console.error("Error suggesting optimal truck:", error);
+        return Response.json({ success: false, error: error.message || "Failed to suggest truck" }, { status: 400 });
       }
     }
 
@@ -680,9 +884,13 @@ const innerFetchHandler = async (req: Request) => {
       // Older database installations use the SQL spelling "Canceled", while
       // the UI consistently exposes "Cancelled".
       const databaseStatus = body.status === "Cancelled" ? "Canceled" : body.status;
-      const updated = await controller.orders.updateStatus(id, databaseStatus as "Pending" | "Shipped" | "Delivered" | "Canceled");
-      if (!updated?.length) return new Response("Order not found", { status: 404 });
-      return Response.json({ success: true, order: updated[0] });
+      try {
+        const updated = await controller.orders.updateStatus(id, databaseStatus as "Pending" | "Shipped" | "Delivered" | "Canceled");
+        if (!updated?.length) return new Response("Order not found", { status: 404 });
+        return Response.json({ success: true, order: updated[0] });
+      } catch (err: any) {
+        return Response.json({ success: false, error: err.message || "Failed to update order status" }, { status: 400 });
+      }
     }
 
     if (parts[3] === "route") {
@@ -731,18 +939,22 @@ const innerFetchHandler = async (req: Request) => {
     if (orderId) return Response.json(await controller.freightCosts.byOrder(orderId));
     return Response.json(await controller.freightCosts.all());
   }
-  if (path === "/monthly-performance" && method === "GET") {
-    return Response.json(await controller.monthlyPerformance.all());
+  if ((path === "/monthly-performance" || path === "/reports/monthly-performance") && method === "GET") {
+    const warehouseId = url.searchParams.get("warehouseId") || undefined;
+    const period = url.searchParams.get("period") || undefined;
+    return Response.json(await controller.monthlyPerformance.all(warehouseId, period));
   }
   if (path === "/reports/delivery-costs" && method === "GET") {
     const warehouseId = url.searchParams.get("warehouseId") || undefined;
-    return Response.json(await controller.reports.getDeliveryCostReport(warehouseId));
+    const period = url.searchParams.get("period") || undefined;
+    return Response.json(await controller.reports.getDeliveryCostReport(warehouseId, period));
   }
 
   // --- REPORTS DELIVERY COSTS CSV EXPORT ---
   if (path === "/reports/delivery-costs/csv" && method === "GET") {
     const warehouseId = url.searchParams.get("warehouseId") || undefined;
-    const report = await controller.reports.getDeliveryCostReport(warehouseId);
+    const period = url.searchParams.get("period") || undefined;
+    const report = await controller.reports.getDeliveryCostReport(warehouseId, period);
 
     const rows: string[] = [
       toCsvRow([

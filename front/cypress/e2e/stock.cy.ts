@@ -1,5 +1,6 @@
 describe("Stock Inventory E2E User Journey", () => {
   beforeEach(() => {
+    cy.setSession()
     cy.visit("/stock")
   })
 
@@ -23,8 +24,10 @@ describe("Stock Inventory E2E User Journey", () => {
   })
 
   it("should open manage stock dialog and show warehouse and product controls", () => {
-    cy.get("[data-testid='manage-stock-trigger']").first().click()
-    cy.contains("Edit Warehouse Stock").should("be.visible")
+    cy.contains("Stock").should("be.visible")
+    cy.get("table").should("be.visible")
+    cy.get("[data-testid='manage-stock-trigger']").first().should("be.visible").click()
+    cy.contains("Edit Warehouse Stock", { timeout: 10000 }).should("be.visible")
     cy.get("#stock-warehouse-select").should("be.visible")
     cy.get("#stock-product-select").should("be.visible")
     cy.get("#stock-quantity-input").should("be.visible")

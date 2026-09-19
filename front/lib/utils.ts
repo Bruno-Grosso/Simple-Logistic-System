@@ -34,3 +34,38 @@ export function formatDimensions(
 
   return typeof size === "string" ? size : "—"
 }
+
+/**
+ * Extracts a human-readable error message from any error value (Error, AxiosError,
+ * backend JSON { error: "..." }, string, etc.) avoiding raw [object Object] displays.
+ */
+export function getErrorMessage(
+  err: unknown,
+  fallback = "An unexpected error occurred. Please check the inputs and try again.",
+): string {
+  if (!err) return fallback
+  if (typeof err === "string" && err.trim()) return err.trim()
+
+  if (typeof err === "object") {
+    const anyErr = err as any
+
+    // Handle Axios response data
+    if (anyErr.response?.data) {
+      const data = anyErr.response.data
+      if (typeof data === "string" && data.trim()) return data.trim()
+      if (typeof data === "object") {
+        if (typeof data.error === "string" && data.error.trim()) return data.error.trim()
+        if (typeof data.message === "string" && data.message.trim()) return data.message.trim()
+        if (typeof data.detail === "string" && data.detail.trim()) return data.detail.trim()
+      }
+    }
+
+    // Handle direct error object properties
+    if (typeof anyErr.error === "string" && anyErr.error.trim()) return anyErr.error.trim()
+    if (typeof anyErr.message === "string" && anyErr.message.trim()) return anyErr.message.trim()
+    if (typeof anyErr.statusText === "string" && anyErr.statusText.trim()) return anyErr.statusText.trim()
+  }
+
+  return fallback
+}
+

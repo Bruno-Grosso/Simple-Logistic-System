@@ -194,6 +194,11 @@ describe("Business Logic, Data Integrity, Usability & Multi-Stop Routing", () =>
       const data = (await routeRes.json()) as any;
       expect(data.success).toBe(true);
       expect(data.route.truck_id).toBe("TRK-001");
+
+      // Clean up temporary order so parallel tests (e.g. unit.test.ts) don't collide
+      await pg_conn`DELETE FROM orders_route WHERE order_id = ${orderId}`;
+      await pg_conn`DELETE FROM orders_items WHERE order_id = ${orderId}`;
+      await pg_conn`DELETE FROM orders WHERE id = ${orderId}`;
     });
   });
 
@@ -258,7 +263,7 @@ describe("Business Logic, Data Integrity, Usability & Multi-Stop Routing", () =>
       expect(data.legs.length).toBeGreaterThanOrEqual(2);
       expect(data.collective_weight_kg).toBeGreaterThanOrEqual(0);
       expect(data.truck_capacity_ok).toBe(true);
-    });
+    }, 30000); // 30s — Nominatim geocoding calls per order
 
     test("GET /routes/multi-stop calculates combined route via query parameters", async () => {
       const res = await testFetch("/routes/multi-stop?orderIds=ORD-001,ORD-002&warehouseId=WH-001");
@@ -266,7 +271,7 @@ describe("Business Logic, Data Integrity, Usability & Multi-Stop Routing", () =>
       const data = (await res.json()) as any;
       expect(data.success).toBe(true);
       expect(data.total_orders).toBe(2);
-    });
+    }, 30000);
 
     test("POST /routes/multi-stop rejects when combined order weight exceeds truck limit", async () => {
       const smallTruckId = "TRK-BIZ-SMALL";
@@ -290,13 +295,208 @@ describe("Business Logic, Data Integrity, Usability & Multi-Stop Routing", () =>
       const data = (await res.json()) as any;
       expect(data.success).toBe(false);
       expect(data.error).toMatch(/capacity exceeded/i);
-    });
+    }, 30000);
 
     test("GET /trucks/:id/routes/multi-stop returns itinerary for truck assigned orders", async () => {
       const res = await testFetch("/trucks/TRK-001/routes/multi-stop");
       expect(res.status).toBe(200);
       const data = (await res.json()) as any;
       expect(data.success).toBe(true);
-    });
+    }, 30000);
+
+    test("GET /orders/multi-route/active returns active multi-routes across fleet with steps and circuits", async () => {
+      const res = await testFetch("/orders/multi-route/active");
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as any;
+      expect(data.success).toBe(true);
+      expect(data.total_active_multi_routes).toBeGreaterThan(0);
+      expect(Array.isArray(data.multi_routes)).toBe(true);
+      const first = data.multi_routes[0];
+      expect(first.truck_id).toBeDefined();
+      expect(first.order_ids.length).toBeGreaterThan(0);
+      expect(first.steps.length).toBeGreaterThan(0);
+      expect(first.steps[0].step).toBeDefined();
+    }, 60000); // 60s — processes all active trucks, each with Nominatim geocoding
+
+    test("GET /orders/:id/multi-route returns multi-route circuit and step for that order", async () => {
+      const res = await testFetch("/orders/ORD-014/multi-route");
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as any;
+      expect(data.success).toBe(true);
+      expect(data.order_id).toBe("ORD-014");
+      expect(data.step).toBeGreaterThanOrEqual(1);
+      expect(data.multi_route).toBeDefined();
+      expect(data.multi_route.total_distance_km).toBeGreaterThan(0);
+    }, 30000);
+
+    test("Enforces single active route: order cannot be assigned to multiple active routes simultaneously", async () => {
+      const orderId = `ORD-TEST-BIZ-ROUTE-${Date.now()}`;
+      await testFetch("/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: orderId,
+          client_id: "USR-004",
+          final_destination: "Av. Alberto Torres, Teresópolis - RJ",
+          time_limit: "2026-10-10",
+          price: 100.0,
+          status: "Pending",
+          items: [{ product_id: "PROD-001", quantity: 1 }],
+        }),
+      });
+
+      // Assign to Truck 1
+      const res1 = await testFetch(`/orders/${orderId}/route`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          step: 1,
+          warehouse_id: "WH-001",
+          truck_id: "TRK-001",
+        }),
+      });
+      expect(res1.status).toBe(201);
+
+      // Attempt to assign the same order concurrently to Truck 2
+      const res2 = await testFetch(`/orders/${orderId}/route`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          step: 1,
+          warehouse_id: "WH-001",
+          truck_id: "TRK-002",
+        }),
+      });
+      expect(res2.status).toBe(400);
+      const data2 = (await res2.json()) as any;
+      expect(data2.error).toMatch(/cannot be in more than one route|already in an active route/i);
+    }, 30000);
+
+    test("Shipped order cannot be recalculated or reassigned to a new route", async () => {
+      const orderId = `ORD-TEST-BIZ-SHIP-${Date.now()}`;
+      await testFetch("/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: orderId,
+          client_id: "USR-004",
+          final_destination: "Av. Alberto Torres, Teresópolis - RJ",
+          time_limit: "2026-10-10",
+          price: 100.0,
+          status: "Pending",
+          items: [{ product_id: "PROD-001", quantity: 1 }],
+        }),
+      });
+
+      await testFetch(`/orders/${orderId}/route`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          step: 1,
+          warehouse_id: "WH-001",
+          truck_id: "TRK-001",
+        }),
+      });
+
+      // Transition to Shipped
+      await testFetch(`/orders/${orderId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Shipped" }),
+      });
+
+      // Attempt to recalculate / change route for the shipped order
+      const res = await testFetch(`/orders/${orderId}/route/1`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ truck_id: "TRK-003" }),
+      });
+      expect(res.status).toBe(400);
+      const data = (await res.json()) as any;
+      expect(data.error).toMatch(/already been shipped and its route cannot be recalculated/i);
+    }, 30000);
+
+    test("Dispatches with warehouse stop if origin warehouse lacks stock but another warehouse has all products", async () => {
+      const orderId = `ORD-TEST-BIZ-WHSTOP-${Date.now()}`;
+      // PROD-001 is stocked in WH-001 (50 units). WH-005 does not have PROD-001.
+      await testFetch("/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: orderId,
+          client_id: "USR-004",
+          final_destination: "Av. Simão da Motta, Magé - RJ",
+          time_limit: "2026-10-10",
+          price: 200.0,
+          status: "Pending",
+          items: [{ product_id: "PROD-001", quantity: 2 }],
+        }),
+      });
+
+      // Assign route starting at WH-004 (which has 0 of PROD-001)
+      await testFetch(`/orders/${orderId}/route`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          step: 1,
+          warehouse_id: "WH-004",
+          truck_id: "TRK-001",
+        }),
+      });
+
+      // Dispatch order (transitions to Shipped)
+      const shipRes = await testFetch(`/orders/${orderId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Shipped" }),
+      });
+      expect(shipRes.status).toBe(200);
+
+      // Check routes: should now have a warehouse stop at WH-001 where stock exists
+      const routesRes = await testFetch(`/orders/${orderId}/route`);
+      const routes = (await routesRes.json()) as any[];
+      expect(routes.length).toBeGreaterThanOrEqual(2);
+      expect(routes[0].destination_warehouse_id).toBe("WH-001");
+      expect(routes[1].warehouse_id).toBe("WH-001");
+    }, 30000);
+
+    test("Rejects order dispatch when no single warehouse contains the required products", async () => {
+      const orderId = `ORD-TEST-BIZ-NOSTOCK-${Date.now()}`;
+      // Request 99999 units of a product which exceeds all warehouses combined
+      await testFetch("/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: orderId,
+          client_id: "USR-004",
+          final_destination: "Av. Simão da Motta, Magé - RJ",
+          time_limit: "2026-10-10",
+          price: 200.0,
+          status: "Pending",
+          items: [{ product_id: "PROD-001", quantity: 99999 }],
+        }),
+      });
+
+      await testFetch(`/orders/${orderId}/route`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          step: 1,
+          warehouse_id: "WH-001",
+          truck_id: "TRK-001",
+        }),
+      });
+
+      // Dispatch order should fail
+      const shipRes = await testFetch(`/orders/${orderId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Shipped" }),
+      });
+      expect(shipRes.status).toBe(400);
+      const data = (await shipRes.json()) as any;
+      expect(data.error).toMatch(/lacks products|no other warehouse has complete stock/i);
+    }, 30000);
   });
 });
+

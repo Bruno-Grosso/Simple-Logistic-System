@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Loader2, PackagePlus } from "lucide-react"
+import { Plus, Loader2, PackagePlus, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -18,11 +18,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { api } from "@/lib/api"
+import { getErrorMessage } from "@/lib/utils"
 
 export function AddProductDialog() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [dialogError, setDialogError] = useState<string | null>(null)
 
   const [name, setName] = useState("")
   const [price, setPrice] = useState("25.00")
@@ -46,11 +48,39 @@ export function AddProductDialog() {
     setIsCold("0")
     setIsFragile("0")
     setExpireDate("")
+    setDialogError(null)
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) return toast.error("Product name is required")
+    setDialogError(null)
+
+    if (!name.trim()) {
+      const msg = "Product name is required."
+      setDialogError(msg)
+      return toast.error(msg)
+    }
+
+    const priceNum = Number(price)
+    if (isNaN(priceNum) || priceNum < 0) {
+      const msg = "Product price must be 0 or greater."
+      setDialogError(msg)
+      return toast.error(msg)
+    }
+
+    const weightNum = Number(weight)
+    if (isNaN(weightNum) || weightNum <= 0) {
+      const msg = "Product weight must be greater than 0 kg."
+      setDialogError(msg)
+      return toast.error(msg)
+    }
+
+    const volumeNum = Number(volume)
+    if (isNaN(volumeNum) || volumeNum <= 0) {
+      const msg = "Product volume must be greater than 0 m³."
+      setDialogError(msg)
+      return toast.error(msg)
+    }
 
     setLoading(true)
     try {
@@ -65,9 +95,9 @@ export function AddProductDialog() {
 
       const res = await api.products.create({
         name: name.trim(),
-        price: Number(price) || 0,
-        volume: Number(volume) || 0.1,
-        weight: Number(weight) || 1.0,
+        price: priceNum,
+        volume: volumeNum,
+        weight: weightNum,
         is_cold: isCold === "1",
         is_fragile: isFragile === "1",
         expire_date: expireDate || null,
@@ -80,19 +110,24 @@ export function AddProductDialog() {
         resetForm()
         router.refresh()
       } else {
-        toast.error(res.error || "Failed to create product")
+        const msg = res.error || "Failed to create product in database."
+        setDialogError(msg)
+        toast.error(msg)
       }
     } catch (err: any) {
       console.error(err)
-      toast.error(err.message || "An error occurred while creating the product")
+      const msg = getErrorMessage(err, "An error occurred while creating the product.")
+      setDialogError(msg)
+      toast.error(msg)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (o) resetForm(); }}>
       <DialogTrigger
+        onClick={() => setOpen(true)}
         className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-xs hover:bg-primary/90 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         data-testid="add-product-button"
       >
@@ -100,7 +135,7 @@ export function AddProductDialog() {
         <span>Add product</span>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px]">
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={onSubmit} noValidate className="space-y-4">
           <DialogHeader>
             <div className="flex items-center gap-2">
               <PackagePlus className="size-5 text-primary" />
@@ -110,6 +145,17 @@ export function AddProductDialog() {
               Register a new SKU with handling criteria, physical dimensions, and price.
             </DialogDescription>
           </DialogHeader>
+
+          {dialogError && (
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive flex items-center gap-2"
+            >
+              <AlertTriangle className="size-4 shrink-0 text-destructive" aria-hidden="true" />
+              <span>{dialogError}</span>
+            </div>
+          )}
 
           <div className="grid gap-4 py-2">
             <div className="space-y-2">

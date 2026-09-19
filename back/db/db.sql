@@ -156,3 +156,57 @@ BEGIN
     );
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE TABLE monthly_performance (
+    id SERIAL PRIMARY KEY,
+    warehouse_id TEXT,
+    month TEXT NOT NULL,
+    full_month TEXT NOT NULL,
+    revenue REAL NOT NULL DEFAULT 0,
+    costs REAL NOT NULL DEFAULT 0,
+    profit REAL NOT NULL DEFAULT 0,
+    fuel_cost REAL NOT NULL DEFAULT 0,
+    labor_cost REAL NOT NULL DEFAULT 0,
+    maintenance_cost REAL NOT NULL DEFAULT 0,
+    orders_count INTEGER NOT NULL DEFAULT 0,
+    is_poi INTEGER NOT NULL DEFAULT 0,
+    poi TEXT
+);
+
+INSERT INTO monthly_performance (warehouse_id, month, full_month, revenue, costs, profit, fuel_cost, labor_cost, maintenance_cost, orders_count, is_poi, poi)
+SELECT 
+  w.wh, m.month, m.full_month,
+  round((m.rev * COALESCE(w.mult, 1.0))::numeric, 2)::real,
+  round((m.costs * COALESCE(w.mult, 1.0))::numeric, 2)::real,
+  round(((m.rev - m.costs) * COALESCE(w.mult, 1.0))::numeric, 2)::real,
+  round((m.fuel * COALESCE(w.mult, 1.0))::numeric, 2)::real,
+  round((m.labor * COALESCE(w.mult, 1.0))::numeric, 2)::real,
+  round((m.maint * COALESCE(w.mult, 1.0))::numeric, 2)::real,
+  GREATEST(1, round((m.orders * COALESCE(w.mult, 1.0))::numeric))::integer,
+  m.is_poi, m.poi
+FROM (
+  VALUES 
+    (NULL::text, 1.0::real),
+    ('WH-001'::text, 0.5::real),
+    ('WH-002'::text, 0.25::real),
+    ('WH-003'::text, 0.25::real),
+    ('WH-004'::text, 0.25::real),
+    ('WH-005'::text, 0.25::real),
+    ('WH-006'::text, 0.25::real)
+) AS w(wh, mult)
+CROSS JOIN (
+  VALUES 
+    ('Jan', 'January 2026', 34500, 14200, 5800, 6200, 2200, 42, 1, 'Fleet Modernization & Route Optimization Launched'),
+    ('Feb', 'February 2026', 29800, 12900, 5100, 5900, 1900, 38, 0, NULL),
+    ('Mar', 'March 2026', 43200, 18100, 7400, 8100, 2600, 56, 1, 'Q1 Peak Volume & Strategic Enterprise Client Onboarding'),
+    ('Apr', 'April 2026', 37800, 16500, 6700, 7300, 2500, 48, 0, NULL),
+    ('May', 'May 2026', 41500, 17200, 7000, 7600, 2600, 51, 0, NULL),
+    ('Jun', 'June 2026', 51000, 21800, 9100, 9500, 3200, 64, 1, 'Cold Storage Facility Expansion (Nova Friburgo Hub)'),
+    ('Jul', 'July 2026', 46200, 19400, 8000, 8600, 2800, 59, 0, NULL),
+    ('Aug', 'August 2026', 49500, 20500, 8500, 9000, 3000, 62, 0, NULL),
+    ('Sep', 'September 2026', 55800, 23200, 9800, 10100, 3300, 71, 1, 'Automated Freight Dispatch & Smart Route Planning Integration'),
+    ('Oct', 'October 2026', 52100, 21900, 9200, 9600, 3100, 66, 0, NULL),
+    ('Nov', 'November 2026', 58900, 24800, 10300, 10800, 3700, 78, 0, NULL),
+    ('Dec', 'December 2026', 68400, 27900, 11800, 12000, 4100, 89, 1, 'Record Holiday Delivery Peak & Highest Annual Operating Margin')
+) AS m(month, full_month, rev, costs, fuel, labor, maint, orders, is_poi, poi);
+

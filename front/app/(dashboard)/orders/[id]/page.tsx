@@ -99,6 +99,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
     products,
     warehouses,
     trucks,
+    orderMultiRouteData,
   ] = await Promise.all([
     // Staff need the driver record to identify the person assigned to this order;
     // clients still receive only their own profile data.
@@ -110,6 +111,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
     api.products.getAll(),
     api.warehouses.getAll(),
     api.trucks.getAll(),
+    api.routes.getOrderMultiRoute(order.id),
   ])
 
   const userMap = new Map<string, User>()
@@ -201,6 +203,42 @@ export default async function OrderDetailPage({ params }: PageProps) {
     timeLimit: order.time_limit,
   })
 
+  // Multi-route context if order is part of an active (non-delivered) multi-stop circuit
+  const isOrderActive = order.status !== "Delivered" && order.status !== "Cancelled" && (order.status as any) !== "Canceled"
+  const isPartOfMultiRoute = Boolean(isOrderActive && orderMultiRouteData?.success && orderMultiRouteData.multi_route)
+  const multiRouteCircuit = orderMultiRouteData?.multi_route
+  const multiRouteStep = orderMultiRouteData?.step || 1
+  const multiRouteTotalStops = orderMultiRouteData?.total_stops || 1
+
+  const multiRouteWaypoints = isPartOfMultiRoute && multiRouteCircuit?.waypoints
+    ? multiRouteCircuit.waypoints.map((w: any) => ({
+        label: w.label || `Stop ${w.index}`,
+        lat: w.lat,
+        lon: w.lon,
+        type: w.type,
+        orderId: w.orderId,
+      }))
+    : undefined
+
+  // Route map geometry: prioritize multi-routing circuit if active, otherwise order-specific route
+  const activeRouteGeometry = isPartOfMultiRoute && multiRouteCircuit?.encodedShape
+    ? {
+        encodedShape: multiRouteCircuit.encodedShape,
+        legs: multiRouteCircuit.legs,
+        summary: {
+          length: multiRouteCircuit.total_distance_km,
+          time: multiRouteCircuit.total_time_seconds,
+        },
+        waypoints: multiRouteWaypoints,
+        title: `Valhalla Multi-Routing Circuit Map (Stop #${multiRouteStep} of ${multiRouteTotalStops})`,
+      }
+    : {
+        encodedShape: valhallaRoute?.encodedShape,
+        summary: valhallaRoute?.summary,
+        waypoints: undefined,
+        title: `Valhalla Map Route: Order #${order.id}`,
+      }
+
   return (
     <PageShell>
       <PageHeader
@@ -223,6 +261,8 @@ export default async function OrderDetailPage({ params }: PageProps) {
             {isOrderManager && (
               <ManageOrderDialog
                 order={order}
+                items={items}
+                products={products}
                 routeSteps={routeSteps}
                 trucks={trucks}
                 drivers={users.filter((candidate) => candidate.rawRole === "truck_driver")}
@@ -356,14 +396,40 @@ export default async function OrderDetailPage({ params }: PageProps) {
               </CardContent>
             </Card>
 
-            {/* Valhalla Route Map for Specific Order */}
-            <RouteMap
-              encodedShape={valhallaRoute?.encodedShape}
-              summary={valhallaRoute?.summary}
-              originLabel={originWarehouse?.location || "Warehouse"}
-              destinationLabel={parseDestination(order.final_destination)}
-              title={`Valhalla Map Route: Order #${order.id}`}
-            />
+            {/* Valhalla Route Map (Multi-Routing Circuit if active, or single order route) */}
+            <div className="space-y-2">
+              {isPartOfMultiRoute && (
+                <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border border-primary/30 bg-primary/5 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="default" className="text-xs px-2 py-0.5">
+                      Multi-Route Active
+                    </Badge>
+                    <span className="font-semibold text-foreground">
+                      Stop #{multiRouteStep} of {multiRouteTotalStops}
+                    </span>
+                    <span className="text-muted-foreground">•</span>
+                    <span className="text-muted-foreground">
+                      Truck: {assignedTruck?.model || orderMultiRouteData?.truck_id}
+                    </span>
+                  </div>
+                  {orderMultiRouteData?.siblings && (
+                    <span className="text-muted-foreground">
+                      Shared Circuit: {orderMultiRouteData.siblings.length} orders total
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <RouteMap
+                encodedShape={activeRouteGeometry.encodedShape}
+                legs={activeRouteGeometry.legs}
+                summary={activeRouteGeometry.summary}
+                waypoints={activeRouteGeometry.waypoints}
+                originLabel={originWarehouse?.location || "Warehouse"}
+                destinationLabel={parseDestination(order.final_destination)}
+                title={activeRouteGeometry.title}
+              />
+            </div>
 
             <Card>
               <CardHeader>

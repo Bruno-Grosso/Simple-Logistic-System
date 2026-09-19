@@ -7,6 +7,11 @@ import {
   calculateFreightEstimate,
   calculateOrderETA,
   formatDurationHours,
+  haversineDistanceKm,
+  distancePointToSegmentKm,
+  minDistanceToRouteKm,
+  decodePolyline6,
+  selectOrdersNearRoute,
 } from "../../lib/calculations"
 import type { Order, Truck, Deposit } from "../../types"
 
@@ -251,6 +256,114 @@ describe("Unit Tests - Domain Calculations (lib/calculations.ts)", () => {
       const eta = calculateOrderETA(distanceKm, options)
       expect(eta.is_on_time).to.equal(false)
       expect(eta.compliance_status).to.equal("overdue")
+    })
+  })
+
+  describe("Route Corridor Proximity & Valhalla Quick Pick (Corridor Selection)", () => {
+    it("haversineDistanceKm should compute exact distance between two coordinates", () => {
+      // Same point
+      expect(haversineDistanceKm(-22.3842, -43.1311, -22.3842, -43.1311)).to.equal(0)
+
+      // Known distance between Petrópolis and Teresópolis (~17.3 km)
+      const d = haversineDistanceKm(-22.3842, -43.1311, -22.4123, -42.9656)
+      expect(d).to.be.greaterThan(16.5)
+      expect(d).to.be.lessThan(18.5)
+    })
+
+    it("distancePointToSegmentKm should calculate perpendicular distance to route segment", () => {
+      const segA: [number, number] = [0, 0]
+      const segB: [number, number] = [0, 2]
+
+      // Point directly on segment [0, 1]
+      expect(distancePointToSegmentKm([0, 1], segA, segB)).to.equal(0)
+
+      // Point offset 1 degree latitude (~111 km)
+      const dPerp = distancePointToSegmentKm([1, 1], segA, segB)
+      expect(dPerp).to.be.greaterThan(110)
+      expect(dPerp).to.be.lessThan(112)
+
+      // Clamping before segment start
+      const dBefore = distancePointToSegmentKm([0, -1], segA, segB)
+      expect(dBefore).to.equal(haversineDistanceKm(0, -1, 0, 0))
+
+      // Clamping after segment end
+      const dAfter = distancePointToSegmentKm([0, 3], segA, segB)
+      expect(dAfter).to.equal(haversineDistanceKm(0, 3, 0, 2))
+    })
+
+    it("minDistanceToRouteKm should calculate distance to ANY point/segment along polyline", () => {
+      const routePoints: [number, number][] = [
+        [0, 0],
+        [0, 1],
+        [0, 2],
+      ]
+
+      // Target lying directly on the path
+      expect(minDistanceToRouteKm([0, 0.5], routePoints)).to.equal(0)
+      expect(minDistanceToRouteKm([0, 1.8], routePoints)).to.equal(0)
+
+      // Closer vs farther points from corridor
+      const closeDist = minDistanceToRouteKm([0.02, 1.0], routePoints)
+      const farDist = minDistanceToRouteKm([0.5, 1.0], routePoints)
+      expect(closeDist).to.be.lessThan(farDist)
+
+      // Empty route fallback
+      expect(minDistanceToRouteKm([0, 0], [])).to.equal(99999)
+    })
+
+    it("decodePolyline6 should decode Valhalla precision-6 polyline to coordinate array", () => {
+      const encoded = "xagui@nnogqA??"
+      const pts = decodePolyline6(encoded)
+      expect(pts).to.be.an("array")
+      expect(pts.length).to.be.greaterThan(0)
+      pts.forEach(([lat, lon]) => {
+        expect(lat).to.be.a("number")
+        expect(lon).to.be.a("number")
+      })
+    })
+
+    it("selectOrdersNearRoute should rank candidate orders by proximity to route corridor and respect vehicle capacity", () => {
+      const orders: Partial<Order>[] = [
+        // Target lying directly on route (Petrópolis depot)
+        { id: "ORD-NEAR", final_destination: "Petrópolis", status: "Pending" },
+        // Target in Teresópolis (~17 km from Petrópolis)
+        { id: "ORD-MID", final_destination: "Teresópolis", status: "Pending" },
+        // Target in Nova Friburgo (~63 km away)
+        { id: "ORD-FAR", final_destination: "Nova Friburgo", status: "Pending" },
+        // Delivered order (should be ignored)
+        { id: "ORD-DELIVERED", final_destination: "Petrópolis", status: "Delivered" },
+        // Cancelled order (should be ignored)
+        { id: "ORD-CANCELLED", final_destination: "Petrópolis", status: "Cancelled" },
+      ]
+
+      // Baseline route from Petrópolis to Teresópolis
+      const routePoints: [number, number][] = [
+        [-22.3842, -43.1311], // Petrópolis
+        [-22.4123, -42.9656], // Teresópolis
+      ]
+
+      const picked = selectOrdersNearRoute({
+        orders: orders as Order[],
+        routePoints,
+        maxOrders: 2,
+        maxWeightKg: 1000,
+      })
+
+      // Should pick top 2 closest active orders
+      expect(picked.length).to.equal(2)
+      expect(picked[0].order.id).to.equal("ORD-NEAR")
+      expect(picked[1].order.id).to.equal("ORD-MID")
+      expect(picked[0].distanceToRouteKm).to.be.at.most(picked[1].distanceToRouteKm)
+
+      // Exclude order IDs check
+      const pickedWithExclude = selectOrdersNearRoute({
+        orders: orders as Order[],
+        routePoints,
+        maxOrders: 2,
+        maxWeightKg: 1000,
+        excludeOrderIds: ["ORD-NEAR"],
+      })
+      expect(pickedWithExclude[0].order.id).to.equal("ORD-MID")
     })
   })
 })

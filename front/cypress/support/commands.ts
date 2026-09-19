@@ -33,6 +33,7 @@ function makeSessionToken(payloadOrEmail: string | Record<string, any>): string 
 }
 
 Cypress.Commands.add("setSession", (custom: Record<string, any> = {}) => {
+  cy.clearCookies()
   const token = makeSessionToken({
     sub: "USR-001",
     email: "alice@logisys.com",
@@ -48,10 +49,12 @@ Cypress.Commands.add("loginAsAdmin", () => {
 })
 
 Cypress.Commands.add("login", (email = "alice@logisys.com", password = "admin123") => {
+  cy.clearCookies()
   cy.visit("/login")
   cy.get('input[name="email"]').clear().type(email)
   cy.get('input[name="password"]').clear().type(password)
   cy.get('button[type="submit"]').click()
+  cy.url().should("not.include", "/login")
 })
 
 export {}

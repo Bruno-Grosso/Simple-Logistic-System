@@ -22,6 +22,7 @@ export interface Deposit {
   trucks_parked?: number;
   parking_available?: number;
 }
+export type Warehouse = Deposit;
 
 // ─── 2. truck ─────────────────────────────────────────────────────────────────
 
@@ -328,6 +329,7 @@ export interface MonthlyPerformanceData {
   ordersCount: number;
   poi?: string;
   isPoi?: boolean;
+  warehouse_id?: string;
 }
 
 // ─── Delivery Cost Analytics Report ────────────────────────────────────────────
@@ -364,10 +366,30 @@ export interface DeliveryCostSummary {
   avg_delivery_cost_per_order: number;
   avg_cost_per_km: number;
   total_distance_km: number;
+  monthly_target_orders?: number;
+  completed_orders?: number;
+  orders_needed_this_month?: number;
+  required_daily_run_rate?: number;
+  projected_month_end_completions?: number;
 }
 
 export interface DeliveryCostReport {
   warehouse_id?: string | null;
+  period?: string | null;
+  period_label?: string | null;
+  available_periods?: Array<{ value: string; label: string }>;
   summary: DeliveryCostSummary;
   orders: OrderDeliveryCostItem[];
+  top_products?: Array<{
+    id: string;
+    name: string;
+    quantity: number;
+    total_revenue: number;
+  }>;
+  top_clients?: Array<{
+    id: string;
+    name: string;
+    total_spent: number;
+    order_count: number;
+  }>;
 }

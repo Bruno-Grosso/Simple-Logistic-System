@@ -1,41 +1,106 @@
 import { orders, warehouses, orders_route, trucks } from "./controller";
+import { pg_conn } from "./model";
+import { converterEndereco } from "./geocoding";
 
-// Helper function from the other developer to safely parse location coordinates from various formats
-function parseLocationCoords(raw: any, defaultLat: number, defaultLon: number): { lat: number; lon: number } {
-  if (!raw) return { lat: defaultLat, lon: defaultLon }
+// In-memory geocoding cache to avoid Nominatim rate-limiting (1 req/sec)
+const geocodeCache = new Map<string, { lat: number; lon: number }>();
 
+// City-level fallback coordinates — used when Nominatim is unavailable but the
+// address string contains a recognisable city name. Much better than collapsing
+// every order to the same single default point.
+const CITY_FALLBACKS: { patterns: string[]; lat: number; lon: number }[] = [
+  { patterns: ["Petrópolis", "Petrópolis", "Itaipava", "Araras", "Cascatinha"], lat: -22.3842, lon: -43.1311 },
+  { patterns: ["Teresópolis", "Teresopolis", "Várzea", "Agriões", "Vale do Paraíso"], lat: -22.4123, lon: -42.9656 },
+  { patterns: ["Nova Friburgo", "Friburgo", "Olaria", "Conselheiro Paulino"], lat: -22.2819, lon: -42.5311 },
+  { patterns: ["Três Rios", "Tres Rios"], lat: -22.1167, lon: -43.2045 },
+  { patterns: ["Bom Jardim"], lat: -22.2061, lon: -42.3798 },
+  { patterns: ["Cantagalo"], lat: -21.8674, lon: -42.3062 },
+  { patterns: ["Cordeiro"], lat: -22.0282, lon: -42.3614 },
+  { patterns: ["Areal"], lat: -22.2303, lon: -43.1028 },
+  { patterns: ["Magé"], lat: -22.6610, lon: -43.0355 },
+  { patterns: ["Guapimirim"], lat: -22.5397, lon: -42.9821 },
+  { patterns: ["Valparaíso", "Valparaiso"], lat: -22.5207, lon: -43.1885 },
+];
+
+function cityFallback(str: string): { lat: number; lon: number } | null {
+  for (const fb of CITY_FALLBACKS) {
+    if (fb.patterns.some((p) => str.includes(p))) {
+      return { lat: fb.lat, lon: fb.lon };
+    }
+  }
+  return null;
+}
+
+/**
+ * Parses location coordinates from various formats:
+ *  - Object with latitude/longitude keys (warehouse JSON)
+ *  - JSON string with latitude/longitude keys
+ *  - Plain text address → Nominatim forward geocoding (cached, 3s timeout)
+ *  - City-level fallback when Nominatim unavailable
+ *  - Falls back to defaultLat/defaultLon if nothing else works
+ */
+async function parseLocationCoords(
+  raw: any,
+  defaultLat: number,
+  defaultLon: number
+): Promise<{ lat: number; lon: number }> {
+  if (!raw) return { lat: defaultLat, lon: defaultLon };
+
+  // Object with lat/lon keys (e.g. warehouse.location already parsed)
   if (typeof raw === "object" && raw !== null) {
-    const lat = Number(raw.latitude ?? raw.lat)
-    const lon = Number(raw.longitude ?? raw.lon)
-    if (!isNaN(lat) && !isNaN(lon) && lat !== 0) return { lat, lon }
+    const lat = Number(raw.latitude ?? raw.lat);
+    const lon = Number(raw.longitude ?? raw.lon);
+    if (!isNaN(lat) && !isNaN(lon) && lat !== 0) return { lat, lon };
   }
 
-  const str = String(raw)
+  const str = String(raw);
 
+  // JSON string with lat/lon keys
   if (str.trim().startsWith("{")) {
     try {
-      const parsed = JSON.parse(str)
-      const lat = Number(parsed.latitude ?? parsed.lat)
-      const lon = Number(parsed.longitude ?? parsed.lon)
-      if (!isNaN(lat) && !isNaN(lon) && lat !== 0) return { lat, lon }
+      const parsed = JSON.parse(str);
+      const lat = Number(parsed.latitude ?? parsed.lat);
+      const lon = Number(parsed.longitude ?? parsed.lon);
+      if (!isNaN(lat) && !isNaN(lon) && lat !== 0) return { lat, lon };
     } catch {}
   }
 
-  const latMatch = str.match(/Lat:\s*(-?\d+\.\d+)/i) || str.match(/(-?\d+\.\d+)\s*,/)
-  const lonMatch = str.match(/Lon:\s*(-?\d+\.\d+)/i) || str.match(/,\s*(-?\d+\.\d+)/)
-
+  // Embedded "Lat: -22.xxx, Lon: -43.xxx" pattern
+  const latMatch = str.match(/Lat:\s*(-?\d+\.\d+)/i) || str.match(/(-?\d+\.\d+)\s*,/);
+  const lonMatch = str.match(/Lon:\s*(-?\d+\.\d+)/i) || str.match(/,\s*(-?\d+\.\d+)/);
   if (latMatch && lonMatch) {
-    const lat = Number(latMatch[1])
-    const lon = Number(lonMatch[1])
-    if (!isNaN(lat) && !isNaN(lon)) return { lat, lon }
+    const lat = Number(latMatch[1]);
+    const lon = Number(lonMatch[1]);
+    if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
   }
 
-  if (str.includes("Petrópolis") || str.includes("Itaipava")) return { lat: -22.3842, lon: -43.1311 }
-  if (str.includes("Teresópolis") || str.includes("Várzea") || str.includes("Alto")) return { lat: -22.4123, lon: -42.9656 }
-  if (str.includes("Friburgo") || str.includes("Olaria")) return { lat: -22.2819, lon: -42.5311 }
-  if (str.includes("Bom Jardim")) return { lat: -22.1500, lon: -42.4167 }
+  // Plain text address → Nominatim geocoding (with cache)
+  const cacheKey = str.trim().toLowerCase();
+  if (geocodeCache.has(cacheKey)) {
+    return geocodeCache.get(cacheKey)!;
+  }
 
-  return { lat: defaultLat, lon: defaultLon }
+  try {
+    const result = await converterEndereco(str);
+    if (typeof result === "object" && result.latitude && result.longitude) {
+      const lat = Number(result.latitude);
+      const lon = Number(result.longitude);
+      if (!isNaN(lat) && !isNaN(lon) && lat !== 0) {
+        const coords = { lat, lon };
+        geocodeCache.set(cacheKey, coords);
+        return coords;
+      }
+    }
+  } catch {
+    // Nominatim unavailable — fall through to city-level fallback
+  }
+
+  // City-level fallback — at least puts each order in the right municipality
+  const cityCoords = cityFallback(str);
+  const resolvedCoords = cityCoords || { lat: defaultLat, lon: defaultLon };
+  geocodeCache.set(cacheKey, resolvedCoords);
+
+  return resolvedCoords;
 }
 
 export async function handleRoutes(req: Request) {
@@ -80,8 +145,8 @@ export async function handleRoutes(req: Request) {
       // ---------------------------------------------
 
       // Using parseLocationCoords from the other codebase for safe coordinate extraction
-      const wCoords = parseLocationCoords(warehouse.location, -22.3842, -43.1311);
-      const oCoords = parseLocationCoords(order.final_destination, -22.4123, -42.9656);
+      const wCoords = await parseLocationCoords(warehouse.location, -22.3842, -43.1311);
+      const oCoords = await parseLocationCoords(order.final_destination, -22.4123, -42.9656);
 
       // Adding the 50m radius restriction to the locations array
       const valhallaLocations = [
@@ -92,9 +157,9 @@ export async function handleRoutes(req: Request) {
       // Combined URLs list: includes local docker server and environment fallback options
       const valhallaUrls = [
         process.env.VALHALLA_URL,
-        "http://valhalla_server:8002/route", 
         "http://localhost:8002/route",
         "http://127.0.0.1:8002/route",
+        "http://valhalla_server:8002/route", 
         "http://host.docker.internal:8002/route",
       ].filter(Boolean) as string[];
 
@@ -208,6 +273,51 @@ export async function handleRoutes(req: Request) {
     }
   }
 
+  // --- QUICK PICK: CORRIDOR PROXIMITY ROUTE SELECTION ---
+  if (url.pathname === "/routes/quick-pick" && (req.method === "POST" || req.method === "GET")) {
+    try {
+      let warehouseId: string | undefined;
+      let truckId: string | undefined;
+      let maxOrders: number | undefined;
+      let roundTrip: boolean = true;
+      let anchorOrderId: string | undefined;
+
+      if (req.method === "POST") {
+        const body = (await req.json().catch(() => ({}))) as any;
+        warehouseId = body.warehouseId;
+        truckId = body.truckId;
+        maxOrders = body.maxOrders ? Number(body.maxOrders) : undefined;
+        if (body.roundTrip !== undefined) roundTrip = Boolean(body.roundTrip);
+        anchorOrderId = body.anchorOrderId;
+      } else {
+        warehouseId = url.searchParams.get("warehouseId") || undefined;
+        truckId = url.searchParams.get("truckId") || undefined;
+        const maxStr = url.searchParams.get("maxOrders");
+        maxOrders = maxStr ? Number(maxStr) : undefined;
+        if (url.searchParams.has("roundTrip")) {
+          roundTrip = url.searchParams.get("roundTrip") === "true";
+        }
+        anchorOrderId = url.searchParams.get("anchorOrderId") || undefined;
+      }
+
+      const quickPickResult = await calculateQuickPickOrders({
+        warehouseId,
+        truckId,
+        maxOrders,
+        roundTrip,
+        anchorOrderId,
+      });
+
+      return Response.json(quickPickResult);
+    } catch (error: any) {
+      console.error("Quick Pick Logistics Route Error:", error);
+      return Response.json(
+        { success: false, error: error.message || "Failed to calculate quick pick route" },
+        { status: 400 }
+      );
+    }
+  }
+
   return null;
 }
 
@@ -222,7 +332,13 @@ export async function calculateMultiStopRoute(options: {
     throw new Error("At least one orderId is required for multi-stop routing");
   }
 
-  // 1. Resolve origin warehouse
+  // 1. Enforce: an order cannot be added to a route more than once
+  const uniqueOrderIds = Array.from(new Set(orderIds));
+  if (uniqueOrderIds.length !== orderIds.length) {
+    throw new Error("Duplicate orders detected: an order cannot be in more than one route or stop at the same time");
+  }
+
+  // 2. Resolve origin warehouse
   let whId = options.warehouseId;
   if (!whId) {
     const firstRoute = await orders_route.byOrder(orderIds[0]);
@@ -230,13 +346,13 @@ export async function calculateMultiStopRoute(options: {
   }
   const whRes = await warehouses.byId(whId);
   const warehouse = whRes && whRes.length > 0 ? whRes[0] : null;
-  const originCoords = parseLocationCoords(warehouse?.location, -22.3842, -43.1311);
+  const originCoords = await parseLocationCoords(warehouse?.location, -22.3842, -43.1311);
   const originLabel =
     (warehouse?.location && typeof warehouse.location === "object"
       ? (warehouse.location as any).label
       : null) || `Warehouse ${whId}`;
 
-  // 2. Fetch all orders & destinations
+  // 3. Fetch all orders & destinations
   const ordersDetails = [];
   let collectiveWeight = 0;
   let collectiveVolume = 0;
@@ -245,7 +361,10 @@ export async function calculateMultiStopRoute(options: {
   for (const orderId of orderIds) {
     const oRes = await orders.byId(orderId);
     if (!oRes || oRes.length === 0) {
-      throw new Error(`Order ${orderId} not found`);
+      if (orderIds.length === 1) {
+        throw new Error(`Order ${orderId} not found`);
+      }
+      continue;
     }
     const order = oRes[0];
     const load = await orders.getOrderLoad(orderId);
@@ -253,7 +372,7 @@ export async function calculateMultiStopRoute(options: {
     collectiveVolume += load.totalVolume;
     totalItemsCount += load.itemCount;
 
-    const coords = parseLocationCoords(order.final_destination, -22.4123, -42.9656);
+    const coords = await parseLocationCoords(order.final_destination, -22.4123, -42.9656);
     let destLabel = order.final_destination;
     try {
       const parsed = JSON.parse(order.final_destination);
@@ -276,7 +395,68 @@ export async function calculateMultiStopRoute(options: {
   collectiveWeight = Math.round(collectiveWeight * 100) / 100;
   collectiveVolume = Math.round(collectiveVolume * 1000) / 1000;
 
-  // 3. Truck verification and capacity enforcement across all combined orders
+  // 4. Warehouse stock verification: If origin warehouse lacks stock, consider a stop in another warehouse with all products
+  const intermediateWarehouseStops: { id: string; label: string; coords: { lat: number; lon: number } }[] = [];
+  const addedWhIds = new Set<string>();
+
+  for (const o of ordersDetails) {
+    const items = await pg_conn`
+      SELECT product_id, quantity FROM orders_items WHERE order_id = ${o.order_id}
+    `;
+    if (!items || items.length === 0) continue;
+
+    let originHasStock = true;
+    for (const it of items) {
+      const stock = await pg_conn`
+        SELECT quantity FROM warehouses_stock 
+        WHERE warehouse_id = ${whId} AND product_id = ${it.product_id}
+      `;
+      if (Number(stock[0]?.quantity || 0) < Number(it.quantity)) {
+        originHasStock = false;
+        break;
+      }
+    }
+
+    if (!originHasStock) {
+      // Find another warehouse with all products of this order
+      const otherWhs = await pg_conn`
+        SELECT id, location FROM warehouses WHERE id != ${whId} ORDER BY id ASC
+      `;
+      let pickupWh: any = null;
+      for (const owh of otherWhs) {
+        let hasAll = true;
+        for (const it of items) {
+          const s = await pg_conn`
+            SELECT quantity FROM warehouses_stock 
+            WHERE warehouse_id = ${owh.id} AND product_id = ${it.product_id}
+          `;
+          if (Number(s[0]?.quantity || 0) < Number(it.quantity)) {
+            hasAll = false;
+            break;
+          }
+        }
+        if (hasAll) {
+          pickupWh = owh;
+          break;
+        }
+      }
+
+      if (pickupWh && !addedWhIds.has(pickupWh.id)) {
+        addedWhIds.add(pickupWh.id);
+        const pCoords = await parseLocationCoords(pickupWh.location, -22.3842, -43.1311);
+        const pLabel = (pickupWh.location && typeof pickupWh.location === "object"
+          ? (pickupWh.location as any).label
+          : null) || `Pickup Depot (${pickupWh.id})`;
+        intermediateWarehouseStops.push({
+          id: pickupWh.id,
+          label: pLabel,
+          coords: pCoords,
+        });
+      }
+    }
+  }
+
+  // 5. Truck verification and capacity enforcement across all combined orders
   let truckData: any = null;
   if (truckId) {
     const tRes = await trucks.byId(truckId);
@@ -299,9 +479,17 @@ export async function calculateMultiStopRoute(options: {
     }
   }
 
-  // 4. Build waypoint locations for Valhalla
+  // 6. Build waypoint locations for Valhalla
   const waypoints = [
     { lat: originCoords.lat, lon: originCoords.lon, radius: 50, name: originLabel, type: "break" as const },
+    ...intermediateWarehouseStops.map((wh) => ({
+      lat: wh.coords.lat,
+      lon: wh.coords.lon,
+      radius: 50,
+      name: `Warehouse Pickup: ${wh.label}`,
+      type: "break" as const,
+      warehouseId: wh.id,
+    })),
     ...ordersDetails.map((o, idx) => ({
       lat: o.coords.lat,
       lon: o.coords.lon,
@@ -328,6 +516,7 @@ export async function calculateMultiStopRoute(options: {
     "http://localhost:8002/route",
     "http://127.0.0.1:8002/route",
     "http://valhalla_server:8002/route",
+    "http://host.docker.internal:8002/route",
   ].filter(Boolean) as string[];
 
   let valhallaRes: Response | null = null;
@@ -336,7 +525,7 @@ export async function calculateMultiStopRoute(options: {
       const res = await fetch(valhallaUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(300),
+        signal: AbortSignal.timeout(4000),
         body: JSON.stringify({
           locations: waypoints.map((w) => ({ lat: w.lat, lon: w.lon, radius: 50 })),
           costing: "truck",
@@ -369,12 +558,14 @@ export async function calculateMultiStopRoute(options: {
     const data = await valhallaRes.json();
     totalDistanceKm = Math.round(parseFloat(data.trip.summary.length) * 10) / 10;
     totalTimeSeconds = Math.round(Number(data.trip.summary.time));
-    encodedShape = data.trip.legs[0]?.shape || "";
+    // Collect all leg shapes so the full multi-stop route polyline is available
+    const allShapes: string[] = [];
 
     for (let i = 0; i < data.trip.legs.length; i++) {
       const leg = data.trip.legs[i];
       const fromWp = waypoints[i];
       const toWp = waypoints[i + 1];
+      if (leg.shape) allShapes.push(leg.shape);
       legs.push({
         leg_index: i + 1,
         from_label: fromWp?.name,
@@ -385,6 +576,10 @@ export async function calculateMultiStopRoute(options: {
         shape: leg.shape,
       });
     }
+
+    // encodedShape = first leg only was a bug; now store all shapes joined
+    // Frontend route-map.tsx already iterates legs[].shape — encodedShape is the fallback
+    encodedShape = allShapes.join("|");
   } else {
     // Geodesic fallback calculation between waypoints
     const { calculateDistanceInDb } = await import("./controller");
@@ -458,5 +653,284 @@ export async function calculateMultiStopRoute(options: {
       lon: w.lon,
       type: idx === 0 ? "origin" : idx === waypoints.length - 1 && roundTrip ? "return" : "stop",
     })),
+  };
+}
+
+/**
+ * Haversine formula to compute distance between two coordinates in kilometers.
+ */
+export function haversineDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371.0088;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 100) / 100;
+}
+
+/**
+ * Calculates shortest distance from coordinate point to a route segment [a, b] in km.
+ */
+export function distancePointToSegmentKm(
+  p: [number, number],
+  a: [number, number],
+  b: [number, number]
+): number {
+  const [pLat, pLon] = p;
+  const [aLat, aLon] = a;
+  const [bLat, bLon] = b;
+
+  const dx = bLon - aLon;
+  const dy = bLat - aLat;
+
+  if (dx === 0 && dy === 0) {
+    return haversineDistanceKm(pLat, pLon, aLat, aLon);
+  }
+
+  const t = Math.max(0, Math.min(1, ((pLon - aLon) * dx + (pLat - aLat) * dy) / (dx * dx + dy * dy)));
+  const projLat = aLat + t * dy;
+  const projLon = aLon + t * dx;
+
+  return haversineDistanceKm(pLat, pLon, projLat, projLon);
+}
+
+/**
+ * Finds the minimum distance from target to any point or segment along a route polyline.
+ */
+export function minDistanceToRouteKm(
+  target: [number, number] | { lat: number; lon: number },
+  routePoints: Array<[number, number] | { lat: number; lon: number }>
+): number {
+  if (!routePoints || routePoints.length === 0) return 99999;
+  const pCoord: [number, number] = Array.isArray(target) ? target : [target.lat, target.lon];
+
+  const pts: [number, number][] = routePoints.map((pt) =>
+    Array.isArray(pt) ? pt : [pt.lat, pt.lon]
+  );
+
+  if (pts.length === 1) {
+    return haversineDistanceKm(pCoord[0], pCoord[1], pts[0][0], pts[0][1]);
+  }
+
+  let minDistance = Infinity;
+  const step = pts.length > 300 ? Math.ceil(pts.length / 150) : 1;
+
+  for (let i = 0; i < pts.length - 1; i += step) {
+    const nextIdx = Math.min(i + step, pts.length - 1);
+    const d = distancePointToSegmentKm(pCoord, pts[i], pts[nextIdx]);
+    if (d < minDistance) {
+      minDistance = d;
+    }
+  }
+
+  return Math.round(minDistance * 100) / 100;
+}
+
+export function decodePolyline6(str: string): [number, number][] {
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+  const coordinates: [number, number][] = [];
+  const factor = 1e6;
+
+  while (index < str.length) {
+    let byte: number;
+    let shift = 0;
+    let result = 0;
+
+    do {
+      byte = str.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+
+    const deltaLat = result & 1 ? ~(result >> 1) : result >> 1;
+    lat += deltaLat;
+
+    shift = 0;
+    result = 0;
+
+    do {
+      byte = str.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+
+    const deltaLng = result & 1 ? ~(result >> 1) : result >> 1;
+    lng += deltaLng;
+
+    coordinates.push([lat / factor, lng / factor]);
+  }
+  return coordinates;
+}
+
+/**
+ * Partitions active candidate orders into multiple multi-routes (Multi-Route A, B, C...)
+ * clustering by route corridor proximity across available fleet vehicles.
+ */
+export async function calculateFleetMultiRoutes(options: {
+  warehouseId?: string;
+  maxOrdersPerRoute?: number;
+  maxRoutes?: number;
+  roundTrip?: boolean;
+}) {
+  const whId = options.warehouseId || "WH-001";
+  const maxOrdersPerRoute = options.maxOrdersPerRoute || 4;
+  const roundTrip = options.roundTrip !== undefined ? options.roundTrip : true;
+  const maxRoutes = options.maxRoutes || 4;
+
+  const allOrders = await orders.all();
+  let candidatePool = (allOrders || []).filter(
+    (o: any) => o.status !== "Delivered" && o.status !== "Canceled" && o.status !== "Cancelled"
+  );
+
+  if (candidatePool.length === 0) {
+    throw new Error("No active pending or shipped orders available for quick pick");
+  }
+
+  const allTrucks = await trucks.all();
+  const availableTrucks = (allTrucks || []).filter((t: any) => !t.is_traveling);
+  const fleetPool = availableTrucks.length > 0 ? availableTrucks : (allTrucks && allTrucks.length > 0 ? allTrucks : [{ id: "TRK-001", model: "Default Truck", weight_max: 25000 }]);
+
+  const routeLetters = ["A", "B", "C", "D", "E", "F", "G", "H"];
+  const generatedRoutes = [];
+
+  const whRes = await warehouses.byId(whId);
+  const wh = whRes?.[0];
+  const originCoords = await parseLocationCoords(wh?.location, -22.3842, -43.1311);
+
+  let routeIndex = 0;
+  while (candidatePool.length > 0 && routeIndex < maxRoutes) {
+    const routeLetter = routeLetters[routeIndex] || `R${routeIndex + 1}`;
+    const assignedTruck = fleetPool[routeIndex % fleetPool.length];
+    const maxWeightKg = assignedTruck?.weight_max ? Number(assignedTruck.weight_max) : 25000;
+
+    // Pick anchor order for this corridor: prefer Pending orders
+    const pendingOrders = candidatePool.filter((o: any) => o.status === "Pending");
+    const anchorOrder = pendingOrders[0] || candidatePool[0];
+
+    // Compute anchor baseline route with Valhalla
+    let corridorPoints: [number, number][] = [];
+    try {
+      const anchorMulti = await calculateMultiStopRoute({
+        warehouseId: whId,
+        orderIds: [anchorOrder.id],
+        truckId: assignedTruck?.id,
+        roundTrip: false,
+      });
+      if (anchorMulti.legs?.[0]?.shape) {
+        corridorPoints = decodePolyline6(anchorMulti.legs[0].shape);
+      } else if (anchorMulti.encodedShape) {
+        corridorPoints = decodePolyline6(anchorMulti.encodedShape);
+      }
+    } catch (e) {
+      console.warn(`Anchor Valhalla route failed for route ${routeLetter}:`, e);
+    }
+
+    if (corridorPoints.length === 0) {
+      const anchorCoords = await parseLocationCoords(anchorOrder.final_destination, -22.4123, -42.9656);
+      corridorPoints = [
+        [originCoords.lat, originCoords.lon],
+        [anchorCoords.lat, anchorCoords.lon],
+      ];
+    }
+
+    // Rank remaining candidate orders by shortest detour distance to this route corridor
+    const otherCandidates = candidatePool.filter((o: any) => o.id !== anchorOrder.id);
+    const scored = await Promise.all(otherCandidates.map(async (o: any) => {
+      const coords = await parseLocationCoords(o.final_destination, -22.4123, -42.9656);
+      const distToRoute = minDistanceToRouteKm([coords.lat, coords.lon], corridorPoints);
+      return { order: o, distance_to_route_km: distToRoute };
+    }));
+
+    scored.sort((a: any, b: any) => a.distance_to_route_km - b.distance_to_route_km);
+
+    // Pick closest corridor orders within truck capacity
+    const selectedOrderIds = [anchorOrder.id];
+    let accumulatedWeight = 35.0;
+    for (const item of scored) {
+      if (selectedOrderIds.length >= maxOrdersPerRoute) break;
+      const estWeight = 35.0;
+      if (accumulatedWeight + estWeight <= maxWeightKg) {
+        selectedOrderIds.push(item.order.id);
+        accumulatedWeight += estWeight;
+      }
+    }
+
+    // Solve the final consolidated multi-stop route
+    const solvedCircuit = await calculateMultiStopRoute({
+      warehouseId: whId,
+      orderIds: selectedOrderIds,
+      truckId: assignedTruck?.id,
+      roundTrip,
+    });
+
+    generatedRoutes.push({
+      id: routeLetter,
+      name: `Multi-Route ${routeLetter}`,
+      truck_id: assignedTruck?.id,
+      truck: assignedTruck,
+      order_ids: selectedOrderIds,
+      anchor_order_id: anchorOrder.id,
+      circuit: solvedCircuit,
+      corridor_scored_candidates: scored.map((s: any) => ({
+        order_id: s.order.id,
+        distance_to_route_km: s.distance_to_route_km,
+      })),
+    });
+
+    // Remove selected orders from candidatePool so the next route targets remaining unrouted orders
+    candidatePool = candidatePool.filter((o: any) => !selectedOrderIds.includes(o.id));
+    routeIndex++;
+  }
+
+  return {
+    success: true,
+    routes: generatedRoutes,
+    total_routes: generatedRoutes.length,
+    remaining_orders_count: candidatePool.length,
+  };
+}
+
+/**
+ * Intelligent Quick Pick:
+ * 1. Selects an anchor pending order from the warehouse.
+ * 2. Gets the Valhalla baseline route to the anchor order.
+ * 3. Measures the distance from all candidate orders to ANY point along that Valhalla route.
+ * 4. Selects the closest corridor orders fitting within vehicle capacity.
+ * 5. Computes the complete multi-stop Valhalla circuit, and partitions remaining orders into multi-routes (A, B, C...).
+ */
+export async function calculateQuickPickOrders(options: {
+  warehouseId?: string;
+  truckId?: string;
+  maxOrders?: number;
+  roundTrip?: boolean;
+  anchorOrderId?: string;
+}) {
+  const fleetResult = await calculateFleetMultiRoutes({
+    warehouseId: options.warehouseId,
+    maxOrdersPerRoute: options.maxOrders || 4,
+    roundTrip: options.roundTrip,
+  });
+
+  const primaryRoute = fleetResult.routes[0];
+  if (!primaryRoute) {
+    throw new Error("No active orders available for quick pick");
+  }
+
+  return {
+    ...primaryRoute.circuit,
+    quick_pick: true,
+    anchor_order_id: primaryRoute.anchor_order_id,
+    selected_order_ids: primaryRoute.order_ids,
+    corridor_scored_candidates: primaryRoute.corridor_scored_candidates,
+    routes: fleetResult.routes,
+    total_routes: fleetResult.total_routes,
+    remaining_orders_count: fleetResult.remaining_orders_count,
   };
 }

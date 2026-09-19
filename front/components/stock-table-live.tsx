@@ -17,6 +17,8 @@ import {
 import { EmptyState } from "@/components/empty-state"
 import { ManageStockDialog } from "@/components/manage-stock-dialog"
 import { api } from "@/lib/api"
+import { toast } from "sonner"
+import { getErrorMessage } from "@/lib/utils"
 import type { Deposit, Product, Stock, Truck } from "@/types"
 
 interface StockTableLiveProps {
@@ -74,6 +76,9 @@ export function StockTableLive({
       })
     } catch (err) {
       console.error("Error fetching live stock:", err)
+      if (showIndicator) {
+        toast.error(getErrorMessage(err, "Failed to refresh inventory stock."))
+      }
     } finally {
       if (showIndicator) setIsRefreshing(false)
     }
@@ -154,7 +159,7 @@ export function StockTableLive({
         <Card className="border-border">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">Total Stock Entries</p>
+              <p className="text-xs font-medium text-muted-foreground">Total entries</p>
               <Boxes className="size-4 text-muted-foreground" />
             </div>
             <p className="mt-2 text-2xl font-semibold tabular-nums text-primary">
@@ -167,7 +172,7 @@ export function StockTableLive({
         <Card className="border-border">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">In Warehouses</p>
+              <p className="text-xs font-medium text-muted-foreground">In deposits</p>
               <WarehouseIcon className="size-4 text-chart-2" />
             </div>
             <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">
@@ -180,7 +185,7 @@ export function StockTableLive({
         <Card className="border-border">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">In Transit (Cargo)</p>
+              <p className="text-xs font-medium text-muted-foreground">In transit</p>
               <TruckIcon className="size-4 text-primary" />
             </div>
             <p className="mt-2 text-2xl font-semibold tabular-nums text-primary">

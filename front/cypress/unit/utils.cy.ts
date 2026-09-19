@@ -1,4 +1,4 @@
-import { cn, formatDimensions } from "../../lib/utils"
+import { cn, formatDimensions, getErrorMessage } from "../../lib/utils"
 
 describe("Unit Tests - UI Utility Functions (lib/utils.ts)", () => {
   it("should merge CSS class names and resolve Tailwind conflicts", () => {
@@ -35,6 +35,47 @@ describe("Unit Tests - UI Utility Functions (lib/utils.ts)", () => {
       expect(formatDimensions(null)).to.equal("—")
       expect(formatDimensions(undefined)).to.equal("—")
       expect(formatDimensions("")).to.equal("—")
+    })
+  })
+
+  describe("getErrorMessage", () => {
+    it("should extract error from Axios response with response.data.error", () => {
+      const axiosErr = {
+        isAxiosError: true,
+        response: { data: { error: "Warehouse has insufficient inventory stock." } },
+      }
+      expect(getErrorMessage(axiosErr)).to.equal("Warehouse has insufficient inventory stock.")
+    })
+
+    it("should extract error from Axios response with response.data.message", () => {
+      const axiosErr = {
+        isAxiosError: true,
+        response: { data: { message: "Invalid authentication credentials." } },
+      }
+      expect(getErrorMessage(axiosErr)).to.equal("Invalid authentication credentials.")
+    })
+
+    it("should extract string error from Axios response with response.data as string", () => {
+      const axiosErr = {
+        isAxiosError: true,
+        response: { data: "Database connection timeout." },
+      }
+      expect(getErrorMessage(axiosErr)).to.equal("Database connection timeout.")
+    })
+
+    it("should extract message from standard Error instances", () => {
+      const err = new Error("Network request failed.")
+      expect(getErrorMessage(err)).to.equal("Network request failed.")
+    })
+
+    it("should handle plain string input", () => {
+      expect(getErrorMessage("Direct error message string")).to.equal("Direct error message string")
+    })
+
+    it("should return specified fallback when error object is null, undefined, or empty", () => {
+      expect(getErrorMessage(null, "Custom fallback error")).to.equal("Custom fallback error")
+      expect(getErrorMessage(undefined, "Custom fallback error")).to.equal("Custom fallback error")
+      expect(getErrorMessage({}, "Custom fallback error")).to.equal("Custom fallback error")
     })
   })
 })

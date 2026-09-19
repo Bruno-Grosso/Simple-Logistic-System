@@ -314,6 +314,7 @@ export function adaptMonthlyPerformance(raw: any): MonthlyPerformanceData {
     ordersCount: Number(raw.orders_count ?? raw.ordersCount ?? 0),
     isPoi: Boolean(raw.is_poi ?? raw.isPoi),
     poi: raw.poi || undefined,
+    warehouse_id: raw.warehouse_id ? String(raw.warehouse_id) : undefined,
   }
 }
 
@@ -321,6 +322,8 @@ export function adaptDeliveryCostReport(raw: any): DeliveryCostReport {
   if (!raw) {
     return {
       warehouse_id: null,
+      period: "all",
+      period_label: "All Time",
       summary: {
         total_orders_analyzed: 0,
         total_delivered_revenue: 0,
@@ -344,6 +347,14 @@ export function adaptDeliveryCostReport(raw: any): DeliveryCostReport {
 
   return {
     warehouse_id: raw.warehouse_id || null,
+    period: raw.period ? String(raw.period) : "all",
+    period_label: raw.period_label ? String(raw.period_label) : "All Time",
+    available_periods: Array.isArray(raw.available_periods)
+      ? raw.available_periods.map((p: any) => ({
+          value: String(p.value ?? ""),
+          label: String(p.label ?? ""),
+        }))
+      : undefined,
     summary: {
       total_orders_analyzed: Number(rawSummary.total_orders_analyzed ?? 0),
       total_delivered_revenue: Number(rawSummary.total_delivered_revenue ?? 0),
@@ -357,6 +368,11 @@ export function adaptDeliveryCostReport(raw: any): DeliveryCostReport {
       avg_delivery_cost_per_order: Number(rawSummary.avg_delivery_cost_per_order ?? 0),
       avg_cost_per_km: Number(rawSummary.avg_cost_per_km ?? 0),
       total_distance_km: Number(rawSummary.total_distance_km ?? 0),
+      monthly_target_orders: rawSummary.monthly_target_orders !== undefined ? Number(rawSummary.monthly_target_orders) : undefined,
+      completed_orders: rawSummary.completed_orders !== undefined ? Number(rawSummary.completed_orders) : undefined,
+      orders_needed_this_month: rawSummary.orders_needed_this_month !== undefined ? Number(rawSummary.orders_needed_this_month) : undefined,
+      required_daily_run_rate: rawSummary.required_daily_run_rate !== undefined ? Number(rawSummary.required_daily_run_rate) : undefined,
+      projected_month_end_completions: rawSummary.projected_month_end_completions !== undefined ? Number(rawSummary.projected_month_end_completions) : undefined,
     },
     orders: rawOrders.map((o: any) => ({
       order_id: String(o.order_id),
@@ -376,5 +392,21 @@ export function adaptDeliveryCostReport(raw: any): DeliveryCostReport {
       margin_percent: Number(o.margin_percent ?? 0),
       calculated_at: o.calculated_at || undefined,
     })),
+    top_products: Array.isArray(raw.top_products)
+      ? raw.top_products.map((p: any) => ({
+          id: String(p.id),
+          name: String(p.name),
+          quantity: Number(p.quantity ?? 0),
+          total_revenue: Number(p.total_revenue ?? 0),
+        }))
+      : undefined,
+    top_clients: Array.isArray(raw.top_clients)
+      ? raw.top_clients.map((c: any) => ({
+          id: String(c.id),
+          name: String(c.name),
+          total_spent: Number(c.total_spent ?? 0),
+          order_count: Number(c.order_count ?? 0),
+        }))
+      : undefined,
   }
 }

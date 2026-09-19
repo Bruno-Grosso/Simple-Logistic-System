@@ -1,4 +1,47 @@
 import { pg_conn } from "./model";
+import crypto from "node:crypto";
+
+// ─── ELLIPTIC CURVE CYBERPROTECTION (ECDSA prime256v1 / P-256) ────────────────
+// Generate in-memory elliptic curve keypair for signing session tokens and verifying tamper-proof claims
+const ecKeyPair = crypto.generateKeyPairSync("ec", {
+  namedCurve: "prime256v1",
+  publicKeyEncoding: { type: "spki", format: "pem" },
+  privateKeyEncoding: { type: "pkcs8", format: "pem" },
+});
+
+export const ecSecurity = {
+  publicKeyPem: ecKeyPair.publicKey,
+  signPayload: (payload: Record<string, any>): string => {
+    const jsonStr = JSON.stringify(payload);
+    const sign = crypto.createSign("SHA256");
+    sign.update(jsonStr);
+    sign.end();
+    const signature = sign.sign(ecKeyPair.privateKey, "hex");
+    const encodedPayload = Buffer.from(jsonStr).toString("base64url");
+    return `${encodedPayload}.${signature}`;
+  },
+  verifyToken: (token: string): { valid: boolean; payload?: any; error?: string } => {
+    try {
+      const parts = token.split(".");
+      if (parts.length !== 2) return { valid: false, error: "Malformed token structure" };
+      const [encodedPayload, signature] = parts;
+      const jsonStr = Buffer.from(encodedPayload, "base64url").toString("utf8");
+      const verify = crypto.createVerify("SHA256");
+      verify.update(jsonStr);
+      verify.end();
+      const isValid = verify.verify(ecKeyPair.publicKey, signature, "hex");
+      if (!isValid) return { valid: false, error: "Invalid cryptographic signature" };
+      const payload = JSON.parse(jsonStr);
+      if (payload.exp && Date.now() > payload.exp) {
+        return { valid: false, error: "Token expired" };
+      }
+      return { valid: true, payload };
+    } catch (err: any) {
+      return { valid: false, error: err.message || "Cryptographic verification failure" };
+    }
+  },
+};
+
 
 // Auto-migration to ensure required columns and the distance calculation function exist.
 (async () => {
@@ -179,9 +222,19 @@ export const users = {
       /* ignore */
     }
 
+    const ecToken = ecSecurity.signPayload({
+      sub: matched.id,
+      role: matched.role,
+      name: matched.name,
+      iat: Date.now(),
+      exp: Date.now() + 24 * 60 * 60 * 1000, // 24 hours validity
+      algorithm: "ECDSA-SHA256 (prime256v1)",
+    });
+
     return {
       sessionToken: sessionId,
       token: sessionId,
+      ecToken,
       user: {
         id: matched.id,
         name: matched.name,
@@ -565,31 +618,112 @@ export const orders = {
       itemCount,
     };
   },
+  validateAndPrepareDispatchStock: async (orderId: string) => {
+    const items = await pg_conn`
+      SELECT oi.product_id, oi.quantity, p.name as product_name
+      FROM orders_items oi
+      JOIN products p ON oi.product_id = p.id
+      WHERE oi.order_id = ${orderId}
+    `;
+    if (!items || items.length === 0) {
+      return { ok: true, sourceWarehouseId: "WH-001", hasWarehouseStop: false };
+    }
+
+    const routes = await pg_conn`
+      SELECT * FROM orders_route 
+      WHERE order_id = ${orderId} 
+      ORDER BY step ASC
+    `;
+    const originWarehouseId = routes[0]?.warehouse_id || "WH-001";
+
+    // 1. Check if originating warehouse has all products in required quantities
+    let originHasAll = true;
+    for (const item of items) {
+      const stockRes = await pg_conn`
+        SELECT quantity FROM warehouses_stock 
+        WHERE warehouse_id = ${originWarehouseId} AND product_id = ${item.product_id}
+      `;
+      const avail = Number(stockRes[0]?.quantity || 0);
+      if (avail < Number(item.quantity)) {
+        originHasAll = false;
+        break;
+      }
+    }
+
+    if (originHasAll) {
+      return { ok: true, sourceWarehouseId: originWarehouseId, hasWarehouseStop: false };
+    }
+
+    // 2. Origin warehouse lacks stock. Check if another single warehouse has ALL required products
+    const otherWarehouses = await pg_conn`
+      SELECT id, location FROM warehouses 
+      WHERE id != ${originWarehouseId}
+      ORDER BY id ASC
+    `;
+
+    let pickupWarehouseId: string | null = null;
+    for (const wh of otherWarehouses) {
+      let whHasAll = true;
+      for (const item of items) {
+        const stockRes = await pg_conn`
+          SELECT quantity FROM warehouses_stock 
+          WHERE warehouse_id = ${wh.id} AND product_id = ${item.product_id}
+        `;
+        const avail = Number(stockRes[0]?.quantity || 0);
+        if (avail < Number(item.quantity)) {
+          whHasAll = false;
+          break;
+        }
+      }
+      if (whHasAll) {
+        pickupWarehouseId = wh.id;
+        break;
+      }
+    }
+
+    // 3. If no single warehouse has all the products of the order, dispatch cannot proceed
+    if (!pickupWarehouseId) {
+      throw new Error(
+        `Cannot dispatch order ${orderId}: Origin warehouse ${originWarehouseId} lacks products, and no other warehouse has complete stock for this order.`
+      );
+    }
+
+    // 4. Products are all in another warehouse: configure a stop in that warehouse
+    const truckId = routes[0]?.truck_id || null;
+    const driverId = routes[0]?.driver_id || null;
+
+    if (routes.length <= 1) {
+      // Step 1: Origin warehouse -> Pickup warehouse stop
+      await pg_conn`
+        UPDATE orders_route
+        SET destination_warehouse_id = ${pickupWarehouseId}
+        WHERE order_id = ${orderId} AND step = 1
+      `;
+      // Step 2: Pickup warehouse -> Customer delivery
+      await pg_conn`
+        INSERT INTO orders_route (order_id, step, warehouse_id, truck_id, driver_id, destination_warehouse_id)
+        VALUES (${orderId}, 2, ${pickupWarehouseId}, ${truckId}, ${driverId}, NULL)
+        ON CONFLICT (order_id, step) DO UPDATE 
+        SET warehouse_id = ${pickupWarehouseId}, truck_id = ${truckId}, driver_id = ${driverId}
+      `;
+    }
+
+    return {
+      ok: true,
+      sourceWarehouseId: pickupWarehouseId,
+      hasWarehouseStop: true,
+      pickupWarehouseId,
+    };
+  },
   deductStockForOrder: async (orderId: string, loadOntoTruck = true) => {
     const items = await pg_conn`SELECT * FROM orders_items WHERE order_id = ${orderId}`;
     if (!items || items.length === 0) return;
 
-    const routes = await pg_conn`SELECT * FROM orders_route WHERE order_id = ${orderId} ORDER BY step ASC`;
-    const defaultWarehouseId = routes[0]?.warehouse_id || "WH-001";
+    // Validate warehouse stock and configure warehouse stop if products are in another warehouse
+    const dispatchStock = await orders.validateAndPrepareDispatchStock(orderId);
+    const targetWh = dispatchStock.sourceWarehouseId;
 
     for (const item of items) {
-      // Check if defaultWarehouseId has stock for this product; if not, find the warehouse holding it
-      let targetWh = defaultWarehouseId;
-      const directStock = await pg_conn`
-        SELECT quantity FROM warehouses_stock 
-        WHERE warehouse_id = ${targetWh} AND product_id = ${item.product_id}
-      `;
-      if (!directStock || directStock.length === 0 || Number(directStock[0].quantity) < Number(item.quantity)) {
-        const anyStock = await pg_conn`
-          SELECT warehouse_id FROM warehouses_stock 
-          WHERE product_id = ${item.product_id} AND quantity > 0
-          ORDER BY quantity DESC LIMIT 1
-        `;
-        if (anyStock && anyStock.length > 0) {
-          targetWh = anyStock[0].warehouse_id;
-        }
-      }
-
       await pg_conn`
         UPDATE warehouses_stock
         SET quantity = GREATEST(0, quantity - ${Number(item.quantity)})
@@ -598,6 +732,7 @@ export const orders = {
     }
 
     if (loadOntoTruck) {
+      const routes = await pg_conn`SELECT * FROM orders_route WHERE order_id = ${orderId} ORDER BY step ASC`;
       const truckId = routes.find((r: any) => r.truck_id)?.truck_id;
       if (truckId) {
         for (const item of items) {
@@ -624,25 +759,9 @@ export const orders = {
     if (!items || items.length === 0) return;
 
     const routes = await pg_conn`SELECT * FROM orders_route WHERE order_id = ${orderId} ORDER BY step ASC`;
-    const defaultWarehouseId = routes[0]?.warehouse_id || "WH-001";
+    const targetWh = routes.length > 1 && routes[1]?.warehouse_id ? routes[1].warehouse_id : (routes[0]?.warehouse_id || "WH-001");
 
     for (const item of items) {
-      let targetWh = defaultWarehouseId;
-      const directStock = await pg_conn`
-        SELECT quantity FROM warehouses_stock 
-        WHERE warehouse_id = ${targetWh} AND product_id = ${item.product_id}
-      `;
-      if (!directStock || directStock.length === 0) {
-        const anyStock = await pg_conn`
-          SELECT warehouse_id FROM warehouses_stock 
-          WHERE product_id = ${item.product_id}
-          LIMIT 1
-        `;
-        if (anyStock && anyStock.length > 0) {
-          targetWh = anyStock[0].warehouse_id;
-        }
-      }
-
       await pg_conn`
         UPDATE warehouses_stock
         SET quantity = quantity + ${Number(item.quantity)}
@@ -731,6 +850,98 @@ export const orders = {
       WHERE id = ${orderId}
       RETURNING *
     `,
+  suggestOptimalTruck: async (orderId: string, preferredWarehouseId?: string) => {
+    const orderRes = await pg_conn`SELECT * FROM orders WHERE id = ${orderId}`;
+    if (!orderRes || orderRes.length === 0) throw new Error("Order not found");
+    const order = orderRes[0];
+
+    const load = await orders.getOrderLoad(orderId);
+    const itemsRes = await pg_conn`
+      SELECT p.is_cold, p.is_fragile, oi.quantity
+      FROM orders_items oi
+      JOIN products p ON oi.product_id = p.id
+      WHERE oi.order_id = ${orderId}
+    `;
+    const requiresCold = itemsRes.some((i: any) => Number(i.is_cold) === 1);
+    const hasFragile = itemsRes.some((i: any) => Number(i.is_fragile) === 1);
+
+    const routes = await pg_conn`SELECT * FROM orders_route WHERE order_id = ${orderId} ORDER BY step ASC`;
+    const targetWhId = preferredWarehouseId || routes[0]?.warehouse_id || "WH-001";
+
+    const allTrucks = await pg_conn`SELECT * FROM trucks WHERE is_valid = 1`;
+    const allDrivers = await pg_conn`SELECT * FROM users WHERE role = 'truck_driver' AND is_active = 1`;
+
+    const candidates = [];
+    for (const t of allTrucks) {
+      const weightMax = Number(t.weight_max || 25000);
+      const volumeMax = Number(t.volume_max || 90);
+      const weightCurrent = Number(t.weight_current || 0);
+      const volumeCurrent = Number(t.volume_current || 0);
+      const remainingWeight = Math.max(0, weightMax - weightCurrent);
+      const remainingVolume = Math.max(0, volumeMax - volumeCurrent);
+
+      // Check capacity
+      if (load.totalWeight > remainingWeight || load.totalVolume > remainingVolume) {
+        continue;
+      }
+
+      // Check cold storage requirement
+      if (requiresCold && Number(t.has_refrigeration) !== 1) {
+        continue;
+      }
+
+      // Score algorithm
+      // Higher score is better:
+      // +50 if truck is at the target warehouse
+      // +30 if truck is idle (!is_delivering)
+      // +20 if cold storage matches requirement appropriately
+      // +10 - maintenance count penalty
+      // Higher score for best fitting capacity (utilization)
+      let score = 100;
+      if (t.current_warehouse_id === targetWhId) score += 50;
+      if (Number(t.is_delivering || 0) === 0) score += 35;
+      if (requiresCold && Number(t.has_refrigeration) === 1) score += 20;
+      if (!requiresCold && Number(t.has_refrigeration) === 1) score -= 5; // Reserve refrigerated truck for cold goods if possible
+      score -= Number(t.truck_maintenance || 0) * 15;
+      score -= (Number(t.wear_percentage || 0) / 100) * 20;
+
+      // Weight fit bonus (prefer smaller capable truck to conserve large rigs)
+      const weightRatio = load.totalWeight / (weightMax || 1);
+      score += Math.round(weightRatio * 25);
+
+      candidates.push({
+        truck_id: t.id,
+        model: t.model,
+        current_warehouse_id: t.current_warehouse_id,
+        has_refrigeration: Number(t.has_refrigeration) === 1,
+        weight_max: weightMax,
+        volume_max: volumeMax,
+        remaining_weight: remainingWeight,
+        remaining_volume: remainingVolume,
+        is_delivering: Number(t.is_delivering || 0) === 1,
+        score: Math.max(0, Math.round(score)),
+      });
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+    const bestTruck = candidates[0] || null;
+
+    // Pick a suggested driver (preferably not currently en route or matching warehouse)
+    const suggestedDriver = allDrivers.length > 0 ? allDrivers[0] : null;
+
+    return {
+      order_id: orderId,
+      order_load: load,
+      requirements: {
+        requires_cold: requiresCold,
+        has_fragile: hasFragile,
+      },
+      warehouse_id: targetWhId,
+      best_truck: bestTruck,
+      suggested_driver: suggestedDriver ? { id: suggestedDriver.id, name: suggestedDriver.name } : null,
+      candidate_trucks: candidates.slice(0, 5),
+    };
+  },
   calculateETA: async (
     orderId: string,
     options?: {
@@ -912,6 +1123,30 @@ export const orders_route = {
     estimated_time?: string | null;
     arrived_at?: string | null;
   }) => {
+    // 1. If order is already Shipped, its route cannot be recalculated or re-assigned
+    const orderRes = await pg_conn`SELECT status FROM orders WHERE id = ${routeStep.order_id}`;
+    if (orderRes.length > 0 && orderRes[0].status === "Shipped") {
+      throw new Error(`Order ${routeStep.order_id} has already been shipped and its route cannot be recalculated`);
+    }
+
+    // 2. An order cannot be in more than one route at the same time
+    if (routeStep.truck_id) {
+      const activeOtherRoutes = await pg_conn`
+        SELECT r.truck_id, o.status
+        FROM orders_route r
+        JOIN orders o ON r.order_id = o.id
+        WHERE r.order_id = ${routeStep.order_id}
+          AND r.truck_id IS NOT NULL
+          AND r.truck_id != ${routeStep.truck_id}
+          AND o.status NOT IN ('Delivered', 'Canceled', 'Cancelled')
+      `;
+      if (activeOtherRoutes.length > 0) {
+        throw new Error(
+          `Order ${routeStep.order_id} is already in an active route with truck ${activeOtherRoutes[0].truck_id}. An order cannot be in more than one route at the same time.`
+        );
+      }
+    }
+
     if (routeStep.truck_id) {
       await orders_route.validateTruckCapacity(routeStep.truck_id, routeStep.order_id);
     }
@@ -935,6 +1170,30 @@ export const orders_route = {
     estimated_time?: string | null;
     arrived_at?: string | null;
   }) => {
+    // 1. If order is already Shipped, its route cannot be recalculated or changed
+    const orderRes = await pg_conn`SELECT status FROM orders WHERE id = ${orderId}`;
+    if (orderRes.length > 0 && orderRes[0].status === "Shipped") {
+      throw new Error(`Order ${orderId} has already been shipped and its route cannot be recalculated`);
+    }
+
+    // 2. An order cannot be in more than one route at the same time
+    if (routeStep.truck_id) {
+      const activeOtherRoutes = await pg_conn`
+        SELECT r.truck_id, o.status
+        FROM orders_route r
+        JOIN orders o ON r.order_id = o.id
+        WHERE r.order_id = ${orderId}
+          AND r.truck_id IS NOT NULL
+          AND r.truck_id != ${routeStep.truck_id}
+          AND o.status NOT IN ('Delivered', 'Canceled', 'Cancelled')
+      `;
+      if (activeOtherRoutes.length > 0) {
+        throw new Error(
+          `Order ${orderId} is already in an active route with truck ${activeOtherRoutes[0].truck_id}. An order cannot be in more than one route at the same time.`
+        );
+      }
+    }
+
     if (routeStep.truck_id) {
       await orders_route.validateTruckCapacity(routeStep.truck_id, orderId);
     }
@@ -1076,14 +1335,137 @@ export const freightCosts = {
 };
 
 export const monthlyPerformance = {
-  all: async () => {
+  syncWithDatabase: async () => {
     try {
-      const res = await pg_conn`SELECT * FROM monthly_performance ORDER BY month ASC`;
-      if (res && res.length > 0) return res;
+      // 0. Ensure all active orders have freight costs calculated
+      const missingOrders = await pg_conn`
+        SELECT o.id FROM orders o
+        LEFT JOIN freight_cost fc ON fc.order_id = o.id
+        WHERE fc.order_id IS NULL AND o.id NOT LIKE 'ORD-TEST-%' AND o.id NOT LIKE 'ORD-E2E-%'
+      `;
+      for (const mo of missingOrders) {
+        try {
+          await freightCosts.calculateAndSave(mo.id);
+        } catch {
+          /* ignore */
+        }
+      }
+
+      // 1. Company-wide aggregation
+      const companyRows = await pg_conn`
+        SELECT 
+          to_char(to_date(substring(o.time_limit from 1 for 7), 'YYYY-MM'), 'Mon') as month_abbr,
+          to_char(to_date(substring(o.time_limit from 1 for 7), 'YYYY-MM'), 'FMMonth YYYY') as full_month_name,
+          COALESCE(SUM(CASE WHEN o.status = 'Delivered' THEN o.price ELSE 0 END), 0)::real as live_revenue,
+          COALESCE(SUM(fc.total_cost), 0)::real as live_costs,
+          COALESCE(SUM(fc.fuel_cost), 0)::real as live_fuel,
+          COALESCE(SUM(fc.labor_cost), 0)::real as live_labor,
+          COALESCE(SUM(fc.maintenance_cost), 0)::real as live_maint,
+          count(o.id)::int as live_orders
+        FROM orders o
+        LEFT JOIN freight_cost fc ON fc.order_id = o.id
+        WHERE o.id NOT LIKE 'ORD-TEST-%' AND o.id NOT LIKE 'ORD-E2E-%' AND o.time_limit IS NOT NULL
+        GROUP BY substring(o.time_limit from 1 for 7)
+      `;
+
+      for (const row of companyRows) {
+        if (!row.month_abbr) continue;
+        const liveRev = Number(row.live_revenue || 0);
+        const liveCosts = Number(row.live_costs || 0);
+        const profit = Math.round((liveRev - liveCosts) * 100) / 100;
+        const fullMonth = row.full_month_name || `${row.month_abbr} 2026`;
+        const existing = await pg_conn`
+          SELECT id FROM monthly_performance 
+          WHERE (warehouse_id IS NULL OR warehouse_id = 'ALL') AND month = ${row.month_abbr}
+        `;
+        if (existing && existing.length > 0) {
+          await pg_conn`
+            UPDATE monthly_performance
+            SET revenue = ${liveRev},
+                costs = ${liveCosts},
+                profit = ${profit},
+                fuel_cost = ${Number(row.live_fuel || 0)},
+                labor_cost = ${Number(row.live_labor || 0)},
+                maintenance_cost = ${Number(row.live_maint || 0)},
+                orders_count = ${Number(row.live_orders || 0)}
+            WHERE id = ${existing[0].id}
+          `;
+        } else {
+          await pg_conn`
+            INSERT INTO monthly_performance
+            (warehouse_id, month, full_month, revenue, costs, profit, fuel_cost, labor_cost, maintenance_cost, orders_count, is_poi, poi)
+            VALUES (
+              NULL, ${row.month_abbr}, ${fullMonth}, ${liveRev}, ${liveCosts}, ${profit},
+              ${Number(row.live_fuel || 0)}, ${Number(row.live_labor || 0)}, ${Number(row.live_maint || 0)},
+              ${Number(row.live_orders || 0)}, 0, NULL
+            )
+          `;
+        }
+      }
+
+      // 2. Per-warehouse aggregation
+      const warehouseRows = await pg_conn`
+        SELECT 
+          COALESCE(r.warehouse_id, 'WH-001') as warehouse_id,
+          to_char(to_date(substring(o.time_limit from 1 for 7), 'YYYY-MM'), 'Mon') as month_abbr,
+          to_char(to_date(substring(o.time_limit from 1 for 7), 'YYYY-MM'), 'FMMonth YYYY') as full_month_name,
+          COALESCE(SUM(CASE WHEN o.status = 'Delivered' THEN o.price ELSE 0 END), 0)::real as live_revenue,
+          COALESCE(SUM(fc.total_cost), 0)::real as live_costs,
+          COALESCE(SUM(fc.fuel_cost), 0)::real as live_fuel,
+          COALESCE(SUM(fc.labor_cost), 0)::real as live_labor,
+          COALESCE(SUM(fc.maintenance_cost), 0)::real as live_maint,
+          count(o.id)::int as live_orders
+        FROM orders o
+        LEFT JOIN freight_cost fc ON fc.order_id = o.id
+        LEFT JOIN (
+          SELECT DISTINCT ON (order_id) order_id, warehouse_id 
+          FROM orders_route 
+          ORDER BY order_id, step ASC
+        ) r ON r.order_id = o.id
+        WHERE o.id NOT LIKE 'ORD-TEST-%' AND o.id NOT LIKE 'ORD-E2E-%' AND o.time_limit IS NOT NULL
+        GROUP BY COALESCE(r.warehouse_id, 'WH-001'), substring(o.time_limit from 1 for 7)
+      `;
+
+      for (const row of warehouseRows) {
+        if (!row.month_abbr || !row.warehouse_id) continue;
+        const liveRev = Number(row.live_revenue || 0);
+        const liveCosts = Number(row.live_costs || 0);
+        const profit = Math.round((liveRev - liveCosts) * 100) / 100;
+        const fullMonth = row.full_month_name || `${row.month_abbr} 2026`;
+        const existingWh = await pg_conn`
+          SELECT id FROM monthly_performance 
+          WHERE warehouse_id = ${row.warehouse_id} AND month = ${row.month_abbr}
+        `;
+        if (existingWh && existingWh.length > 0) {
+          await pg_conn`
+            UPDATE monthly_performance
+            SET revenue = ${liveRev},
+                costs = ${liveCosts},
+                profit = ${profit},
+                fuel_cost = ${Number(row.live_fuel || 0)},
+                labor_cost = ${Number(row.live_labor || 0)},
+                maintenance_cost = ${Number(row.live_maint || 0)},
+                orders_count = ${Number(row.live_orders || 0)}
+            WHERE id = ${existingWh[0].id}
+          `;
+        } else {
+          await pg_conn`
+            INSERT INTO monthly_performance
+            (warehouse_id, month, full_month, revenue, costs, profit, fuel_cost, labor_cost, maintenance_cost, orders_count, is_poi, poi)
+            VALUES (
+              ${row.warehouse_id}, ${row.month_abbr}, ${fullMonth}, ${liveRev}, ${liveCosts}, ${profit},
+              ${Number(row.live_fuel || 0)}, ${Number(row.live_labor || 0)}, ${Number(row.live_maint || 0)},
+              ${Number(row.live_orders || 0)}, 0, NULL
+            )
+          `;
+        }
+      }
     } catch {
-      /* fallback if table doesn't exist */
+      /* ignore sync error */
     }
-    return [
+  },
+  all: async (warehouseId?: string, period?: string) => {
+    const DEFAULT_12_MONTHS = [
       { month: "Jan", full_month: "January 2026", revenue: 34500, costs: 14200, profit: 20300, fuel_cost: 5800, labor_cost: 6200, maintenance_cost: 2200, orders_count: 42, is_poi: 1, poi: "Fleet Modernization & Route Optimization Launched" },
       { month: "Feb", full_month: "February 2026", revenue: 29800, costs: 12900, profit: 16900, fuel_cost: 5100, labor_cost: 5900, maintenance_cost: 1900, orders_count: 38, is_poi: 0, poi: null },
       { month: "Mar", full_month: "March 2026", revenue: 43200, costs: 18100, profit: 25100, fuel_cost: 7400, labor_cost: 8100, maintenance_cost: 2600, orders_count: 56, is_poi: 1, poi: "Q1 Peak Volume & Strategic Enterprise Client Onboarding" },
@@ -1097,11 +1479,100 @@ export const monthlyPerformance = {
       { month: "Nov", full_month: "November 2026", revenue: 58900, costs: 24800, profit: 34100, fuel_cost: 10300, labor_cost: 10800, maintenance_cost: 3700, orders_count: 78, is_poi: 0, poi: null },
       { month: "Dec", full_month: "December 2026", revenue: 68400, costs: 27900, profit: 40500, fuel_cost: 11800, labor_cost: 12000, maintenance_cost: 4100, orders_count: 89, is_poi: 1, poi: "Record Holiday Delivery Peak & Highest Annual Operating Margin" },
     ];
+
+    try {
+      await monthlyPerformance.syncWithDatabase();
+      let rows: any[] = [];
+      if (warehouseId) {
+        rows = await pg_conn`SELECT * FROM monthly_performance WHERE warehouse_id = ${warehouseId} ORDER BY id ASC`;
+      }
+      if (!rows || rows.length === 0) {
+        rows = await pg_conn`SELECT * FROM monthly_performance WHERE warehouse_id IS NULL OR warehouse_id = 'ALL' ORDER BY id ASC`;
+      }
+
+      const MONTH_ORDER: Record<string, number> = {
+        jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+        jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12
+      };
+
+      // Always guarantee full 12-month calendar series
+      const mult = warehouseId ? (warehouseId === "WH-001" ? 0.5 : 0.25) : 1;
+      const monthMap = new Map<string, any>();
+      DEFAULT_12_MONTHS.forEach((m) => {
+        monthMap.set(m.month.toLowerCase(), {
+          ...m,
+          warehouse_id: warehouseId || null,
+          revenue: Math.round(m.revenue * mult),
+          costs: Math.round(m.costs * mult),
+          profit: Math.round(m.profit * mult),
+          fuel_cost: Math.round(m.fuel_cost * mult),
+          labor_cost: Math.round(m.labor_cost * mult),
+          maintenance_cost: Math.round(m.maintenance_cost * mult),
+          orders_count: Math.max(1, Math.round(m.orders_count * mult)),
+        });
+      });
+
+      // Overlay live database records
+      if (rows && rows.length > 0) {
+        rows.forEach((r) => {
+          if (r.month) {
+            monthMap.set(String(r.month).toLowerCase(), r);
+          }
+        });
+      }
+
+      let all12 = Array.from(monthMap.values());
+      all12.sort((a, b) => (MONTH_ORDER[String(a.month).toLowerCase()] || 0) - (MONTH_ORDER[String(b.month).toLowerCase()] || 0));
+
+      if (period) {
+        const p = period.toLowerCase();
+        if (p === "6m_h1" || p === "h1") {
+          return all12.filter((r) => (MONTH_ORDER[String(r.month).toLowerCase()] || 0) <= 6);
+        } else if (p === "6m_h2" || p === "h2") {
+          return all12.filter((r) => (MONTH_ORDER[String(r.month).toLowerCase()] || 0) > 6);
+        } else if (p === "q1") {
+          return all12.filter((r) => {
+            const m = MONTH_ORDER[String(r.month).toLowerCase()] || 0;
+            return m >= 1 && m <= 3;
+          });
+        } else if (p === "q2") {
+          return all12.filter((r) => {
+            const m = MONTH_ORDER[String(r.month).toLowerCase()] || 0;
+            return m >= 4 && m <= 6;
+          });
+        } else if (p === "q3") {
+          return all12.filter((r) => {
+            const m = MONTH_ORDER[String(r.month).toLowerCase()] || 0;
+            return m >= 7 && m <= 9;
+          });
+        } else if (p === "q4") {
+          return all12.filter((r) => {
+            const m = MONTH_ORDER[String(r.month).toLowerCase()] || 0;
+            return m >= 10 && m <= 12;
+          });
+        } else {
+          const filtered = all12.filter(
+            (r) =>
+              r.month.toLowerCase() === p ||
+              r.full_month.toLowerCase().includes(p) ||
+              p.includes(r.month.toLowerCase())
+          );
+          if (filtered.length > 0) return filtered;
+        }
+      }
+      return all12;
+    } catch {
+      /* fallback if query fails */
+    }
+    return DEFAULT_12_MONTHS;
   },
 };
 
 export const reports = {
-  getDeliveryCostReport: async (warehouseId?: string) => {
+  getDeliveryCostReport: async (warehouseId?: string, period?: string) => {
+    // Ensure monthly performance is synchronized
+    await monthlyPerformance.syncWithDatabase();
+
     const allOrders = await pg_conn`
       SELECT * FROM orders 
       WHERE id NOT LIKE 'ORD-TEST-%' AND id NOT LIKE 'ORD-E2E-%'
@@ -1114,6 +1585,85 @@ export const reports = {
     // Map existing costs
     const costMap = new Map<string, any>();
     allCosts.forEach((c: any) => costMap.set(c.order_id, c));
+
+    // Dynamic available periods derived directly from database orders & performance
+    const distinctMonths = await pg_conn`
+      SELECT DISTINCT substring(time_limit from 1 for 7) as ym 
+      FROM orders 
+      WHERE time_limit IS NOT NULL AND id NOT LIKE 'ORD-TEST-%' AND id NOT LIKE 'ORD-E2E-%'
+      ORDER BY ym ASC
+    `;
+
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const activeYMs = new Set<string>();
+    distinctMonths.forEach((r: any) => {
+      if (r.ym) activeYMs.add(r.ym);
+    });
+
+    const availablePeriods: Array<{ value: string; label: string }> = [
+      { value: "", label: "All Periods (Full Year 2026)" },
+      { value: "Q1", label: "Q1 (Jan - Mar 2026)" },
+      { value: "Q2", label: "Q2 (Apr - Jun 2026)" },
+      { value: "6M_H1", label: "H1 (Jan - Jun 2026)" },
+      { value: "6M_H2", label: "H2 (Jul - Dec 2026)" },
+      { value: "Q3", label: "Q3 (Jul - Sep 2026)" },
+      { value: "Q4", label: "Q4 (Oct - Dec 2026)" },
+    ];
+
+    // Add active order months from DB first
+    for (const ym of Array.from(activeYMs).sort()) {
+      const parts = ym.split("-");
+      const mIdx = parseInt(parts[1], 10) - 1;
+      const mName = monthNames[mIdx] || ym;
+      availablePeriods.push({
+        value: ym,
+        label: `${mName} ${parts[0]} (Active Orders)`,
+      });
+    }
+
+    // Add all 12 standard calendar months if not already present
+    for (let i = 0; i < 12; i++) {
+      const ym = `2026-${String(i + 1).padStart(2, "0")}`;
+      if (!activeYMs.has(ym)) {
+        availablePeriods.push({
+          value: ym,
+          label: `${monthNames[i]} 2026`,
+        });
+      }
+    }
+
+    // Helper for period matching
+    const matchesPeriod = (dateStr: string | undefined, p: string | undefined): boolean => {
+      if (!p || p === "all" || p === "12M" || p === "12m") return true;
+      if (!dateStr) return true;
+      const datePart = dateStr.split(" ")[0]; // e.g. "2026-03-20"
+      const parts = datePart.split("-");
+      if (parts.length < 2) return true;
+      const monthNum = parseInt(parts[1], 10);
+      const norm = p.toLowerCase();
+
+      if (norm === "6m_h1" || norm === "h1") return monthNum >= 1 && monthNum <= 6;
+      if (norm === "6m_h2" || norm === "h2") return monthNum >= 7 && monthNum <= 12;
+      if (norm === "q1") return monthNum >= 1 && monthNum <= 3;
+      if (norm === "q2") return monthNum >= 4 && monthNum <= 6;
+      if (norm === "q3") return monthNum >= 7 && monthNum <= 9;
+      if (norm === "q4") return monthNum >= 10 && monthNum <= 12;
+
+      const ymMatch = norm.match(/^(\d{4})-(\d{2})$/);
+      if (ymMatch) {
+        return datePart.startsWith(norm);
+      }
+
+      const monthNamesShort = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+      const fullMonthNames = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+      const targetMonthIdx = monthNamesShort.findIndex(
+        (m, idx) => norm === m || norm === fullMonthNames[idx] || norm.includes(m)
+      );
+      if (targetMonthIdx !== -1) {
+        return monthNum === targetMonthIdx + 1;
+      }
+      return datePart.includes(norm);
+    };
 
     // Ensure all orders have calculated freight cost details
     const orderCostList = [];
@@ -1146,6 +1696,12 @@ export const reports = {
             (r: any) => r.warehouse_id === warehouseId || r.destination_warehouse_id === warehouseId
           ) || originWhId === warehouseId;
         if (!passesWarehouse) continue;
+      }
+
+      // Period filtering if requested
+      const orderDate = order.time_limit || cost.calculated_at;
+      if (!matchesPeriod(orderDate, period)) {
+        continue;
       }
 
       const revenue = Number(order.price || 0);
@@ -1190,8 +1746,122 @@ export const reports = {
     const avgCostPerOrder = orderCostList.length > 0 ? Math.round((totalDeliveryCost / orderCostList.length) * 100) / 100 : 0;
     const costToRevenueRatio = totalDeliveredRevenue > 0 ? Math.round((totalDeliveryCost / totalDeliveredRevenue) * 1000) / 10 : 0;
 
+    const now = new Date();
+    const currentDay = now.getDate();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const daysRemaining = Math.max(1, daysInMonth - currentDay);
+    const monthlyBaseTarget = warehouseId
+      ? Math.max(10, Math.round(75 * (warehouseId === "WH-001" ? 0.5 : 0.25)))
+      : 75;
+
+    let periodMultiplier = 1;
+    let periodLabel = "All Time (12 Months / 2026)";
+    const normP = (period || "all").toLowerCase();
+    if (normP === "12m" || normP === "all" || normP === "") {
+      periodMultiplier = 1;
+      periodLabel = "Full Year 2026";
+    } else if (normP === "6m_h1" || normP === "h1") {
+      periodMultiplier = 6;
+      periodLabel = "H1 (Jan - Jun 2026)";
+    } else if (normP === "6m_h2" || normP === "h2") {
+      periodMultiplier = 6;
+      periodLabel = "H2 (Jul - Dec 2026)";
+    } else if (normP === "q1") {
+      periodMultiplier = 3;
+      periodLabel = "Q1 (Jan - Mar 2026)";
+    } else if (normP === "q2") {
+      periodMultiplier = 3;
+      periodLabel = "Q2 (Apr - Jun 2026)";
+    } else if (normP === "q3") {
+      periodMultiplier = 3;
+      periodLabel = "Q3 (Jul - Sep 2026)";
+    } else if (normP === "q4") {
+      periodMultiplier = 3;
+      periodLabel = "Q4 (Oct - Dec 2026)";
+    } else {
+      const ymMatch = normP.match(/^(\d{4})-(\d{2})$/);
+      if (ymMatch) {
+        const year = ymMatch[1];
+        const mIdx = parseInt(ymMatch[2], 10) - 1;
+        const mName = monthNames[mIdx] || ymMatch[2];
+        periodMultiplier = 1;
+        periodLabel = `${mName} ${year}`;
+      } else {
+        const shortMonths = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+        const mIdx = shortMonths.indexOf(normP.slice(0, 3));
+        if (mIdx !== -1) {
+          periodMultiplier = 1;
+          periodLabel = `${monthNames[mIdx]} 2026`;
+        } else {
+          periodMultiplier = 1;
+          periodLabel = period || "Custom Period";
+        }
+      }
+    }
+
+    const targetOrders = (!period || normP === "all" || normP === "12m" || normP === "")
+      ? monthlyBaseTarget
+      : Math.round(monthlyBaseTarget * (periodMultiplier === 1 ? 1 : periodMultiplier));
+    const completedOrdersCount = deliveredOrders.length;
+    const ordersNeededThisMonth = Math.max(0, targetOrders - completedOrdersCount);
+    const requiredDailyRate = Math.round((ordersNeededThisMonth / daysRemaining) * 10) / 10;
+    const currentDailyRate = currentDay > 0 ? Math.round((completedOrdersCount / currentDay) * 10) / 10 : 0;
+    const projectedMonthEnd = Math.round(completedOrdersCount + currentDailyRate * daysRemaining);
+
+    // Aggregate top clients from the analyzed orders
+    const clientMap = new Map<string, { id: string; name: string; totalSpent: number; orderCount: number }>();
+    for (const o of orderCostList) {
+      const c = clientMap.get(o.client_id) || { id: o.client_id, name: o.client_name, totalSpent: 0, orderCount: 0 };
+      if (o.status === "Delivered") {
+        c.totalSpent += o.revenue;
+      }
+      c.orderCount += 1;
+      clientMap.set(o.client_id, c);
+    }
+    const topClients = Array.from(clientMap.values())
+      .sort((a, b) => b.totalSpent - a.totalSpent || b.orderCount - a.orderCount)
+      .slice(0, 5)
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        total_spent: Math.round(c.totalSpent * 100) / 100,
+        order_count: c.orderCount,
+      }));
+
+    // Aggregate top products from the database for the analyzed orders
+    const filteredIds = orderCostList.map((o) => o.order_id);
+    let topProducts: Array<{ id: string; name: string; quantity: number; total_revenue: number }> = [];
+    if (filteredIds.length > 0) {
+      try {
+        const prodRows = await pg_conn`
+          SELECT 
+            p.id, 
+            p.name, 
+            COALESCE(SUM(oi.quantity), 0)::integer as quantity,
+            COALESCE(SUM(oi.quantity * p.price), 0)::numeric as total_revenue
+          FROM orders_items oi
+          JOIN products p ON oi.product_id = p.id
+          WHERE oi.order_id IN ${pg_conn(filteredIds)}
+          GROUP BY p.id, p.name
+          ORDER BY total_revenue DESC
+          LIMIT 5
+        `;
+        topProducts = prodRows.map((r: any) => ({
+          id: r.id,
+          name: r.name,
+          quantity: Number(r.quantity),
+          total_revenue: Math.round(Number(r.total_revenue) * 100) / 100,
+        }));
+      } catch {
+        /* fallback if query fails */
+      }
+    }
+
     return {
       warehouse_id: warehouseId || null,
+      period: period || "all",
+      period_label: periodLabel,
+      available_periods: availablePeriods,
       summary: {
         total_orders_analyzed: orderCostList.length,
         total_delivered_revenue: Math.round(totalDeliveredRevenue * 100) / 100,
@@ -1205,8 +1875,15 @@ export const reports = {
         avg_delivery_cost_per_order: avgCostPerOrder,
         avg_cost_per_km: costPerKm,
         total_distance_km: Math.round(totalDistanceKm * 10) / 10,
+        monthly_target_orders: targetOrders,
+        completed_orders: completedOrdersCount,
+        orders_needed_this_month: ordersNeededThisMonth,
+        required_daily_run_rate: requiredDailyRate,
+        projected_month_end_completions: projectedMonthEnd,
       },
       orders: orderCostList,
+      top_products: topProducts,
+      top_clients: topClients,
     };
   },
 };

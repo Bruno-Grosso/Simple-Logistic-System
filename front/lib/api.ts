@@ -72,6 +72,23 @@ export const api = {
     register(payload: RegisterPayload): Promise<AxiosResponse<RegisterResponseData>> {
       return apiClient.post<RegisterResponseData>("/clients", payload)
     },
+    async getEcPublicKey(): Promise<{ success: boolean; algorithm?: string; publicKey?: string } | null> {
+      try {
+        const res = await apiClient.get<any>("/auth/ec-public-key")
+        return res.data
+      } catch (err) {
+        console.error("[API] GET /auth/ec-public-key error:", err)
+      }
+      return null
+    },
+    async verifyEcToken(token: string): Promise<{ success: boolean; valid?: boolean; payload?: any; error?: string }> {
+      try {
+        const res = await apiClient.post<any>("/auth/ec-verify", { token })
+        return res.data
+      } catch (err: any) {
+        return { success: false, valid: false, error: err.response?.data?.error || err.message }
+      }
+    },
   },
 
   warehouses: {
@@ -159,9 +176,16 @@ export const api = {
       has_refrigeration: number
       fuel_price: number
       truck_capacity?: number
-    }): Promise<{ success: boolean; warehouse?: any }> {
-      const res = await apiClient.put<{ success: boolean; warehouse?: any }>(`/warehouses/${id}`, payload)
-      return res.data
+    }): Promise<{ success: boolean; warehouse?: any; error?: string }> {
+      try {
+        const res = await apiClient.put<{ success: boolean; warehouse?: any; error?: string }>(`/warehouses/${id}`, payload)
+        return res.data
+      } catch (err: any) {
+        return {
+          success: false,
+          error: err.response?.data?.error || err.response?.data?.message || err.message,
+        }
+      }
     },
 
     async updateStock(id: string, payload: { product_id: string; quantity: number }): Promise<{ success: boolean; stock?: any; error?: string }> {
@@ -220,9 +244,16 @@ export const api = {
       fuel_current: number
       fuel_consumption: number
       current_warehouse_id: string | null
-    }): Promise<{ success: boolean; truck?: any }> {
-      const res = await apiClient.put<{ success: boolean; truck?: any }>(`/trucks/${id}`, payload)
-      return res.data
+    }): Promise<{ success: boolean; truck?: any; error?: string }> {
+      try {
+        const res = await apiClient.put<{ success: boolean; truck?: any; error?: string }>(`/trucks/${id}`, payload)
+        return res.data
+      } catch (err: any) {
+        return {
+          success: false,
+          error: err.response?.data?.error || err.response?.data?.message || err.message,
+        }
+      }
     },
 
     async getCargo(truckId?: string): Promise<Stock[]> {
@@ -273,9 +304,16 @@ export const api = {
       size: any
       volume: number
       weight: number
-    }): Promise<{ success: boolean; product?: any }> {
-      const res = await apiClient.put<{ success: boolean; product?: any }>(`/products/${id}`, payload)
-      return res.data
+    }): Promise<{ success: boolean; product?: any; error?: string }> {
+      try {
+        const res = await apiClient.put<{ success: boolean; product?: any; error?: string }>(`/products/${id}`, payload)
+        return res.data
+      } catch (err: any) {
+        return {
+          success: false,
+          error: err.response?.data?.error || err.response?.data?.message || err.message,
+        }
+      }
     },
 
     async create(payload: {
@@ -471,6 +509,18 @@ export const api = {
       return []
     },
 
+    async getAllRoutes(): Promise<OrderRoute[]> {
+      try {
+        const res = await apiClient.get<any[]>("/orders-route")
+        if (Array.isArray(res.data)) {
+          return res.data.map(adaptOrderRoute)
+        }
+      } catch (err) {
+        console.error("[API] GET /orders-route error:", err)
+      }
+      return []
+    },
+
     async getCost(id: string): Promise<FreightCost | undefined> {
       try {
         const res = await apiClient.get<any>(`/orders/${id}/cost`)
@@ -502,9 +552,16 @@ export const api = {
       price: number
       status?: string
       items: Array<{ product_id: string; quantity: number }>
-    }): Promise<{ success: boolean; order?: any }> {
-      const res = await apiClient.post<{ success: boolean; order?: any }>("/orders", payload)
-      return res.data
+    }): Promise<{ success: boolean; order?: any; error?: string }> {
+      try {
+        const res = await apiClient.post<{ success: boolean; order?: any; error?: string }>("/orders", payload)
+        return res.data
+      } catch (err: any) {
+        return {
+          success: false,
+          error: err.response?.data?.error || err.response?.data?.message || err.message,
+        }
+      }
     },
 
     async updateStatus(id: string, status: Order["status"]): Promise<{ success: boolean; order?: any; error?: string }> {
@@ -563,6 +620,79 @@ export const api = {
         console.error(`[API] POST /orders/${orderId}/calculate-distance error:`, err)
       }
       return null
+    },
+
+    async suggestTruck(orderId: string, warehouseId?: string): Promise<{
+      success: boolean
+      best_truck?: {
+        truck_id: string
+        model: string
+        current_warehouse_id?: string
+        has_refrigeration: boolean
+        remaining_weight: number
+        remaining_volume: number
+        score: number
+      }
+      suggested_driver?: { id: string; name: string }
+      candidate_trucks?: any[]
+      requirements?: { requires_cold: boolean; has_fragile: boolean }
+      error?: string
+    }> {
+      try {
+        const res = await apiClient.post<any>(`/orders/${encodeURIComponent(orderId)}/suggest-truck`, { warehouse_id: warehouseId })
+        if (res.data?.success && res.data?.best_truck) return res.data
+      } catch {
+        // Try GET if POST is not handled or failed
+        try {
+          const query = warehouseId ? `?warehouse_id=${encodeURIComponent(warehouseId)}` : ""
+          const getRes = await apiClient.get<any>(`/orders/${encodeURIComponent(orderId)}/suggest-truck${query}`)
+          if (getRes.data?.success && getRes.data?.best_truck) return getRes.data
+        } catch {
+          // Fall through to offline/mock client-side calculation
+        }
+      }
+
+      // Offline / graceful fallback to prevent 404s
+      try {
+        const [trucks, users] = await Promise.all([
+          api.trucks.getAll().catch(() => []),
+          api.users.getAll().catch(() => []),
+        ])
+        const candidateTrucks = (trucks || []).filter((t: any) => t.is_valid !== false)
+        const candidates = candidateTrucks.map((t: any) => {
+          let score = 100
+          const tWh = t.current_deposit_id || t.current_warehouse_id
+          if (warehouseId && tWh === warehouseId) score += 50
+          if (!t.is_delivering) score += 35
+          score -= Number(t.truck_maintenance || 0) * 15
+          return {
+            truck_id: t.id,
+            model: t.model || t.id,
+            current_warehouse_id: tWh,
+            has_refrigeration: Boolean(t.has_refrigeration),
+            remaining_weight: Math.max(0, Number(t.weight_max || 25000) - Number(t.weight_actual || 0)),
+            remaining_volume: Math.max(0, Number(t.volume_max || 90) - Number(t.volume_actual || 0)),
+            score: Math.max(0, score),
+          }
+        }).sort((a: any, b: any) => b.score - a.score)
+
+        const bestTruck = candidates[0]
+        const suggestedDriver = (users || []).find((u: any) => u.rawRole === "truck_driver" || u.role === "truck_driver")
+
+        if (bestTruck) {
+          return {
+            success: true,
+            best_truck: bestTruck,
+            suggested_driver: suggestedDriver ? { id: suggestedDriver.id, name: suggestedDriver.name } : undefined,
+            candidate_trucks: candidates.slice(0, 5),
+            requirements: { requires_cold: false, has_fragile: false },
+          }
+        }
+      } catch (fallbackErr) {
+        console.warn("[API] suggestTruck fallback error:", fallbackErr)
+      }
+
+      return { success: false, error: "No suitable trucks available." }
     },
 
     exportCsvUrl(): string {
@@ -689,6 +819,25 @@ export const api = {
       }
     },
 
+    async calculateQuickPick(options?: {
+      warehouseId?: string
+      truckId?: string
+      maxOrders?: number
+      roundTrip?: boolean
+      anchorOrderId?: string
+    }): Promise<any | null> {
+      try {
+        const res = await apiClient.post<any>("/routes/quick-pick", options || {})
+        return res.data
+      } catch (err: any) {
+        console.warn("[API] POST /routes/quick-pick error:", err?.response?.data?.error || err.message)
+        return {
+          success: false,
+          error: err?.response?.data?.error || err.message || "Failed to calculate quick pick route",
+        }
+      }
+    },
+
     async getTruckMultiStopRoute(truckId: string): Promise<any | null> {
       try {
         const res = await apiClient.get<any>(`/trucks/${encodeURIComponent(truckId)}/routes/multi-stop`)
@@ -697,6 +846,61 @@ export const api = {
         console.warn(`[API] GET /trucks/${truckId}/routes/multi-stop error:`, err?.message || err)
         return null
       }
+    },
+
+    async getActiveMultiRoutes(): Promise<{
+      success: boolean
+      total_active_multi_routes: number
+      multi_routes: Array<{
+        truck_id: string
+        truck_model: string
+        warehouse_id: string
+        total_orders: number
+        order_ids: string[]
+        steps: Array<{
+          order_id: string
+          step: number
+          destination?: string
+          status: string
+          time_limit?: string
+          warehouse_id?: string
+          estimated_time?: string
+          arrived_at?: string
+        }>
+        circuit?: any
+      }>
+    } | null> {
+      try {
+        const res = await apiClient.get<any>("/orders/multi-route/active")
+        if (res.data && res.data.success) return res.data
+      } catch (err: any) {
+        console.warn("[API] GET /orders/multi-route/active error:", err?.message || err)
+      }
+      return null
+    },
+
+    async getOrderMultiRoute(orderId: string): Promise<{
+      success: boolean
+      order_id: string
+      truck_id: string
+      step: number
+      total_stops: number
+      multi_route: any
+      siblings: Array<{
+        order_id: string
+        step: number
+        status: string
+        destination?: string
+      }>
+    } | null> {
+      try {
+        const res = await apiClient.get<any>(`/orders/${encodeURIComponent(orderId)}/multi-route`)
+        if (res.data && res.data.success) return res.data
+      } catch (err: any) {
+        // Not part of a multi-route or error
+        console.warn(`[API] GET /orders/${orderId}/multi-route:`, err?.message || err)
+      }
+      return null
     },
   },
 
@@ -734,9 +938,13 @@ export const api = {
   },
 
   reports: {
-    async getMonthlyPerformance(): Promise<MonthlyPerformanceData[]> {
+    async getMonthlyPerformance(warehouseId?: string, period?: string): Promise<MonthlyPerformanceData[]> {
       try {
-        const res = await apiClient.get<any[]>("/monthly-performance")
+        const params = new URLSearchParams()
+        if (warehouseId) params.set("warehouseId", warehouseId)
+        if (period) params.set("period", period)
+        const qs = params.toString() ? `?${params.toString()}` : ""
+        const res = await apiClient.get<any[]>(`/monthly-performance${qs}`)
         if (Array.isArray(res.data)) {
           return res.data.map(adaptMonthlyPerformance)
         }
@@ -746,10 +954,13 @@ export const api = {
       return []
     },
 
-    async getDeliveryCosts(warehouseId?: string): Promise<DeliveryCostReport> {
+    async getDeliveryCosts(warehouseId?: string, period?: string): Promise<DeliveryCostReport> {
       try {
-        const url = warehouseId ? `/reports/delivery-costs?warehouseId=${encodeURIComponent(warehouseId)}` : "/reports/delivery-costs"
-        const res = await apiClient.get<any>(url)
+        const params = new URLSearchParams()
+        if (warehouseId) params.set("warehouseId", warehouseId)
+        if (period) params.set("period", period)
+        const qs = params.toString() ? `?${params.toString()}` : ""
+        const res = await apiClient.get<any>(`/reports/delivery-costs${qs}`)
         if (res.data) {
           return adaptDeliveryCostReport(res.data)
         }
@@ -759,8 +970,12 @@ export const api = {
       return adaptDeliveryCostReport(null)
     },
 
-    exportDeliveryCostsCsvUrl(warehouseId?: string): string {
-      return `${baseURL}/reports/delivery-costs/csv${warehouseId ? `?warehouseId=${encodeURIComponent(warehouseId)}` : ""}`
+    exportDeliveryCostsCsvUrl(warehouseId?: string, period?: string): string {
+      const params = new URLSearchParams()
+      if (warehouseId) params.set("warehouseId", warehouseId)
+      if (period) params.set("period", period)
+      const qs = params.toString() ? `?${params.toString()}` : ""
+      return `${baseURL}/reports/delivery-costs/csv${qs}`
     },
   },
 

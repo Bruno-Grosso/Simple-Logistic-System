@@ -12,6 +12,9 @@ import {
   Route,
   Receipt,
   Percent,
+  Target,
+  Calendar,
+  CheckCircle2,
 } from "lucide-react"
 
 import { PageHeader } from "@/components/page-header"
@@ -24,15 +27,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ReportFilters } from "@/components/report-filters"
 import { PerformanceGraphs } from "@/components/performance-graphs"
 import { ExportCsvButton } from "@/components/export-csv-button"
+import { ReportsAutoRefresher } from "@/components/reports-auto-refresher"
 import { api } from "@/lib/api"
 import { requireRole } from "@/lib/auth/require-role"
-import { computeDashboardStats } from "@/lib/calculations"
-import { DEPOSITS, FREIGHT_COSTS, MONTHLY_PERFORMANCE, ORDERS, PRODUCTS, TRUCKS, USERS } from "@/lib/mock-data"
 
 export const dynamic = "force-dynamic"
 
 interface ReportsPageProps {
-  searchParams: Promise<{ warehouseId?: string }> | { warehouseId?: string }
+  searchParams: Promise<{ warehouseId?: string; period?: string }> | { warehouseId?: string; period?: string }
 }
 
 function parseDestination(raw: string | undefined): string {
@@ -48,146 +50,85 @@ function parseDestination(raw: string | undefined): string {
 export default async function ReportsPage(props: ReportsPageProps) {
   await requireRole("admin", "dispatcher", "manager")
   const searchParams = await props.searchParams
-  const warehouseId = searchParams?.warehouseId
+  const warehouseId = searchParams?.warehouseId || undefined
+  const period = searchParams?.period || undefined
 
-  const [apiOrders, apiTrucks, apiFreightCosts, apiUsers, apiProducts, apiWarehouses, apiMonthlyPerformance, deliveryReport] = await Promise.all([
-    api.orders.getAll(),
-    api.trucks.getAll(),
-    api.freightCost.getAll(),
-    api.users.getAll(),
-    api.products.getAll(),
+  const [warehouses, rawTrucks, monthlyPerformance, deliveryReport] = await Promise.all([
     api.warehouses.getAll(),
-    api.reports.getMonthlyPerformance(),
-    api.reports.getDeliveryCosts(warehouseId),
+    api.trucks.getAll(),
+    api.reports.getMonthlyPerformance(warehouseId, period),
+    api.reports.getDeliveryCosts(warehouseId, period),
   ])
-
-  // Preserve the dashboard's offline behavior when the local API is unavailable.
-  const usingMockData = apiOrders.length === 0
-  const rawOrders = usingMockData ? ORDERS : apiOrders
-  const rawTrucks = apiTrucks.length > 0 ? apiTrucks : TRUCKS
-  const rawFreightCosts = apiFreightCosts.length > 0 ? apiFreightCosts : FREIGHT_COSTS
-  const users = apiUsers.length > 0 ? apiUsers : USERS
-  const products = apiProducts.length > 0 ? apiProducts : PRODUCTS
-  const warehouses = apiWarehouses.length > 0 ? apiWarehouses : DEPOSITS
-  const monthlyPerformance = apiMonthlyPerformance.length > 0 ? apiMonthlyPerformance : MONTHLY_PERFORMANCE
-
-  // Fetch routes for all orders to determine which warehouse they pass through
-  const orderRoutesList = usingMockData
-    ? rawOrders.map((o) => ({ orderId: o.id, steps: [] }))
-    : await Promise.all(
-        rawOrders.map(async (o) => {
-          try {
-            const route = await api.orders.getRoute(o.id)
-            return { orderId: o.id, steps: route }
-          } catch {
-            return { orderId: o.id, steps: [] }
-          }
-        })
-      )
-
-  // Filter orders based on the selected warehouse
-  const orders = warehouseId
-    ? rawOrders.filter((o) => {
-        const routeInfo = orderRoutesList.find((r) => r.orderId === o.id)
-        return routeInfo?.steps.some((step) => step.deposit_id === warehouseId)
-      })
-    : rawOrders
 
   // Filter trucks based on the selected warehouse
   const trucks = warehouseId
     ? rawTrucks.filter((t) => t.current_deposit_id === warehouseId)
     : rawTrucks
 
-  // Filter freight costs to only include those belonging to the filtered orders
-  const filteredOrderIds = new Set(orders.map((o) => o.id))
-  const freightCosts = rawFreightCosts.filter((fc) => filteredOrderIds.has(fc.order_id))
-
-  // Fetch items for the filtered orders to compute product performance
-  const orderItemsLists = await Promise.all(
-    orders.map(async (o) => {
-      try {
-        const items = await api.orders.getItems(o.id)
-        return items.map((item) => ({ ...item, orderPrice: o.price }))
-      } catch {
-        return []
-      }
-    })
-  )
-  const allOrderItems = orderItemsLists.flat()
-
-  const stats = computeDashboardStats(orders, trucks)
-  
-  // Freight Cost Summary from Report or Local Aggregation
-  const hasDeliveryReport = deliveryReport.orders.length > 0
-  const reportSummary = hasDeliveryReport ? deliveryReport.summary : undefined
-  const totalFreightSpent = reportSummary?.total_delivery_cost ?? freightCosts.reduce((acc, fc) => acc + (fc.total_cost || 0), 0)
-  const totalFuelCost = reportSummary?.total_fuel_cost ?? freightCosts.reduce((acc, fc) => acc + (fc.fuel_cost || 0), 0)
-  const totalLaborCost = reportSummary?.total_labor_cost ?? freightCosts.reduce((acc, fc) => acc + (fc.labor_cost || 0), 0)
-  const totalMaintenanceCost = reportSummary?.total_maintenance_cost ?? freightCosts.reduce((acc, fc) => acc + (fc.maintenance_cost || 0), 0)
-  const avgCostPerKm = reportSummary?.avg_cost_per_km ?? (totalFreightSpent > 0 ? 1.85 : 0)
-  const avgCostPerOrder = reportSummary?.avg_delivery_cost_per_order ?? (orders.length > 0 ? totalFreightSpent / orders.length : 0)
-
-  const deliveredOrders = orders.filter((o) => o.status === "Delivered")
-  const totalRevenue = deliveredOrders.reduce((sum, o) => sum + (o.price || 0), 0)
-  const netMargin = totalRevenue - totalFreightSpent
+  // Summary and live figures directly from PostgreSQL database
+  const reportSummary = deliveryReport.summary
+  const totalFreightSpent = reportSummary.total_delivery_cost
+  const totalFuelCost = reportSummary.total_fuel_cost
+  const totalLaborCost = reportSummary.total_labor_cost
+  const totalMaintenanceCost = reportSummary.total_maintenance_cost
+  const totalRevenue = reportSummary.total_delivered_revenue
+  const netMargin = reportSummary.net_operating_profit
+  const avgCostPerKm = reportSummary.avg_cost_per_km
+  const avgCostPerOrder = reportSummary.avg_delivery_cost_per_order
+  const costToRevenueRatio = reportSummary.cost_to_revenue_ratio
   const marginPercent = totalRevenue > 0 ? (netMargin / totalRevenue) * 100 : 0
-  const costToRevenueRatio = totalRevenue > 0 ? (totalFreightSpent / totalRevenue) * 100 : 0
+  const avgFreight = reportSummary.total_orders_analyzed > 0
+    ? totalFreightSpent / reportSummary.total_orders_analyzed
+    : 0
 
-  const deliveryCostOrders = (hasDeliveryReport ? deliveryReport.orders : orders.map((order) => {
-    const cost = freightCosts.find((item) => item.order_id === order.id)
-    const totalDeliveryCost = cost?.total_cost ?? 0
-    const revenue = order.price ?? 0
-    const netMargin = revenue - totalDeliveryCost
-    return {
-      order_id: order.id,
-      destination: parseDestination(order.final_destination),
-      status: order.status,
-      revenue,
-      total_delivery_cost: totalDeliveryCost,
-      net_margin: netMargin,
-      margin_percent: revenue > 0 ? (netMargin / revenue) * 100 : 0,
-      distance_km: order.distance_km ?? 0,
-    }
-  }))
+  const deliveryCostOrders = [...deliveryReport.orders]
     .sort((a, b) => b.total_delivery_cost - a.total_delivery_cost)
     .slice(0, 6)
   const largestRouteCost = deliveryCostOrders[0]?.total_delivery_cost ?? 0
 
-  // 1. Client revenue contribution
-  const clientRevenueMap = new Map<string, { name: string; totalSpent: number; orderCount: number }>()
-  orders.forEach((o) => {
-    const clientUser = users.find((u) => u.id === o.client_id)
-    const clientName = clientUser?.name ?? `Client ${o.client_id}`
-    const current = clientRevenueMap.get(o.client_id) ?? { name: clientName, totalSpent: 0, orderCount: 0 }
-    
-    if (o.status === "Delivered") {
-      current.totalSpent += o.price
-    }
-    current.orderCount += 1
-    clientRevenueMap.set(o.client_id, current)
-  })
-  const clientReport = Array.from(clientRevenueMap.values())
-    .sort((a, b) => b.totalSpent - a.totalSpent)
-    .slice(0, 5)
+  // 1. Client revenue contribution directly from DB
+  const clientReport = (deliveryReport.top_clients && deliveryReport.top_clients.length > 0)
+    ? deliveryReport.top_clients.map((c) => ({
+        name: c.name,
+        totalSpent: c.total_spent,
+        orderCount: c.order_count,
+      }))
+    : []
 
-  // 2. Product performance
-  const productSalesMap = new Map<string, { name: string; quantity: number; totalRevenue: number }>()
-  allOrderItems.forEach((item) => {
-    const prod = products.find((p) => p.id === item.product_id)
-    const productName = prod?.name ?? `Product ${item.product_id}`
-    const price = prod?.price ?? 0
-    const current = productSalesMap.get(item.product_id) ?? { name: productName, quantity: 0, totalRevenue: 0 }
-    
-    current.quantity += item.quantity
-    current.totalRevenue += price * item.quantity
-    productSalesMap.set(item.product_id, current)
-  })
-  const productReport = Array.from(productSalesMap.values())
-    .sort((a, b) => b.totalRevenue - a.totalRevenue)
-    .slice(0, 5)
+  // 2. Product performance directly from DB
+  const productReport = (deliveryReport.top_products && deliveryReport.top_products.length > 0)
+    ? deliveryReport.top_products.map((p) => ({
+        name: p.name,
+        quantity: p.quantity,
+        totalRevenue: p.total_revenue,
+      }))
+    : []
 
-  // Average freight cost
-  const avgFreight = freightCosts.length > 0 ? totalFreightSpent / freightCosts.length : 0
+  // Monthly Target & Operations Pacing Analysis directly from DB
+  const monthlyTargetOrders = reportSummary.monthly_target_orders ?? (warehouseId ? 25 : 75)
+  const completedThisMonth = reportSummary.completed_orders ?? 0
+  const ordersNeededRemaining = reportSummary.orders_needed_this_month ?? Math.max(0, monthlyTargetOrders - completedThisMonth)
+  const targetCompletionPct = monthlyTargetOrders > 0
+    ? Math.min(100, Math.round((completedThisMonth / monthlyTargetOrders) * 100))
+    : 100
+
+  // Pacing calculations
+  const now = new Date()
+  const currentDay = now.getDate()
+  const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+  const daysRemainingInMonth = Math.max(1, daysInCurrentMonth - currentDay)
+  const requiredOrdersPerDay = reportSummary.required_daily_run_rate ?? (Math.round((ordersNeededRemaining / daysRemainingInMonth) * 10) / 10)
+  const currentDailyRunRate = currentDay > 0 ? Math.round((completedThisMonth / currentDay) * 10) / 10 : 0
+  const projectedMonthEndCompletions = reportSummary.projected_month_end_completions ?? Math.round(completedThisMonth + currentDailyRunRate * daysRemainingInMonth)
+  const targetStatus = completedThisMonth >= monthlyTargetOrders
+    ? "Target Met"
+    : projectedMonthEndCompletions >= monthlyTargetOrders
+      ? "On Track"
+      : "Pace Action Required"
+
+  const stats = {
+    trucksOnRoad: trucks.filter((t) => t.is_traveling || t.is_delivering).length,
+  }
 
   // Filter warehouse occupancy view if filtered
   const filteredWarehouses = warehouseId
@@ -200,17 +141,35 @@ export default async function ReportsPage(props: ReportsPageProps) {
         crumbs={[{ label: "Reports" }]} 
         actions={
           <div className="flex items-center gap-2">
-            <ReportFilters warehouses={warehouses} />
+            <ReportFilters warehouses={warehouses} availablePeriods={deliveryReport.available_periods} />
             <ExportCsvButton
-              url={api.reports.exportDeliveryCostsCsvUrl(warehouseId)}
-              filename={`delivery-costs-report${warehouseId ? `-${warehouseId}` : ""}.csv`}
+              url={api.reports.exportDeliveryCostsCsvUrl(warehouseId, period)}
+              filename={`delivery-costs-report${warehouseId ? `-${warehouseId}` : ""}${period ? `-${period}` : ""}.csv`}
               label="Export CSV"
             />
           </div>
         }
       />
+      <ReportsAutoRefresher />
       
       <div className="min-h-0 flex-1 space-y-6 overflow-auto">
+        {/* Active Filters Pill */}
+        {(warehouseId || period) && (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground bg-muted/40 px-3 py-2 rounded-lg border border-border">
+            <span className="font-semibold text-foreground">Active Database Query:</span>
+            {warehouseId && (
+              <Badge variant="secondary" className="font-medium text-[11px]">
+                Location: {warehouses.find((w) => w.id === warehouseId)?.location || warehouseId}
+              </Badge>
+            )}
+            {period && (
+              <Badge variant="secondary" className="font-medium text-[11px]">
+                Period: {deliveryReport.period_label || period}
+              </Badge>
+            )}
+          </div>
+        )}
+
         {/* KPI Grid */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
@@ -234,14 +193,18 @@ export default async function ReportsPage(props: ReportsPageProps) {
           />
           <StatCard
             label="Completed Orders"
-            value={deliveredOrders.length}
+            value={`${completedThisMonth} / ${monthlyTargetOrders}`}
             icon={Package}
-            description={`${orders.length} orders total`}
+            description={
+              ordersNeededRemaining > 0
+                ? `${ordersNeededRemaining} more needed this period (${targetCompletionPct}%)`
+                : `Period goal achieved (${targetCompletionPct}%)`
+            }
           />
         </div>
 
         {/* Performance Graphs (Profit vs Costs Area Chart & Operational Breakdown) */}
-        <PerformanceGraphs warehouseId={warehouseId} monthlyPerformance={monthlyPerformance} />
+        <PerformanceGraphs warehouseId={warehouseId} period={period} monthlyPerformance={monthlyPerformance} />
 
         {/* Freight cost breakdown card */}
         <Card className="border border-border">
@@ -289,7 +252,7 @@ export default async function ReportsPage(props: ReportsPageProps) {
             label="Average Cost / Order"
             value={`R$ ${avgCostPerOrder.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
             icon={Receipt}
-            description={`${reportSummary?.total_orders_analyzed ?? orders.length} routes analyzed`}
+            description={`${reportSummary?.total_orders_analyzed ?? deliveryCostOrders.length} routes analyzed`}
           />
           <StatCard
             label="Average Cost / km"
@@ -396,6 +359,94 @@ export default async function ReportsPage(props: ReportsPageProps) {
             </CardContent>
           </Card>
         </div>
+
+        {/* Monthly Order Completion Target & Pacing Card */}
+        <Card className="border border-border">
+          <CardHeader className="pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <CardTitle className="font-display text-base flex items-center gap-2">
+                  <Target className="size-4 text-primary" />
+                  Monthly Order Completion Target & Operational Pace
+                </CardTitle>
+                <CardDescription>
+                  Tracking needed vs completed orders for the current month to maintain logistic capacity and profitability goals.
+                </CardDescription>
+              </div>
+              <Badge
+                variant={
+                  targetStatus === "Target Met"
+                    ? "default"
+                    : targetStatus === "On Track"
+                      ? "secondary"
+                      : "destructive"
+                }
+                className="w-fit self-start sm:self-auto"
+              >
+                {targetStatus}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {/* Progress bar and primary numbers */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-sm font-medium">
+                <span className="flex items-center gap-1.5 text-foreground">
+                  <CheckCircle2 className="size-4 text-emerald-500" />
+                  <span>{completedThisMonth} orders completed</span>
+                  <span className="text-muted-foreground font-normal">of {monthlyTargetOrders} monthly target</span>
+                </span>
+                <span className="tabular-nums font-bold text-primary">{targetCompletionPct}%</span>
+              </div>
+              <Progress value={targetCompletionPct} className="h-3 rounded-full" />
+            </div>
+
+            {/* Pacing details grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+              <div className="p-3 rounded-lg bg-muted/40 border border-border">
+                <p className="text-xs text-muted-foreground uppercase font-semibold">Orders Needed to Complete</p>
+                <p className="text-2xl font-bold font-display mt-1 text-foreground tabular-nums">
+                  {ordersNeededRemaining} <span className="text-xs font-normal text-muted-foreground">orders</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {ordersNeededRemaining === 0 ? "Target achieved for this period" : "Remaining to hit month plan"}
+                </p>
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/40 border border-border">
+                <p className="text-xs text-muted-foreground uppercase font-semibold">Required Daily Run Rate</p>
+                <p className="text-2xl font-bold font-display mt-1 text-primary tabular-nums">
+                  {requiredOrdersPerDay} <span className="text-xs font-normal text-muted-foreground">orders/day</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Over remaining {daysRemainingInMonth} days in month
+                </p>
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/40 border border-border">
+                <p className="text-xs text-muted-foreground uppercase font-semibold">Current Daily Velocity</p>
+                <p className="text-2xl font-bold font-display mt-1 text-foreground tabular-nums">
+                  {currentDailyRunRate} <span className="text-xs font-normal text-muted-foreground">orders/day</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Based on {currentDay} elapsed days
+                </p>
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/40 border border-border">
+                <p className="text-xs text-muted-foreground uppercase font-semibold">Projected Month-End</p>
+                <p className="text-2xl font-bold font-display mt-1 text-foreground tabular-nums">
+                  {projectedMonthEndCompletions} <span className="text-xs font-normal text-muted-foreground">orders</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {projectedMonthEndCompletions >= monthlyTargetOrders
+                    ? `+${projectedMonthEndCompletions - monthlyTargetOrders} above target pace`
+                    : `${monthlyTargetOrders - projectedMonthEndCompletions} below target pace`}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Top Products Table */}
