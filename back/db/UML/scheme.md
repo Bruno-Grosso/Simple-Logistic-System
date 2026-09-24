@@ -81,6 +81,8 @@ flowchart LR
     ORDERS -->|SUPPLIES_ROUTE| SUPPLIES_ROUTE
     ORDERS -->|FREIGHT_COST| FREIGHT_COST
 ```
+<details>
+  
 ---
 
 ## 2. Light Theme
