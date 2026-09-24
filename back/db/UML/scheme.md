@@ -11,7 +11,7 @@ Below are two visualization options for the system data model (Dark Theme and Li
 <details>
 <summary><b>View diagram source code (Dark Theme)</b></summary>
 
-```mermaid
+```text
 %%{init: {
   'theme': 'base',
   'flowchart': {
@@ -81,6 +81,8 @@ flowchart LR
     ORDERS -->|SUPPLIES_ROUTE| SUPPLIES_ROUTE
     ORDERS -->|FREIGHT_COST| FREIGHT_COST
 ```
+---
+
 ## 2. Light Theme
 
 <img src="./Light_Theme_UML.png" alt="Logistics System Data Model - Light Theme" />
@@ -88,7 +90,7 @@ flowchart LR
 <details>
 <summary><b>View diagram source code (Light Theme)</b></summary>
 
-```mermaid
+```text
 %%{init: {
   'theme': 'base',
   'flowchart': {
