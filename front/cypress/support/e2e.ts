@@ -1,4 +1,5 @@
 import "./commands"
+import "@cypress/code-coverage/support"
 
 Cypress.on("uncaught:exception", (err) => {
   // Ignore React hydration errors, cross-origin CDN scripts (Leaflet/tiles), and benign Next.js warnings
@@ -20,5 +21,17 @@ beforeEach(() => {
   if (!spec.includes("login") && !spec.includes("register")) {
     cy.setSession()
   }
+})
+
+after(() => {
+  cy.request({
+    url: "/api/coverage",
+    failOnStatusCode: false,
+    log: false,
+  }).then((res) => {
+    if (res?.body?.coverage) {
+      cy.task("combineCoverage", JSON.stringify(res.body.coverage))
+    }
+  })
 })
 

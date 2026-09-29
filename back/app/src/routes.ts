@@ -786,7 +786,12 @@ export async function calculateFleetMultiRoutes(options: {
 
   const allOrders = await orders.all();
   let candidatePool = (allOrders || []).filter(
-    (o: any) => o.status !== "Delivered" && o.status !== "Canceled" && o.status !== "Cancelled"
+    (o: any) =>
+      !String(o.id).startsWith("ORD-TEST-") &&
+      !String(o.id).startsWith("ORD-E2E-") &&
+      o.status !== "Delivered" &&
+      o.status !== "Canceled" &&
+      o.status !== "Cancelled"
   );
 
   if (candidatePool.length === 0) {
@@ -875,7 +880,7 @@ export async function calculateFleetMultiRoutes(options: {
       name: `Multi-Route ${routeLetter}`,
       truck_id: assignedTruck?.id,
       truck: assignedTruck,
-      order_ids: selectedOrderIds,
+      order_ids: solvedCircuit.stops.map((s: any) => s.order_id),
       anchor_order_id: anchorOrder.id,
       circuit: solvedCircuit,
       corridor_scored_candidates: scored.map((s: any) => ({

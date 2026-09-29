@@ -1,8 +1,25 @@
+import path from "path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   compress: true,
+  turbopack: {},
+  webpack(config, { dev }) {
+    if (process.env.COVERAGE === "true" || dev) {
+      config.module.rules.push({
+        test: /\.(tsx?|jsx?)$/,
+        exclude: [/node_modules/, /\.next/, /cypress/],
+        enforce: "post",
+        use: [
+          {
+            loader: path.resolve(__dirname, "scripts/istanbul-loader.js"),
+          },
+        ],
+      });
+    }
+    return config;
+  },
   async headers() {
     return [
       {

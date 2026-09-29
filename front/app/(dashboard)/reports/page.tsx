@@ -34,7 +34,7 @@ import { requireRole } from "@/lib/auth/require-role"
 export const dynamic = "force-dynamic"
 
 interface ReportsPageProps {
-  searchParams: Promise<{ warehouseId?: string; period?: string }> | { warehouseId?: string; period?: string }
+  searchParams?: Promise<{ warehouseId?: string; period?: string }>
 }
 
 function parseDestination(raw: string | undefined): string {
