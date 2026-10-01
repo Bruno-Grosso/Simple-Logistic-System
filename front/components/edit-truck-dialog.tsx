@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Edit2, Loader2 } from "lucide-react"
+import { Edit2, Loader2, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { api } from "@/lib/api"
+import { getErrorMessage } from "@/lib/utils"
 import type { Truck, Deposit } from "@/types"
 
 interface EditTruckDialogProps {
@@ -29,27 +30,30 @@ export function EditTruckDialog({ truck, warehouses }: EditTruckDialogProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [dialogError, setDialogError] = useState<string | null>(null)
 
   // Parse size JSON safely
-  let initialLength = 0
-  let initialWidth = 0
-  let initialHeight = 0
-  if (truck.size) {
+  let initialL = 0, initialW = 0, initialH = 0
+  if (truck.size && typeof truck.size === "object") {
+    initialL = (truck.size as any).length ?? (truck.size as any).l ?? 0
+    initialW = (truck.size as any).width ?? (truck.size as any).w ?? 0
+    initialH = (truck.size as any).height ?? (truck.size as any).h ?? 0
+  } else if (typeof truck.size === "string") {
     try {
       const parsed = JSON.parse(truck.size)
-      initialLength = parsed.l ?? parsed.length ?? 0
-      initialWidth = parsed.w ?? parsed.width ?? 0
-      initialHeight = parsed.h ?? parsed.height ?? 0
+      initialL = parsed.length ?? parsed.l ?? 0
+      initialW = parsed.width ?? parsed.w ?? 0
+      initialH = parsed.height ?? parsed.h ?? 0
     } catch {}
   }
 
-  const [model, setModel] = useState(truck.model ?? "")
+  const [model, setModel] = useState(truck.model || "")
   const [speed, setSpeed] = useState(truck.speed ?? 80)
   const [volumeMax, setVolumeMax] = useState(truck.volume_max ?? 90)
   const [weightMax, setWeightMax] = useState(truck.weight_max ?? 25000)
-  const [length, setLength] = useState(initialLength)
-  const [width, setWidth] = useState(initialWidth)
-  const [height, setHeight] = useState(initialHeight)
+  const [length, setLength] = useState(initialL)
+  const [width, setWidth] = useState(initialW)
+  const [height, setHeight] = useState(initialH)
   const [fuelCapacity, setFuelCapacity] = useState(truck.fuel_capacity ?? 500)
   const [fuelCurrent, setFuelCurrent] = useState(truck.fuel_current ?? 400)
   const [fuelConsumption, setFuelConsumption] = useState(truck.fuel_consumption ?? 0.3)
@@ -59,6 +63,29 @@ export function EditTruckDialog({ truck, warehouses }: EditTruckDialogProps) {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setDialogError(null)
+
+    if (!model.trim()) {
+      const msg = "Truck model name cannot be empty."
+      setDialogError(msg)
+      return toast.error(msg)
+    }
+
+    const weightNum = Number(weightMax)
+    if (isNaN(weightNum) || weightNum <= 0) {
+      const msg = "Maximum payload weight must be greater than 0 kg."
+      setDialogError(msg)
+      return toast.error(msg)
+    }
+
+    const fuelCapNum = Number(fuelCapacity)
+    const fuelCurNum = Number(fuelCurrent)
+    if (fuelCurNum > fuelCapNum && fuelCapNum > 0) {
+      const msg = `Current fuel level (${fuelCurNum} L) cannot exceed maximum fuel tank capacity (${fuelCapNum} L).`
+      setDialogError(msg)
+      return toast.error(msg)
+    }
+
     setLoading(true)
 
     const sizeObj = {
@@ -72,15 +99,15 @@ export function EditTruckDialog({ truck, warehouses }: EditTruckDialogProps) {
 
     try {
       const res = await api.trucks.update(truck.id, {
-        model,
+        model: model.trim(),
         speed: Number(speed),
         is_valid: Number(isValid),
         size: sizeObj,
         volume_max: Number(volumeMax),
-        weight_max: Number(weightMax),
+        weight_max: weightNum,
         has_refrigeration: Number(hasRefrigeration),
-        fuel_capacity: Number(fuelCapacity),
-        fuel_current: Number(fuelCurrent),
+        fuel_capacity: fuelCapNum,
+        fuel_current: fuelCurNum,
         fuel_consumption: Number(fuelConsumption),
         current_warehouse_id: currentWarehouseId || null,
       })
@@ -90,30 +117,48 @@ export function EditTruckDialog({ truck, warehouses }: EditTruckDialogProps) {
         setOpen(false)
         router.refresh()
       } else {
-        toast.error("Failed to update truck")
+        const msg = res.error || "Failed to update truck in database."
+        setDialogError(msg)
+        toast.error(msg)
       }
     } catch (err: any) {
       console.error(err)
-      toast.error(err.response?.data || "An error occurred while updating the truck")
+      const msg = getErrorMessage(err, "An error occurred while updating the truck.")
+      setDialogError(msg)
+      toast.error(msg)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer">
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (o) setDialogError(null); }}>
+      <DialogTrigger
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+      >
         <Edit2 className="size-4" />
         Edit Truck
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[550px]">
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={onSubmit} noValidate className="space-y-4">
           <DialogHeader>
             <DialogTitle>Edit Truck Details</DialogTitle>
             <DialogDescription>
               Modify truck technical specs, operational status, and current location.
             </DialogDescription>
           </DialogHeader>
+
+          {dialogError && (
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive flex items-center gap-2"
+            >
+              <AlertTriangle className="size-4 shrink-0 text-destructive" aria-hidden="true" />
+              <span>{dialogError}</span>
+            </div>
+          )}
 
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">

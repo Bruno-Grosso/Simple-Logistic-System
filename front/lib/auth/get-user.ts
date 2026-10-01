@@ -14,32 +14,28 @@ export type UserProfileWithSession = {
   } | null
 }
 
-const DEFAULT_SEED_USER: User = {
-  id: "USR-001",
-  name: "Alice Admin",
-  email: "alice@logisys.com",
-  role: "admin",
-  rawRole: "admin",
-  work_position: "System Administrator",
-  address: "Rua do Imperador, Centro, Petrópolis - RJ",
-}
-
 export async function getCurrentUserProfile(): Promise<UserProfileWithSession> {
   const session = await getSession()
-  let userId = session?.sub
-
-  if (!userId && session?.email) {
-    const allUsers = await api.users.getAll()
-    const found = allUsers.find(
-      (u) =>
-        u.email?.toLowerCase() === session.email?.toLowerCase() ||
-        u.id.toLowerCase() === session.email?.toLowerCase(),
-    )
-    if (found) userId = found.id
+  if (!session?.sub) {
+    throw new Error("No authenticated user session is available.")
   }
 
-  const targetId = userId || "USR-001"
-  const user = (await api.users.getById(targetId)) || DEFAULT_SEED_USER
+  let user = await api.users.getById(session.sub)
+  if (!user) {
+    if (session.sub === "USR-001" || (session as any).role) {
+      user = {
+        id: session.sub,
+        name: (session as any).name || "Alice Admin",
+        email: session.email || "alice@logisys.com",
+        role: ((session as any).role || "admin") as any,
+        rawRole: (session as any).role || "admin",
+        work_position: "System Administrator",
+        address: "Rua do Imperador, Centro, Petrópolis - RJ",
+      }
+    } else {
+      throw new Error("The authenticated user could not be found.")
+    }
+  }
 
   let onlineSession = null
   try {

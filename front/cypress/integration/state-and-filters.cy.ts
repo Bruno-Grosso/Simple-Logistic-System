@@ -1,5 +1,5 @@
 describe("Integration Tests - User State & View Filtering", () => {
-  it("should update profile details card dynamically when changing selected user profile option", () => {
+  it("should update profile details dynamically when switching user session", () => {
     cy.visit("/profile")
 
     // Default view: Alice Admin
@@ -7,7 +7,8 @@ describe("Integration Tests - User State & View Filtering", () => {
     cy.contains("USR-001").should("be.visible")
 
     // Switch to Bob Worker (USR-002)
-    cy.get("select").select("USR-002", { force: true })
+    cy.setSession({ sub: "USR-002", name: "Bob Worker", role: "warehouse_worker", email: "bob@logisys.com" })
+    cy.visit("/profile")
     cy.contains("Bob Worker").should("be.visible")
     cy.contains("USR-002").should("be.visible")
   })

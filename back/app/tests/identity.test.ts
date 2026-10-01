@@ -101,3 +101,29 @@ test("Identity: PUT /users/:id updates profile", async () => {
     }),
   });
 });
+
+test("Identity: POST /employees creates dispatcher, inventory_manager, and maintenance_technician", async () => {
+  const roles = ["dispatcher", "inventory_manager", "maintenance_technician"];
+  for (const role of roles) {
+    const res = await testFetch("/employees", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: `Test ${role}`,
+        email: `employee-${role}-${Date.now()}@logisys.com`,
+        password: "secretpassword",
+        role,
+        wage: 55.0,
+      }),
+    });
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as any;
+    expect(data.success).toBe(true);
+    expect(data.employee.role).toBe(role);
+
+    // Clean up
+    if (data.employee?.id) {
+      await testFetch(`/users/${data.employee.id}`, { method: "DELETE" });
+    }
+  }
+});

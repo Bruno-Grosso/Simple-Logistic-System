@@ -18,9 +18,11 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { api } from "@/lib/api"
+import { getCurrentUserProfile } from "@/lib/auth/get-user"
 import { computeDashboardStats, computeDepositUsage } from "@/lib/calculations"
 import type { OrderStatus, Deposit, Truck } from "@/types"
 import { cn } from "@/lib/utils"
+import { EmptyState } from "@/components/empty-state"
 
 export const dynamic = "force-dynamic"
 
@@ -58,16 +60,42 @@ function OrderStatusBadge({ status }: { status: OrderStatus }) {
 }
 
 export default async function DashboardPage() {
+  const { user } = await getCurrentUserProfile()
+  const role = user.rawRole || user.role
+  const orderFilters =
+    role === "client" ? { clientId: user.id } :
+    role === "truck_driver" ? { driverId: user.id } :
+    role === "warehouse_worker" && user.warehouse_id ? { warehouseId: user.warehouse_id } : undefined
   const [orders, trucks, deposits] = await Promise.all([
-    api.orders.getAll(),
-    api.trucks.getAll(),
-    api.warehouses.getAll(),
+    api.orders.getAll(orderFilters),
+    role === "client" ? Promise.resolve([]) : api.trucks.getAll(),
+    role === "warehouse_worker" && user.warehouse_id
+      ? api.warehouses.getById(user.warehouse_id).then((warehouse) => warehouse ? [warehouse] : [])
+      : role === "client" ? Promise.resolve([]) : api.warehouses.getAll(),
   ])
 
-  const stats = computeDashboardStats(orders, trucks)
+  // A warehouse worker sees only trucks parked at, departing from, or arriving at
+  // their assigned warehouse. Multiple workers can safely share that warehouse.
+  const visibleTrucks = role === "warehouse_worker" && user.warehouse_id
+    ? trucks.filter((truck) =>
+        truck.current_deposit_id === user.warehouse_id ||
+        truck.origin_deposit_id === user.warehouse_id ||
+        truck.destination_deposit_id === user.warehouse_id,
+      )
+    : trucks
+  const stats = computeDashboardStats(orders, visibleTrucks)
   const recentOrders = orders.slice(0, 5)
-  const activeTrucks = trucks.filter((t) => t.is_traveling || t.is_delivering)
-  const maintenanceTrucks = trucks.filter((t) => (t.truck_maintenance ?? 0) >= 3 || !t.is_valid)
+  const activeTrucks = visibleTrucks.filter((t) => t.is_traveling || t.is_delivering)
+  const maintenanceTrucks = visibleTrucks.filter((t) => (t.truck_maintenance ?? 0) >= 3 || !t.is_valid)
+  const activeDeposits = deposits.filter((deposit) =>
+    deposit.volume_actual > 0 || visibleTrucks.some((truck) => truck.current_deposit_id === deposit.id || truck.destination_deposit_id === deposit.id),
+  )
+  const visibleStats = [
+    stats.ordersInProgress > 0 && { label: "In Transit", value: stats.ordersInProgress, icon: TruckIcon, description: "Active shipments", accent: true },
+    stats.pendingOrders > 0 && { label: "Pending", value: stats.pendingOrders, icon: Clock, description: "Awaiting dispatch" },
+    stats.deliveredThisMonth > 0 && { label: "Delivered", value: stats.deliveredThisMonth, icon: CheckCircle2, description: "Total completed" },
+    role === "admin" && stats.totalRevenue > 0 && { label: "Revenue", value: `R$ ${stats.totalRevenue.toLocaleString("pt-BR")}`, icon: TrendingUp, description: "From delivered orders" },
+  ].filter((stat): stat is Exclude<typeof stat, false> => Boolean(stat))
 
   const depositMap = new Map<string, Deposit>()
   deposits.forEach((d) => depositMap.set(d.id, d))
@@ -77,37 +105,11 @@ export default async function DashboardPage() {
       <PageHeader crumbs={[{ label: "Dashboard" }]} />
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="In Transit"
-          value={stats.ordersInProgress}
-          icon={TruckIcon}
-          description="Active shipments"
-          accent
-        />
-        <StatCard
-          label="Pending"
-          value={stats.pendingOrders}
-          icon={Clock}
-          description="Awaiting dispatch"
-        />
-        <StatCard
-          label="Delivered"
-          value={stats.deliveredThisMonth}
-          icon={CheckCircle2}
-          description="Total completed"
-        />
-        <StatCard
-          label="Revenue"
-          value={`R$ ${stats.totalRevenue.toLocaleString("pt-BR")}`}
-          icon={TrendingUp}
-          description="From delivered orders"
-        />
-      </div>
+      {visibleStats.length > 0 && <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{visibleStats.map((stat) => <StatCard key={stat.label} {...stat} />)}</div>}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+      {(recentOrders.length > 0 || activeTrucks.length > 0) && <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
         {/* Recent orders */}
-        <Card className="xl:col-span-7 h-max">
+        {recentOrders.length > 0 && <Card className="xl:col-span-7 h-max">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
             <CardTitle className="font-display text-lg">Recent Orders</CardTitle>
             <ButtonLink href="/orders" label="View all orders" />
@@ -119,7 +121,7 @@ export default async function DashboardPage() {
                   <th scope="col" className="h-10 px-3 font-medium">Order</th>
                   <th scope="col" className="h-10 px-3 font-medium">Destination</th>
                   <th scope="col" className="h-10 px-3 font-medium">Deadline</th>
-                  <th scope="col" className="h-10 px-3 text-right font-medium">Price</th>
+                  {role === "admin" && <th scope="col" className="h-10 px-3 text-right font-medium">Price</th>}
                   <th scope="col" className="h-10 px-3 font-medium">Status</th>
                   <th scope="col" className="h-10 px-2 text-right font-medium">
                     <span className="sr-only">Open</span>
@@ -149,9 +151,7 @@ export default async function DashboardPage() {
                         ? new Date(order.time_limit.includes("T") ? order.time_limit : order.time_limit + "T12:00:00").toLocaleDateString("pt-BR")
                         : "—"}
                     </td>
-                    <td className="p-3 text-right align-middle tabular-nums text-foreground">
-                      R$ {order.price.toLocaleString("pt-BR")}
-                    </td>
+                    {role === "admin" && <td className="p-3 text-right align-middle tabular-nums text-foreground">R$ {order.price.toLocaleString("pt-BR")}</td>}
                     <td className="p-3 align-middle">
                       <OrderStatusBadge status={order.status} />
                     </td>
@@ -169,20 +169,17 @@ export default async function DashboardPage() {
               </tbody>
             </table>
           </CardContent>
-        </Card>
+        </Card>}
 
         {/* Fleet column */}
         <div className="flex flex-col gap-4 xl:col-span-5">
-          <Card>
+          {activeTrucks.length > 0 && <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
               <CardTitle className="font-display text-lg">On the Road</CardTitle>
               <ButtonLink href="/fleet" label="Fleet" />
             </CardHeader>
             <CardContent className="space-y-4">
-              {activeTrucks.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No trucks on route right now.</p>
-              ) : (
-                activeTrucks.map((t) => {
+              {activeTrucks.map((t) => {
                   const origin = t.origin_deposit_id ? depositMap.get(t.origin_deposit_id) : undefined
                   const dest = t.destination_deposit_id ? depositMap.get(t.destination_deposit_id) : undefined
                   return (
@@ -193,10 +190,9 @@ export default async function DashboardPage() {
                       destinationLabel={dest ? getDepositLabel(dest) : undefined}
                     />
                   )
-                })
-              )}
+                })}
             </CardContent>
-          </Card>
+          </Card>}
 
           {maintenanceTrucks.length > 0 ? (
             <Card className="border-destructive/25 bg-destructive/5">
@@ -229,10 +225,10 @@ export default async function DashboardPage() {
             </Card>
           ) : null}
         </div>
-      </div>
+      </div>}
 
       {/* Deposits */}
-      <section aria-labelledby="deposit-capacity-heading" className="space-y-3">
+      {activeDeposits.length > 0 && <section aria-labelledby="deposit-capacity-heading" className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id="deposit-capacity-heading" className="font-display text-lg text-foreground">
             Deposit Capacity
@@ -246,7 +242,7 @@ export default async function DashboardPage() {
           </Link>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {deposits.map((d) => {
+          {activeDeposits.map((d) => {
             const { pct } = computeDepositUsage(d)
             const max = d.volume_max ?? 1
             return (
@@ -280,7 +276,8 @@ export default async function DashboardPage() {
             )
           })}
         </div>
-      </section>
+      </section>}
+      {visibleStats.length === 0 && recentOrders.length === 0 && activeTrucks.length === 0 && activeDeposits.length === 0 && <EmptyState icon={Package} title="No operational activity yet" description="Relevant deliveries, vehicles, and warehouse activity will appear here when available." />}
     </PageShell>
   )
 }

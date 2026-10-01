@@ -19,10 +19,11 @@ export default async function LoginPage({
 
   const params = await searchParams
   const justRegistered = params.registered === "1"
+  const isTimeout = params.reason === "timeout" || params.reason === "idle"
   const showDevHint = process.env.NODE_ENV === "development"
 
   return (
-    <div className="relative flex min-h-screen overflow-hidden bg-background">
+    <main className="relative flex min-h-screen overflow-hidden bg-background">
       {/* Left — decorative (desktop) */}
       <div className="relative hidden w-1/2 flex-col justify-end p-12 lg:flex">
         <div
@@ -55,7 +56,7 @@ export default async function LoginPage({
             <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <Truck className="size-6" aria-hidden />
             </div>
-            <p className="font-display text-lg font-medium text-foreground">LogiSys</p>
+            <h1 className="font-display text-xl font-semibold text-foreground">LogiSys</h1>
             <p className="text-sm text-muted-foreground">Sign in to your account</p>
           </div>
 
@@ -65,6 +66,14 @@ export default async function LoginPage({
               <CardDescription>Enter your work email and password.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-6 lg:pt-0">
+              {isTimeout ? (
+                <div
+                  role="alert"
+                  className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-400"
+                >
+                  Your session expired due to inactivity. Please sign in again to continue.
+                </div>
+              ) : null}
               {justRegistered ? (
                 <div
                   role="status"
@@ -105,6 +114,6 @@ export default async function LoginPage({
           </Card>
         </div>
       </div>
-    </div>
+    </main>
   )
 }

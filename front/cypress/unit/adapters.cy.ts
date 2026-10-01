@@ -36,6 +36,17 @@ describe("Unit Tests - Data Adapters (lib/adapters.ts)", () => {
       expect(adapted.has_refrigeration).to.equal(true)
     })
 
+    it("preserves warehouse coordinates for the edit form", () => {
+      const adapted = adaptWarehouse({
+        id: "WH-9",
+        location: JSON.stringify({ label: "Coordinate-safe hub", latitude: -22.3842, longitude: -43.1311 }),
+      })
+
+      expect(adapted.location).to.equal("Coordinate-safe hub")
+      expect(adapted.latitude).to.equal(-22.3842)
+      expect(adapted.longitude).to.equal(-43.1311)
+    })
+
     it("should handle location object with label", () => {
       const raw = {
         id: "W-2",
@@ -136,6 +147,12 @@ describe("Unit Tests - Data Adapters (lib/adapters.ts)", () => {
       expect(adapted.address).to.equal("Rua do Imperador 100, Petrópolis")
       expect(adapted.wage).to.equal(42.5)
     })
+
+    it("treats database zero and string zero active flags as inactive", () => {
+      expect(adaptUser({ id: "USR-1", name: "Inactive numeric", is_active: 0 }).is_active).to.equal(false)
+      expect(adaptUser({ id: "USR-2", name: "Inactive string", is_active: "0" }).is_active).to.equal(false)
+      expect(adaptUser({ id: "USR-3", name: "Active string", is_active: "1" }).is_active).to.equal(true)
+    })
   })
 
   describe("adaptOrder", () => {
@@ -169,12 +186,13 @@ describe("Unit Tests - Data Adapters (lib/adapters.ts)", () => {
       expect(adapted.quantity).to.equal(20)
     })
 
-    it("should map route steps correctly", () => {
-      const raw = { order_id: 10, step: 2, warehouse_id: "W-1", truck_id: "T-3" }
+    it("should map route assignments correctly", () => {
+      const raw = { order_id: 10, step: 2, warehouse_id: "W-1", truck_id: "T-3", driver_id: "USR-003" }
       const adapted = adaptOrderRoute(raw)
       expect(adapted.step).to.equal(2)
       expect(adapted.deposit_id).to.equal("W-1")
       expect(adapted.truck_id).to.equal("T-3")
+      expect(adapted.driver_id).to.equal("USR-003")
     })
   })
 
@@ -287,4 +305,3 @@ describe("Unit Tests - Data Adapters (lib/adapters.ts)", () => {
     })
   })
 })
-

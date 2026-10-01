@@ -1,0 +1,22 @@
+{
+  "all": true,
+  "include": [
+    "components/**/*.{ts,tsx}",
+    "lib/**/*.{ts,tsx}",
+    "hooks/**/*.{ts,tsx}",
+    "app/**/*.{ts,tsx}"
+  ],
+  "exclude": [
+    "**/*.d.ts",
+    "node_modules/**",
+    ".next/**",
+    "cypress/**"
+  ],
+  "reporter": [
+    "text",
+    "html",
+    "lcov",
+    "json-summary"
+  ],
+  "report-dir": "./coverage"
+}

@@ -234,33 +234,47 @@
 - **id (TEXT)**:  
   This field uniquely identifies each user in the system.  
   **Example of activity**: If you want to assign orders or track user activity, query using this ID.  
-  **Example value**: `"user_001"`
+  **Example value**: `"USR-001"`
 
 - **name (TEXT)**:  
   This field stores the user’s full name.  
   **Example of activity**: If you want to display user information in orders or reports, use this field.  
-  **Example value**: `"Alice Müller"`
+  **Example value**: `"Alice Admin"`
+
+- **email (TEXT UNIQUE)**:  
+  This field stores the user’s corporate email address and acts as an alternative unique login identifier.  
+  **Example of activity**: If you want to authenticate users or send notifications, use this field.  
+  **Example value**: `"alice@logisys.com"`
 
 - **password (TEXT)**:  
-  This field stores the user’s hashed password for authentication.  
-  **Example of activity**: If you want to validate login credentials, compare the hash of the entered password with this value.  
-  **Example value**: `"hashed_password_123"`
+  This field stores the user’s password for authentication.  
+  **Example of activity**: If you want to validate login credentials, compare the entered password with this value.  
+  **Example value**: `"admin123"`
 
-- **address (TEXT)**:  
-  Geographic coordinates of user location.  
+- **address (JSON or TEXT)**:  
+  Geographic address or coordinates of the user location (default delivery destination for clients or residence for staff).  
   **Example of activity**: If you want to calculate delivery distances for orders, use this field.  
-  **Example value**: `{"latitude":53.5511,"longitude":9.9937}` 
+  **Example value**: `{"address":"Rua do Imperador, Centro, Petrópolis - RJ"}` 
 
-- **role (TEXT: 'admin','warehouse_worker','truck_driver','client')**:  
-  This field defines the user’s access level in the system.  
-  **Example of activity**: If you want to restrict access to certain actions, check this field.  
-  **Example value**: `"client"`
+- **role (TEXT CHECK: 'admin','warehouse_worker','truck_driver','client','worker','dispatcher','inventory_manager','maintenance_technician','manager')**:  
+  This field defines the user’s access level and operational permissions in the system.  
+  **Example of activity**: If you want to restrict access to certain actions (e.g. inventory management, dispatching, fleet editing), check this field.  
+  **Example value**: `"admin"`
+
+- **warehouse_id (TEXT or NULL)**:  
+  References the warehouse facility where the employee is stationed (`REFERENCES warehouses(id)`).  
+  **Example of activity**: If you want to filter staff assigned to a specific distribution hub, query using this field.  
+  **Example value**: `"WH-001"`
 
 - **wage (REAL)**:  
   This field stores the hourly wage / labor rate for workers and truck drivers in currency units (e.g., R$/hour). Used to calculate order delivery labor costs based on estimated transit time.  
   **Example of activity**: When calculating delivery freight costs, multiply driver hourly wage by route driving duration.  
   **Example value**: `55.00`
 
+- **is_active (INTEGER 0/1)**:  
+  Indicates whether the user account is active and permitted to log into the system.  
+  **Example of activity**: When querying active staff or deactivating an account, update or filter by this field.  
+  **Example value**: `1`
 ---
 
 # TABLE: online_users
@@ -347,6 +361,11 @@
   **Example of activity**: If you want to determine whether you need to request products from the supplier, check this field.  
   **Example value**: `1`
 
+- **distance_km (REAL or NULL)**:  
+  Stores the total transit distance of the delivery route in kilometers, computed either by geodesic Haversine calculation or by Valhalla routing engine shape length.  
+  **Example of activity**: If you want to compute fuel requirements, transit duration, or driver labor costs, query this field.  
+  **Example value**: `45.2`
+
 ---
 # TABLE: orders_items
 
@@ -387,6 +406,11 @@
   This field references the truck handling this step, if applicable.  
   **Example of activity**: If you want to track which vehicle is delivering a part of the order, use this field.  
   **Example value**: `"truck_001"`
+
+- **driver_id (TEXT or NULL)**:  
+  References the employee (specifically a `truck_driver` user) assigned to operate the vehicle for this route segment (`REFERENCES users(id)`).  
+  **Example of activity**: Used to identify the driver, check driver assignments, and compute labor costs based on the driver's hourly wage.  
+  **Example value**: `"USR-003"`
 
 - **destination_warehouse_id (TEXT or NULL)**:  
   This field references the next warehouse in the route, if the order is moving between warehouses.  
@@ -480,11 +504,15 @@
 - Trucks carry products via `trucks_cargo`
 - Orders contain products via `orders_items`
 - Orders are tracked step-by-step in `orders_route`
+- Orders route steps assign a driver via `orders_route.driver_id -> users.id`
 - Orders may involve suppliers via `supplies_route`
-- Users create orders
-- Trucks are either in warehouses or delivering between them
+- Users create orders via `orders.client_id -> users.id`
+- Users (staff) are assigned to regional hubs via `users.warehouse_id -> warehouses.id`
+- Active sessions link to authenticated users via `online_users.user_id -> users.id`
+- Freight costs link directly to orders via `freight_cost.order_id -> orders.id`
+- Trucks are either stationed at warehouses (`current_warehouse_id`) or delivering between them
 
-Example of activity: Trace a product from supplier to final destination using these relationships.
+Example of activity: Trace a product from supplier to warehouse, truck cargo, and final client destination using these relationships.
 
 ---
 
@@ -573,5 +601,19 @@ Indexes are used to improve query performance on frequently accessed fields.
 - idx_orders_route_order → improves order tracking queries  
 - idx_orders_route_truck → improves truck-based route queries  
 - idx_cargo_truck → speeds up cargo lookup per truck  
+- users_email_unique → ensures case-insensitive uniqueness on `users.email`
 
 Example of activity: If you frequently query all orders from a user, the index avoids full table scans.
+
+---
+
+# DATABASE FUNCTIONS
+
+- **`calculate_distance_km(lat1 DOUBLE PRECISION, lon1 DOUBLE PRECISION, lat2 DOUBLE PRECISION, lon2 DOUBLE PRECISION) -> DOUBLE PRECISION`**:
+  Implements the geodesic Haversine distance formula directly in PostgreSQL. Returns spherical surface distance between two latitude/longitude points in kilometers ($R = 6371\text{ km}$).
+  **Example of activity**: Calculate direct origin-destination distance for orders without calling external routing engines.
+  **Example SQL usage**:
+  ```sql
+  SELECT calculate_distance_km(-22.3842, -43.1311, -22.4123, -42.9656);
+  ```
+

@@ -1,6 +1,7 @@
 // ─── Enums / unions (match SQL CHECK constraints) ───────────────────────────
 
-export type UserRole = "admin" | "worker" | "client";
+/** Roles stored by the API. `worker` remains for older records. */
+export type UserRole = "admin" | "warehouse_worker" | "truck_driver" | "worker" | "client" | "dispatcher" | "inventory_manager" | "maintenance_technician";
 
 export type OrderStatus = "Pending" | "Shipped" | "Delivered" | "Cancelled";
 
@@ -9,6 +10,8 @@ export type OrderStatus = "Pending" | "Shipped" | "Delivered" | "Cancelled";
 export interface Deposit {
   id: string;
   location: string;
+  latitude?: number;
+  longitude?: number;
   size?: string;
   volume_actual: number;
   volume_max?: number;
@@ -19,6 +22,7 @@ export interface Deposit {
   trucks_parked?: number;
   parking_available?: number;
 }
+export type Warehouse = Deposit;
 
 // ─── 2. truck ─────────────────────────────────────────────────────────────────
 
@@ -74,6 +78,8 @@ export interface User {
   role: UserRole;
   rawRole?: string;
   wage?: number;
+  warehouse_id?: string;
+  is_active?: boolean;
 }
 
 // ─── 5. session ───────────────────────────────────────────────────────────────
@@ -168,7 +174,9 @@ export interface OrderRoute {
   order_id: string;
   step: number;
   deposit_id?: string;
+  destination_deposit_id?: string;
   truck_id?: string;
+  driver_id?: string;
   estimated_time?: string;
   arrived_at?: string;
 }
@@ -321,6 +329,7 @@ export interface MonthlyPerformanceData {
   ordersCount: number;
   poi?: string;
   isPoi?: boolean;
+  warehouse_id?: string;
 }
 
 // ─── Delivery Cost Analytics Report ────────────────────────────────────────────
@@ -357,12 +366,30 @@ export interface DeliveryCostSummary {
   avg_delivery_cost_per_order: number;
   avg_cost_per_km: number;
   total_distance_km: number;
+  monthly_target_orders?: number;
+  completed_orders?: number;
+  orders_needed_this_month?: number;
+  required_daily_run_rate?: number;
+  projected_month_end_completions?: number;
 }
 
 export interface DeliveryCostReport {
   warehouse_id?: string | null;
+  period?: string | null;
+  period_label?: string | null;
+  available_periods?: Array<{ value: string; label: string }>;
   summary: DeliveryCostSummary;
   orders: OrderDeliveryCostItem[];
+  top_products?: Array<{
+    id: string;
+    name: string;
+    quantity: number;
+    total_revenue: number;
+  }>;
+  top_clients?: Array<{
+    id: string;
+    name: string;
+    total_spent: number;
+    order_count: number;
+  }>;
 }
-
-

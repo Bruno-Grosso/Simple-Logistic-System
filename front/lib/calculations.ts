@@ -228,4 +228,236 @@ export function calculateOrderETA(
   }
 }
 
+/**
+ * Decodes a Valhalla 6-decimal precision encoded polyline string into an array of [latitude, longitude] pairs.
+ */
+export function decodePolyline6(str: string): [number, number][] {
+  let index = 0
+  let lat = 0
+  let lng = 0
+  const coordinates: [number, number][] = []
+  const factor = 1e6
+
+  while (index < str.length) {
+    let byte: number
+    let shift = 0
+    let result = 0
+
+    do {
+      byte = str.charCodeAt(index++) - 63
+      result |= (byte & 0x1f) << shift
+      shift += 5
+    } while (byte >= 0x20)
+
+    const deltaLat = result & 1 ? ~(result >> 1) : result >> 1
+    lat += deltaLat
+
+    shift = 0
+    result = 0
+
+    do {
+      byte = str.charCodeAt(index++) - 63
+      result |= (byte & 0x1f) << shift
+      shift += 5
+    } while (byte >= 0x20)
+
+    const deltaLng = result & 1 ? ~(result >> 1) : result >> 1
+    lng += deltaLng
+
+    coordinates.push([lat / factor, lng / factor])
+  }
+  return coordinates
+}
+
+/**
+ * Resolves approximate geographical coordinates from location strings or embedded JSON.
+ */
+export function resolveCoordinates(label?: string, defaultLat = -22.3842, defaultLng = -43.1311): [number, number] {
+  if (!label) return [defaultLat, defaultLng]
+
+  // Check embedded JSON or direct "Lat: ..., Lon: ..." formats
+  const latMatch = label.match(/Lat:\s*(-?\d+\.\d+)/i) || label.match(/(-?\d+\.\d+)\s*,/)
+  const lonMatch = label.match(/Lon:\s*(-?\d+\.\d+)/i) || label.match(/,\s*(-?\d+\.\d+)/)
+  if (latMatch && lonMatch) {
+    const parsedLat = parseFloat(latMatch[1])
+    const parsedLon = parseFloat(lonMatch[1])
+    if (!isNaN(parsedLat) && !isNaN(parsedLon)) {
+      return [parsedLat, parsedLon]
+    }
+  }
+
+  const lower = label.toLowerCase()
+  if (lower.includes("petrópolis") || lower.includes("petropolis") || lower.includes("itaipava") || lower.includes("araras")) {
+    return [-22.3842, -43.1311]
+  }
+  if (lower.includes("teresópolis") || lower.includes("teresopolis")) {
+    return [-22.4123, -42.9656]
+  }
+  if (lower.includes("friburgo")) {
+    return [-22.2889, -42.5344]
+  }
+  if (lower.includes("rio") || lower.includes("capital")) {
+    return [-22.9068, -43.1729]
+  }
+  if (lower.includes("três rios") || lower.includes("tres rios")) {
+    return [-22.1167, -43.2089]
+  }
+  if (lower.includes("cantagalo")) {
+    return [-21.9806, -42.3689]
+  }
+  if (lower.includes("bom jardim")) {
+    return [-22.1500, -42.4167]
+  }
+  if (lower.includes("areal")) {
+    return [-22.2300, -43.1050]
+  }
+  if (lower.includes("cordeiro")) {
+    return [-21.9900, -42.3400]
+  }
+  if (lower.includes("magé") || lower.includes("mage") || lower.includes("guapimirim")) {
+    return [-22.6500, -43.0400]
+  }
+
+  return [defaultLat, defaultLng]
+}
+
+/**
+ * Resolves coordinates for an Order entity.
+ */
+export function resolveOrderCoordinates(order: Order): [number, number] {
+  const dest = order.final_destination || ""
+  if (typeof dest === "string") {
+    try {
+      const parsed = JSON.parse(dest)
+      if (parsed?.latitude && parsed?.longitude) {
+        return [Number(parsed.latitude), Number(parsed.longitude)]
+      }
+      if (parsed?.lat && parsed?.lon) {
+        return [Number(parsed.lat), Number(parsed.lon)]
+      }
+    } catch {}
+  }
+  return resolveCoordinates(dest)
+}
+
+/**
+ * Haversine formula to compute great-circle distance between two GPS coordinates in kilometers.
+ */
+export function haversineDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371.0088 // Earth radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLon = ((lon2 - lon1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return Math.round(R * c * 100) / 100
+}
+
+/**
+ * Calculates the shortest distance from a coordinate point to a polyline segment [a, b] in km.
+ */
+export function distancePointToSegmentKm(
+  p: [number, number],
+  a: [number, number],
+  b: [number, number]
+): number {
+  const [pLat, pLon] = p
+  const [aLat, aLon] = a
+  const [bLat, bLon] = b
+
+  const dx = bLon - aLon
+  const dy = bLat - aLat
+
+  if (dx === 0 && dy === 0) {
+    return haversineDistanceKm(pLat, pLon, aLat, aLon)
+  }
+
+  // Vector projection parameter t clamped between 0 and 1
+  const t = Math.max(0, Math.min(1, ((pLon - aLon) * dx + (pLat - aLat) * dy) / (dx * dx + dy * dy)))
+  const projLat = aLat + t * dy
+  const projLon = aLon + t * dx
+
+  return haversineDistanceKm(pLat, pLon, projLat, projLon)
+}
+
+/**
+ * Finds the minimum distance in km from a target point to any point or segment along a Valhalla route polyline.
+ */
+export function minDistanceToRouteKm(
+  target: [number, number] | { lat: number; lon: number },
+  routePoints: Array<[number, number] | { lat: number; lon: number }>
+): number {
+  if (!routePoints || routePoints.length === 0) return 99999
+  const pCoord: [number, number] = Array.isArray(target) ? target : [target.lat, target.lon]
+
+  const pts: [number, number][] = routePoints.map((pt) =>
+    Array.isArray(pt) ? pt : [pt.lat, pt.lon]
+  )
+
+  if (pts.length === 1) {
+    return haversineDistanceKm(pCoord[0], pCoord[1], pts[0][0], pts[0][1])
+  }
+
+  let minDistance = Infinity
+  const step = pts.length > 300 ? Math.ceil(pts.length / 150) : 1
+
+  for (let i = 0; i < pts.length - 1; i += step) {
+    const nextIdx = Math.min(i + step, pts.length - 1)
+    const d = distancePointToSegmentKm(pCoord, pts[i], pts[nextIdx])
+    if (d < minDistance) {
+      minDistance = d
+    }
+  }
+
+  return Math.round(minDistance * 100) / 100
+}
+
+/**
+ * Ranks candidate orders by their proximity to a Valhalla route corridor and selects an optimal batch.
+ */
+export function selectOrdersNearRoute(options: {
+  orders: Order[]
+  routePoints: Array<[number, number] | { lat: number; lon: number }>
+  maxOrders?: number
+  maxWeightKg?: number
+  excludeOrderIds?: string[]
+}): Array<{ order: Order; distanceToRouteKm: number }> {
+  const { orders, routePoints, maxOrders = 4, maxWeightKg = 25000, excludeOrderIds = [] } = options
+
+  const candidates = orders.filter(
+    (o) =>
+      o.status !== "Delivered" &&
+      o.status !== "Cancelled" &&
+      (o.status as string) !== "Canceled" &&
+      !excludeOrderIds.includes(o.id)
+  )
+
+  const scored = candidates.map((order) => {
+    const coords = resolveOrderCoordinates(order)
+    const dist = minDistanceToRouteKm(coords, routePoints)
+    return { order, distanceToRouteKm: dist }
+  })
+
+  // Sort orders by shortest detour distance to the route corridor
+  scored.sort((a, b) => a.distanceToRouteKm - b.distanceToRouteKm)
+
+  const selected: Array<{ order: Order; distanceToRouteKm: number }> = []
+  let accumulatedWeight = 0
+
+  for (const item of scored) {
+    if (selected.length >= maxOrders) break
+    const estimatedOrderWeight = 35.0
+    if (accumulatedWeight + estimatedOrderWeight <= maxWeightKg) {
+      selected.push(item)
+      accumulatedWeight += estimatedOrderWeight
+    }
+  }
+
+  return selected
+}
+
 

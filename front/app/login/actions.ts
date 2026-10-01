@@ -27,10 +27,6 @@ export async function loginAction(
     return { error: "Enter a valid email address." }
   }
 
-  if (password.length < 8) {
-    return { error: "Password must be at least 8 characters." }
-  }
-
   const auth = await authenticateLogin(email, password)
   if (!auth.ok) {
     if (auth.reason === "backend_no_token") {
@@ -65,4 +61,16 @@ export async function logoutAction(): Promise<void> {
     maxAge: 0,
   })
   redirect("/login")
+}
+
+export async function timedLogoutAction(): Promise<void> {
+  const store = await cookies()
+  store.set(SESSION_COOKIE_NAME, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  })
+  redirect("/login?reason=timeout")
 }

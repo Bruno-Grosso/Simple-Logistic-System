@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Edit2, Loader2 } from "lucide-react"
+import { Edit2, Loader2, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { api } from "@/lib/api"
+import { getErrorMessage } from "@/lib/utils"
 import type { Product } from "@/types"
 
 interface EditProductDialogProps {
@@ -28,12 +29,17 @@ export function EditProductDialog({ product }: EditProductDialogProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [dialogError, setDialogError] = useState<string | null>(null)
 
   // Parse size JSON safely
   let initialLength = 0
   let initialWidth = 0
   let initialHeight = 0
-  if (product.size) {
+  if (product.size && typeof product.size === "object") {
+    initialLength = (product.size as any).length ?? (product.size as any).l ?? 0
+    initialWidth = (product.size as any).width ?? (product.size as any).w ?? 0
+    initialHeight = (product.size as any).height ?? (product.size as any).h ?? 0
+  } else if (typeof product.size === "string") {
     try {
       const parsed = JSON.parse(product.size)
       initialLength = parsed.l ?? parsed.length ?? 0
@@ -42,10 +48,12 @@ export function EditProductDialog({ product }: EditProductDialogProps) {
     } catch {}
   }
 
-  // Format expire_date to YYYY-MM-DD for date input
-  const initialExpireDate = product.expire_date
-    ? new Date(product.expire_date).toISOString().split("T")[0]
-    : ""
+  let initialExpireDate = ""
+  if (product.expire_date) {
+    try {
+      initialExpireDate = new Date(product.expire_date).toISOString().split("T")[0]
+    } catch {}
+  }
 
   const [name, setName] = useState(product.name)
   const [price, setPrice] = useState(product.price ?? 0)
@@ -60,6 +68,35 @@ export function EditProductDialog({ product }: EditProductDialogProps) {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setDialogError(null)
+
+    if (!name.trim()) {
+      const msg = "Product name cannot be empty."
+      setDialogError(msg)
+      return toast.error(msg)
+    }
+
+    const priceNum = Number(price)
+    if (isNaN(priceNum) || priceNum < 0) {
+      const msg = "Product price must be 0 or greater."
+      setDialogError(msg)
+      return toast.error(msg)
+    }
+
+    const weightNum = Number(weight)
+    if (isNaN(weightNum) || weightNum <= 0) {
+      const msg = "Product weight must be greater than 0 kg."
+      setDialogError(msg)
+      return toast.error(msg)
+    }
+
+    const volumeNum = Number(volume)
+    if (isNaN(volumeNum) || volumeNum <= 0) {
+      const msg = "Product volume must be greater than 0 m³."
+      setDialogError(msg)
+      return toast.error(msg)
+    }
+
     setLoading(true)
 
     const sizeObj = {
@@ -73,10 +110,10 @@ export function EditProductDialog({ product }: EditProductDialogProps) {
 
     try {
       const res = await api.products.update(product.id, {
-        name,
-        price: Number(price),
-        volume: Number(volume),
-        weight: Number(weight),
+        name: name.trim(),
+        price: priceNum,
+        volume: volumeNum,
+        weight: weightNum,
         is_cold: Number(isCold),
         is_fragile: Number(isFragile),
         expire_date: expireDate || null,
@@ -88,18 +125,22 @@ export function EditProductDialog({ product }: EditProductDialogProps) {
         setOpen(false)
         router.refresh()
       } else {
-        toast.error("Failed to update product")
+        const msg = res.error || "Failed to update product in database."
+        setDialogError(msg)
+        toast.error(msg)
       }
     } catch (err: any) {
       console.error(err)
-      toast.error(err.response?.data || "An error occurred while updating the product")
+      const msg = getErrorMessage(err, "An error occurred while updating the product.")
+      setDialogError(msg)
+      toast.error(msg)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (o) setDialogError(null); }}>
       <DialogTrigger className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer">
         <Edit2 className="size-3.5" />
         <span>Edit</span>
@@ -112,6 +153,17 @@ export function EditProductDialog({ product }: EditProductDialogProps) {
               Modify specifications, pricing, and handling flags for this product.
             </DialogDescription>
           </DialogHeader>
+
+          {dialogError && (
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive flex items-center gap-2"
+            >
+              <AlertTriangle className="size-4 shrink-0 text-destructive" aria-hidden="true" />
+              <span>{dialogError}</span>
+            </div>
+          )}
 
           <div className="grid gap-4 py-4">
             <div className="space-y-2">

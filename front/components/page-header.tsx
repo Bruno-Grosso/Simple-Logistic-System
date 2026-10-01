@@ -38,14 +38,14 @@ export function PageHeader({
                 {c.label}
               </Link>
             ) : (
-              <span
+              <h1
                 className={cn(
-                  "font-display text-xl font-semibold tracking-tight text-foreground leading-tight sm:text-2xl",
+                  "font-display text-xl font-semibold tracking-tight text-foreground leading-tight sm:text-2xl inline-block",
                   titleClassName,
                 )}
               >
                 {c.label}
-              </span>
+              </h1>
             )}
           </span>
         ))}

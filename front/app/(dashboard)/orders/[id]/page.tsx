@@ -19,10 +19,17 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { EmptyState } from "@/components/empty-state"
 import { RouteMap } from "@/components/route-map"
+import { ManageOrderDialog } from "@/components/manage-order-dialog"
+import { CopyButton } from "@/components/copy-button"
+import { ExportManifestButton } from "@/components/export-manifest-button"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
+import { getCurrentUserProfile } from "@/lib/auth/get-user"
 import { calculateFreightEstimate, calculateOrderETA } from "@/lib/calculations"
 import type { OrderStatus, User, Product, Deposit, Truck as TruckType, OrderETA, OrderRoute } from "@/types"
+
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 function parseDestination(raw: string | undefined): string {
   if (!raw) return "—"
@@ -68,6 +75,20 @@ export default async function OrderDetailPage({ params }: PageProps) {
   const { id } = await params
   const order = await api.orders.getById(id)
   if (!order) notFound()
+  const { user } = await getCurrentUserProfile()
+  const role = user.rawRole || user.role
+  const isAdmin = role === "admin"
+  const isDispatcher = role === "dispatcher"
+  const isOrderManager = isAdmin || isDispatcher
+  const isClient = role === "client"
+  const isDriver = role === "truck_driver"
+  const accessRoutes = isOrderManager ? [] : await api.orders.getRoute(order.id)
+  const isAllowed =
+    isOrderManager ||
+    (isClient && order.client_id === user.id) ||
+    (isDriver && accessRoutes.some((route) => route.driver_id === user.id)) ||
+    (role === "warehouse_worker" && !!user.warehouse_id && accessRoutes.some((route) => route.deposit_id === user.warehouse_id || route.destination_deposit_id === user.warehouse_id))
+  if (!isAllowed) notFound()
 
   const [
     users,
@@ -78,15 +99,19 @@ export default async function OrderDetailPage({ params }: PageProps) {
     products,
     warehouses,
     trucks,
+    orderMultiRouteData,
   ] = await Promise.all([
-    api.users.getAll(),
+    // Staff need the driver record to identify the person assigned to this order;
+    // clients still receive only their own profile data.
+    isClient ? Promise.resolve([user]) : api.users.getAll(),
     api.orders.getItems(order.id),
     api.orders.getRoute(order.id),
-    api.orders.getCost(order.id),
+    isOrderManager ? api.orders.getCost(order.id) : Promise.resolve(undefined),
     api.orders.getETA(order.id),
     api.products.getAll(),
     api.warehouses.getAll(),
     api.trucks.getAll(),
+    api.routes.getOrderMultiRoute(order.id),
   ])
 
   const userMap = new Map<string, User>()
@@ -136,15 +161,17 @@ export default async function OrderDetailPage({ params }: PageProps) {
       : (originWarehouse?.fuel_price ?? 5.89)
 
   // Assigned truck and driver wage
-  const assignedTruckId = routeSteps.find((s) => s.truck_id && truckMap.has(s.truck_id))?.truck_id || trucks[0]?.id
+  const workRouteSteps = isDriver ? routeSteps.filter((step) => step.driver_id === user.id) : routeSteps
+  const assignedRoute = workRouteSteps.find((s) => s.truck_id || s.driver_id)
+  const assignedTruckId = assignedRoute?.truck_id && truckMap.has(assignedRoute.truck_id) ? assignedRoute.truck_id : undefined
   const assignedTruck = assignedTruckId ? truckMap.get(assignedTruckId) : trucks[0]
-  const drivers = users.filter((u) => u.rawRole === "truck_driver" || u.work_position?.includes("Driver"))
-  const driverWage = drivers[0]?.wage ?? 50.0
+  const assignedDriver = assignedRoute?.driver_id ? userMap.get(assignedRoute.driver_id) : undefined
+  const driverWage = assignedDriver?.wage ?? 50.0
 
   // Effective route tracking steps to display in timeline
   const displayRouteSteps: OrderRoute[] =
-    routeSteps.length > 0
-      ? routeSteps
+    workRouteSteps.length > 0
+      ? workRouteSteps
       : [
           {
             order_id: order.id,
@@ -176,6 +203,42 @@ export default async function OrderDetailPage({ params }: PageProps) {
     timeLimit: order.time_limit,
   })
 
+  // Multi-route context if order is part of an active (non-delivered) multi-stop circuit
+  const isOrderActive = order.status !== "Delivered" && order.status !== "Cancelled" && (order.status as any) !== "Canceled"
+  const isPartOfMultiRoute = Boolean(isOrderActive && orderMultiRouteData?.success && orderMultiRouteData.multi_route)
+  const multiRouteCircuit = orderMultiRouteData?.multi_route
+  const multiRouteStep = orderMultiRouteData?.step || 1
+  const multiRouteTotalStops = orderMultiRouteData?.total_stops || 1
+
+  const multiRouteWaypoints = isPartOfMultiRoute && multiRouteCircuit?.waypoints
+    ? multiRouteCircuit.waypoints.map((w: any) => ({
+        label: w.label || `Stop ${w.index}`,
+        lat: w.lat,
+        lon: w.lon,
+        type: w.type,
+        orderId: w.orderId,
+      }))
+    : undefined
+
+  // Route map geometry: prioritize multi-routing circuit if active, otherwise order-specific route
+  const activeRouteGeometry = isPartOfMultiRoute && multiRouteCircuit?.encodedShape
+    ? {
+        encodedShape: multiRouteCircuit.encodedShape,
+        legs: multiRouteCircuit.legs,
+        summary: {
+          length: multiRouteCircuit.total_distance_km,
+          time: multiRouteCircuit.total_time_seconds,
+        },
+        waypoints: multiRouteWaypoints,
+        title: `Valhalla Multi-Routing Circuit Map (Stop #${multiRouteStep} of ${multiRouteTotalStops})`,
+      }
+    : {
+        encodedShape: valhallaRoute?.encodedShape,
+        summary: valhallaRoute?.summary,
+        waypoints: undefined,
+        title: `Valhalla Map Route: Order #${order.id}`,
+      }
+
   return (
     <PageShell>
       <PageHeader
@@ -183,6 +246,31 @@ export default async function OrderDetailPage({ params }: PageProps) {
           { label: "Orders", href: "/orders" },
           { label: `#${order.id}` },
         ]}
+        actions={(
+          <div className="flex items-center gap-2">
+            <CopyButton value={order.id} label="Copy order ID" />
+            <ExportManifestButton
+              order={order}
+              items={items}
+              products={products}
+              client={client}
+              truck={assignedTruck}
+              driver={assignedDriver}
+              warehouse={originWarehouse}
+            />
+            {isOrderManager && (
+              <ManageOrderDialog
+                order={order}
+                items={items}
+                products={products}
+                routeSteps={routeSteps}
+                trucks={trucks}
+                drivers={users.filter((candidate) => candidate.rawRole === "truck_driver")}
+                warehouses={warehouses}
+              />
+            )}
+          </div>
+        )}
       />
       <div className="min-h-0 flex-1 space-y-5 overflow-auto">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -193,8 +281,10 @@ export default async function OrderDetailPage({ params }: PageProps) {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <InfoField label="Client" value={client?.name ?? `Client ${order.client_id}`} />
-                  <InfoField label="Receiver" value={receiver?.name ?? "—"} />
+                  {!isClient && <InfoField label="Client" value={client?.name ?? `Client ${order.client_id}`} />}
+                  {!isClient && <InfoField label="Receiver" value={receiver?.name ?? "—"} />}
+                  {!isClient && <InfoField label="Truck driver" value={assignedDriver?.name ?? "Unassigned"} />}
+                  {!isClient && <InfoField label="Truck" value={assignedTruck ? `${assignedTruck.model ?? assignedTruck.id} (${assignedTruck.id})` : "Unassigned"} />}
                   <div className="sm:col-span-2">
                     <InfoField
                       label="Destination"
@@ -202,14 +292,8 @@ export default async function OrderDetailPage({ params }: PageProps) {
                     />
                   </div>
                   <InfoField label="Deadline" value={order.time_limit ?? "—"} />
-                  <InfoField
-                    label="Value"
-                    value={`R$ ${order.price.toLocaleString("pt-BR")}`}
-                  />
-                  <InfoField
-                    label="Supplier delivery"
-                    value={order.supplier_delivery ? "Yes" : "No"}
-                  />
+                  {isOrderManager && <InfoField label="Value" value={`R$ ${order.price.toLocaleString("pt-BR")}`} />}
+                  {!isClient && <InfoField label="Supplier delivery" value={order.supplier_delivery ? "Yes" : "No"} />}
                   <div>
                     <p className="mb-0.5 text-xs uppercase tracking-wider text-muted-foreground">
                       Status
@@ -312,14 +396,40 @@ export default async function OrderDetailPage({ params }: PageProps) {
               </CardContent>
             </Card>
 
-            {/* Valhalla Route Map for Specific Order */}
-            <RouteMap
-              encodedShape={valhallaRoute?.encodedShape}
-              summary={valhallaRoute?.summary}
-              originLabel={originWarehouse?.location || "Warehouse"}
-              destinationLabel={parseDestination(order.final_destination)}
-              title={`Valhalla Map Route: Order #${order.id}`}
-            />
+            {/* Valhalla Route Map (Multi-Routing Circuit if active, or single order route) */}
+            <div className="space-y-2">
+              {isPartOfMultiRoute && (
+                <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border border-primary/30 bg-primary/5 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="default" className="text-xs px-2 py-0.5">
+                      Multi-Route Active
+                    </Badge>
+                    <span className="font-semibold text-foreground">
+                      Stop #{multiRouteStep} of {multiRouteTotalStops}
+                    </span>
+                    <span className="text-muted-foreground">•</span>
+                    <span className="text-muted-foreground">
+                      Truck: {assignedTruck?.model || orderMultiRouteData?.truck_id}
+                    </span>
+                  </div>
+                  {orderMultiRouteData?.siblings && (
+                    <span className="text-muted-foreground">
+                      Shared Circuit: {orderMultiRouteData.siblings.length} orders total
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <RouteMap
+                encodedShape={activeRouteGeometry.encodedShape}
+                legs={activeRouteGeometry.legs}
+                summary={activeRouteGeometry.summary}
+                waypoints={activeRouteGeometry.waypoints}
+                originLabel={originWarehouse?.location || "Warehouse"}
+                destinationLabel={parseDestination(order.final_destination)}
+                title={activeRouteGeometry.title}
+              />
+            </div>
 
             <Card>
               <CardHeader>
@@ -354,12 +464,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
                             <span className="text-sm text-muted-foreground">
                               Qty <span className="font-medium text-foreground">{line.quantity}</span>
                             </span>
-                            <span className="text-sm">
-                              Subtotal{" "}
-                              <span className="font-semibold">
-                                R$ {subtotal.toLocaleString("pt-BR")}
-                              </span>
-                            </span>
+                            {isOrderManager && <span className="text-sm">Subtotal <span className="font-semibold">R$ {subtotal.toLocaleString("pt-BR")}</span></span>}
                           </div>
                         </li>
                       )
@@ -369,8 +474,8 @@ export default async function OrderDetailPage({ params }: PageProps) {
               </CardContent>
             </Card>
 
-            {/* Freight Cost Calculations */}
-            <Card>
+            {/* Freight costs are commercial data and are available only to administrators and dispatchers. */}
+            {isOrderManager && <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="font-display text-lg flex items-center gap-2">
                   <DollarSign className="size-4 text-primary" />
@@ -420,7 +525,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </Card>}
           </div>
 
           <div className="lg:col-span-1">
@@ -429,7 +534,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
                 <CardTitle className="font-display text-lg">Route tracking timeline</CardTitle>
               </CardHeader>
               <CardContent>
-                {routeSteps.length === 0 ? (
+                {displayRouteSteps.length === 0 ? (
                   <EmptyState
                     icon={RouteOff}
                     title="No route steps"
@@ -437,14 +542,14 @@ export default async function OrderDetailPage({ params }: PageProps) {
                   />
                 ) : (
                   <ol className="relative ms-2 space-y-0 border-l border-border pl-6" aria-label="Route timeline">
-                    {routeSteps.map((step, idx) => {
+                    {displayRouteSteps.map((step, idx) => {
                       const completed = Boolean(step.arrived_at)
                       const deposit = step.deposit_id ? depositMap.get(step.deposit_id) : undefined
                       const truck = step.truck_id ? truckMap.get(step.truck_id) : undefined
                       const label = deposit
                         ? deposit.location
                         : truck?.model ?? "On Route"
-                      const isLast = idx === routeSteps.length - 1
+                      const isLast = idx === displayRouteSteps.length - 1
 
                       return (
                         <li key={step.step} className={cn("relative", !isLast && "pb-8")}>

@@ -19,6 +19,12 @@ import type {
   OrderDeliveryCostItem,
 } from "@/types"
 
+function asBoolean(value: unknown, fallback = false): boolean {
+  if (value === undefined || value === null) return fallback
+  if (typeof value === "string") return !["0", "false", "no", "off", ""].includes(value.trim().toLowerCase())
+  return Boolean(value)
+}
+
 export function adaptWarehouse(raw: any): Deposit {
   if (!raw) return {} as Deposit
   let locationStr = raw.location
@@ -43,9 +49,18 @@ export function adaptWarehouse(raw: any): Deposit {
     }
   }
 
+  const latitude = typeof locObj === "object" && locObj !== null
+    ? Number(locObj.latitude ?? locObj.lat)
+    : undefined
+  const longitude = typeof locObj === "object" && locObj !== null
+    ? Number(locObj.longitude ?? locObj.lon)
+    : undefined
+
   return {
     id: String(raw.id),
     location: locationStr || `Warehouse ${raw.id}`,
+    latitude: Number.isFinite(latitude) ? latitude : undefined,
+    longitude: Number.isFinite(longitude) ? longitude : undefined,
     size: raw.size ? (typeof raw.size === "string" ? raw.size : JSON.stringify(raw.size)) : undefined,
     volume_actual: Number(raw.volume_current ?? raw.volume_actual ?? 0),
     volume_max: Number(raw.volume_max ?? 1000),
@@ -107,7 +122,15 @@ export function adaptUser(raw: any): User {
   if (!raw) return {} as User
   let role: UserRole = "client"
   if (raw.role === "admin") role = "admin"
-  else if (raw.role === "warehouse_worker" || raw.role === "truck_driver" || raw.role === "worker") role = "worker"
+  else if (
+    raw.role === "warehouse_worker" ||
+    raw.role === "truck_driver" ||
+    raw.role === "worker" ||
+    raw.role === "dispatcher" ||
+    raw.role === "inventory_manager" ||
+    raw.role === "maintenance_technician"
+  )
+    role = "worker"
   else role = "client"
 
   let addressStr = raw.address
@@ -135,6 +158,8 @@ export function adaptUser(raw: any): User {
     role,
     rawRole: raw.role || "client",
     wage: Number(raw.wage ?? (role === "client" ? 0 : 45.0)),
+    warehouse_id: raw.warehouse_id || undefined,
+    is_active: asBoolean(raw.is_active, true),
   }
 }
 
@@ -148,6 +173,13 @@ export function adaptOrder(raw: any): Order {
   let destStr = raw.final_destination
   if (typeof raw.final_destination === "object" && raw.final_destination !== null) {
     destStr = raw.final_destination.label || raw.final_destination.address || JSON.stringify(raw.final_destination)
+  } else if (typeof raw.final_destination === "string" && raw.final_destination.trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(raw.final_destination)
+      destStr = parsed.label || parsed.address || raw.final_destination
+    } catch {
+      /* preserve the original value when it is not valid JSON */
+    }
   }
 
   return {
@@ -210,6 +242,8 @@ export function adaptOrderRoute(raw: any): OrderRoute {
     order_id: String(raw.order_id),
     step: Number(raw.step ?? 1),
     deposit_id: raw.warehouse_id || raw.deposit_id || undefined,
+    destination_deposit_id: raw.destination_warehouse_id || raw.destination_deposit_id || undefined,
+    driver_id: raw.driver_id || undefined,
     truck_id: raw.truck_id || undefined,
     estimated_time: raw.estimated_time || undefined,
     arrived_at: raw.arrived_at || undefined,
@@ -240,7 +274,7 @@ export function adaptSupplier(raw: any): Supplier {
 
 export function adaptStock(raw: any): Stock {
   return {
-    id: `${raw.warehouse_id || raw.deposit_id || "wh"}-${raw.product_id}`,
+    id: raw.id || `${raw.warehouse_id || raw.deposit_id || (raw.truck_id ? `truck-${raw.truck_id}` : "wh")}-${raw.product_id}`,
     product_id: String(raw.product_id),
     quantity: Number(raw.quantity ?? 0),
     deposit_id: raw.warehouse_id || raw.deposit_id || undefined,
@@ -280,6 +314,7 @@ export function adaptMonthlyPerformance(raw: any): MonthlyPerformanceData {
     ordersCount: Number(raw.orders_count ?? raw.ordersCount ?? 0),
     isPoi: Boolean(raw.is_poi ?? raw.isPoi),
     poi: raw.poi || undefined,
+    warehouse_id: raw.warehouse_id ? String(raw.warehouse_id) : undefined,
   }
 }
 
@@ -287,6 +322,8 @@ export function adaptDeliveryCostReport(raw: any): DeliveryCostReport {
   if (!raw) {
     return {
       warehouse_id: null,
+      period: "all",
+      period_label: "All Time",
       summary: {
         total_orders_analyzed: 0,
         total_delivered_revenue: 0,
@@ -310,6 +347,14 @@ export function adaptDeliveryCostReport(raw: any): DeliveryCostReport {
 
   return {
     warehouse_id: raw.warehouse_id || null,
+    period: raw.period ? String(raw.period) : "all",
+    period_label: raw.period_label ? String(raw.period_label) : "All Time",
+    available_periods: Array.isArray(raw.available_periods)
+      ? raw.available_periods.map((p: any) => ({
+          value: String(p.value ?? ""),
+          label: String(p.label ?? ""),
+        }))
+      : undefined,
     summary: {
       total_orders_analyzed: Number(rawSummary.total_orders_analyzed ?? 0),
       total_delivered_revenue: Number(rawSummary.total_delivered_revenue ?? 0),
@@ -323,6 +368,11 @@ export function adaptDeliveryCostReport(raw: any): DeliveryCostReport {
       avg_delivery_cost_per_order: Number(rawSummary.avg_delivery_cost_per_order ?? 0),
       avg_cost_per_km: Number(rawSummary.avg_cost_per_km ?? 0),
       total_distance_km: Number(rawSummary.total_distance_km ?? 0),
+      monthly_target_orders: rawSummary.monthly_target_orders !== undefined ? Number(rawSummary.monthly_target_orders) : undefined,
+      completed_orders: rawSummary.completed_orders !== undefined ? Number(rawSummary.completed_orders) : undefined,
+      orders_needed_this_month: rawSummary.orders_needed_this_month !== undefined ? Number(rawSummary.orders_needed_this_month) : undefined,
+      required_daily_run_rate: rawSummary.required_daily_run_rate !== undefined ? Number(rawSummary.required_daily_run_rate) : undefined,
+      projected_month_end_completions: rawSummary.projected_month_end_completions !== undefined ? Number(rawSummary.projected_month_end_completions) : undefined,
     },
     orders: rawOrders.map((o: any) => ({
       order_id: String(o.order_id),
@@ -342,7 +392,21 @@ export function adaptDeliveryCostReport(raw: any): DeliveryCostReport {
       margin_percent: Number(o.margin_percent ?? 0),
       calculated_at: o.calculated_at || undefined,
     })),
+    top_products: Array.isArray(raw.top_products)
+      ? raw.top_products.map((p: any) => ({
+          id: String(p.id),
+          name: String(p.name),
+          quantity: Number(p.quantity ?? 0),
+          total_revenue: Number(p.total_revenue ?? 0),
+        }))
+      : undefined,
+    top_clients: Array.isArray(raw.top_clients)
+      ? raw.top_clients.map((c: any) => ({
+          id: String(c.id),
+          name: String(c.name),
+          total_spent: Number(c.total_spent ?? 0),
+          order_count: Number(c.order_count ?? 0),
+        }))
+      : undefined,
   }
 }
-
-

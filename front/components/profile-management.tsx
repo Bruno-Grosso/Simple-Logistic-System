@@ -12,9 +12,9 @@ import {
   Save,
   CheckCircle2,
   RefreshCw,
-  UserIcon,
   Briefcase,
   Layers,
+  AlertTriangle,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -33,12 +33,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { api } from "@/lib/api"
+import { getErrorMessage } from "@/lib/utils"
 import type { User } from "@/types"
 
 interface ProfileManagementProps {
   initialUser: User
   initialOnlineSession?: any
-  allMockUsers: User[]
 }
 
 function initials(name: string) {
@@ -52,10 +52,8 @@ function initials(name: string) {
 export function ProfileManagement({
   initialUser,
   initialOnlineSession,
-  allMockUsers,
 }: ProfileManagementProps) {
   const [currentUser, setCurrentUser] = useState<User>(initialUser)
-  const [selectedUserId, setSelectedUserId] = useState<string>(initialUser.id)
   const [sessions, setSessions] = useState<any[]>(
     initialOnlineSession ? [initialOnlineSession] : [],
   )
@@ -67,46 +65,32 @@ export function ProfileManagement({
   const [editName, setEditName] = useState(currentUser.name)
   const [editAddress, setEditAddress] = useState(currentUser.address || "")
   const [editPassword, setEditPassword] = useState("")
+  const [profileError, setProfileError] = useState<string | null>(null)
 
   // Sync state when user changes
   useEffect(() => {
     setEditName(currentUser.name)
     setEditAddress(currentUser.address || "")
     setEditPassword("")
+    setProfileError(null)
   }, [currentUser])
-
-  // Switch user profile view
-  async function handleUserSwitch(userId: string) {
-    setSelectedUserId(userId)
-    setIsRefreshing(true)
-    try {
-      const u = await api.users.getById(userId)
-      if (u) {
-        setCurrentUser(u)
-      }
-      const s = await api.users.getOnlineSessions(userId)
-      setSessions(s)
-      toast.info(`Switched profile view to ${u?.name || userId}`)
-    } catch {
-      toast.error("Failed to load user profile from backend")
-    } finally {
-      setIsRefreshing(false)
-    }
-  }
 
   // Refresh profile details from backend
   async function reloadProfile() {
     setIsRefreshing(true)
+    setProfileError(null)
     try {
-      const u = await api.users.getById(selectedUserId)
+      const u = await api.users.getById(currentUser.id)
       if (u) {
         setCurrentUser(u)
+        setEditName(u.name)
+        setEditAddress(u.address || "")
       }
-      const s = await api.users.getOnlineSessions(selectedUserId)
+      const s = await api.users.getOnlineSessions(currentUser.id)
       setSessions(s)
-      toast.success("Profile reloaded from PostgreSQL backend")
+      toast.success("Profile reloaded from database.")
     } catch {
-      toast.error("Failed to sync profile from backend")
+      toast.error("Failed to refresh profile from database.")
     } finally {
       setIsRefreshing(false)
     }
@@ -115,9 +99,18 @@ export function ProfileManagement({
   // Save updated profile to backend database
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault()
+    setProfileError(null)
+
     if (!editName.trim()) {
-      toast.error("Full name cannot be empty")
-      return
+      const msg = "Full name cannot be empty."
+      setProfileError(msg)
+      return toast.error(msg)
+    }
+
+    if (editPassword && editPassword.length < 8) {
+      const msg = "New password must be at least 8 characters long."
+      setProfileError(msg)
+      return toast.error(msg)
     }
 
     setIsSaving(true)
@@ -131,14 +124,19 @@ export function ProfileManagement({
       if (res.success && res.user) {
         setCurrentUser(res.user)
         setIsOpen(false)
+        setEditPassword("")
         toast.success(`Profile updated successfully for ${res.user.name}!`, {
           description: "Changes persisted directly to PostgreSQL users table.",
         })
       } else {
-        toast.error("Backend error updating profile record")
+        const msg = res.error || "Backend error updating profile record."
+        setProfileError(msg)
+        toast.error(msg)
       }
-    } catch {
-      toast.error("Failed to save profile changes")
+    } catch (err) {
+      const msg = getErrorMessage(err, "Failed to save profile changes.")
+      setProfileError(msg)
+      toast.error(msg)
     } finally {
       setIsSaving(false)
     }
@@ -151,23 +149,6 @@ export function ProfileManagement({
       <div className="flex flex-wrap items-center justify-between gap-4 pb-2">
         <PageHeader crumbs={[{ label: "User Profile" }]} />
         <div className="flex items-center gap-2">
-          {/* User selector */}
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-xs">
-            <UserIcon className="size-3.5 text-muted-foreground" />
-            <span className="text-muted-foreground">Select Profile:</span>
-            <select
-              value={selectedUserId}
-              onChange={(e) => handleUserSwitch(e.target.value)}
-              className="bg-transparent font-medium text-foreground outline-none cursor-pointer"
-            >
-              {allMockUsers.map((u, index) => (
-                <option key={`${u.id}-${u.email ?? "user"}-${index}`} value={u.id} className="bg-card text-foreground">
-                  {u.id} - {u.name} ({u.rawRole || u.role})
-                </option>
-              ))}
-            </select>
-          </div>
-
           <Button
             variant="outline"
             size="sm"
@@ -225,7 +206,10 @@ export function ProfileManagement({
             </div>
 
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-              <DialogTrigger render={<Button className="mt-6 w-full gap-2" variant="default" size="sm" />}>
+              <DialogTrigger
+                onClick={() => setIsOpen(true)}
+                render={<Button className="mt-6 w-full gap-2" variant="default" size="sm" />}
+              >
                 <Edit className="size-3.5" />
                 Edit Profile Information
               </DialogTrigger>
@@ -241,10 +225,23 @@ export function ProfileManagement({
                     </DialogDescription>
                   </DialogHeader>
 
+                  {profileError && (
+                    <div
+                      role="alert"
+                      aria-live="assertive"
+                      className="mt-3 flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive"
+                    >
+                      <AlertTriangle className="size-4 shrink-0 text-destructive" aria-hidden="true" />
+                      <span>{profileError}</span>
+                    </div>
+                  )}
+
                   <div className="grid gap-4 py-4">
                     <div className="grid gap-1.5">
-                      <label className="text-xs font-medium text-foreground">Full Name</label>
+                      <label htmlFor="name" className="text-xs font-medium text-foreground">Full Name</label>
                       <input
+                        id="name"
+                        name="name"
                         type="text"
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
@@ -255,8 +252,10 @@ export function ProfileManagement({
                     </div>
 
                     <div className="grid gap-1.5">
-                      <label className="text-xs font-medium text-foreground">Physical Address</label>
+                      <label htmlFor="address" className="text-xs font-medium text-foreground">Physical Address</label>
                       <textarea
+                        id="address"
+                        name="address"
                         value={editAddress}
                         onChange={(e) => setEditAddress(e.target.value)}
                         className="min-h-[70px] rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
@@ -265,10 +264,12 @@ export function ProfileManagement({
                     </div>
 
                     <div className="grid gap-1.5">
-                      <label className="text-xs font-medium text-foreground">
+                      <label htmlFor="password" className="text-xs font-medium text-foreground">
                         New Password (optional)
                       </label>
                       <input
+                        id="password"
+                        name="password"
                         type="password"
                         value={editPassword}
                         onChange={(e) => setEditPassword(e.target.value)}
@@ -350,7 +351,7 @@ export function ProfileManagement({
               <div className="divide-y divide-border rounded-lg border border-border bg-background/50">
                 {sessions.map((sess, index) => (
                   <div
-                    key={`${sess.session_id ?? selectedUserId}-${sess.login_time ?? "session"}-${index}`}
+                    key={`${sess.session_id ?? currentUser.id}-${sess.login_time ?? "session"}-${index}`}
                     className="flex items-center justify-between p-3.5 text-xs"
                   >
                     <div className="space-y-1">

@@ -1,9 +1,13 @@
 "use client"
 
-import { useRef } from "react"
+import { useRef, useState, Suspense } from "react"
 import { Canvas, useFrame } from "@react-three/fiber"
 import { OrbitControls, Environment } from "@react-three/drei"
 import type * as THREE from "three"
+import { Loader2, RotateCcw, Play, Pause, Snowflake, AlertTriangle, Truck as TruckIcon } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import type { Truck } from "@/types"
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const AMBER  = "#d97706"   // primary accent (amber-600)
@@ -11,10 +15,14 @@ const DARK   = "#1c2333"   // cabin shadow
 const GLASS  = "#60a5fa"   // windshield blue
 const WHEEL  = "#0f172a"   // almost-black tires
 const CHROME = "#94a3b8"   // bumper / trim
+const REFRIG = "#f8fafc"   // white refrigeration unit
+const HAZARD = "#ef4444"   // hazard red/orange
 
 // ─── Low-poly truck group ─────────────────────────────────────────────────────
-function Truck() {
+function TruckModel({ truck }: { truck?: Truck }) {
   const group = useRef<THREE.Group>(null)
+  const isRefrig = Boolean(truck?.has_refrigeration)
+  const isHighMaintenance = Boolean(truck && (!truck.is_valid || (truck.truck_maintenance ?? 0) >= 3))
 
   // gentle idle sway
   useFrame(({ clock }) => {
@@ -36,6 +44,26 @@ function Truck() {
         <boxGeometry args={[0.03, 1.01, 1.01]} />
         <meshStandardMaterial color={CHROME} roughness={0.3} metalness={0.6} />
       </mesh>
+
+      {/* ── Optional Refrigeration Chiller Unit (Front-mounted on trailer) ── */}
+      {isRefrig && (
+        <group position={[-0.56, 0.95, 0]}>
+          <mesh castShadow>
+            <boxGeometry args={[0.18, 0.42, 0.75]} />
+            <meshStandardMaterial color={REFRIG} roughness={0.3} metalness={0.2} />
+          </mesh>
+          {/* Chiller intake vent grill */}
+          <mesh position={[-0.1, 0, 0]}>
+            <boxGeometry args={[0.02, 0.28, 0.55]} />
+            <meshStandardMaterial color="#334155" roughness={0.5} />
+          </mesh>
+          {/* Blue LED indicator for cold chain */}
+          <mesh position={[-0.1, 0.14, 0.25]}>
+            <sphereGeometry args={[0.025, 8, 8]} />
+            <meshStandardMaterial color="#38bdf8" emissive="#38bdf8" emissiveIntensity={2} />
+          </mesh>
+        </group>
+      )}
 
       {/* ── Cabin ──────────────────────────────────────────────────────── */}
       <mesh position={[-0.82, 0.7, 0]} castShadow>
@@ -64,6 +92,14 @@ function Truck() {
         <boxGeometry args={[0.91, 0.06, 1.0]} />
         <meshStandardMaterial color={AMBER} roughness={0.4} metalness={0.1} />
       </mesh>
+
+      {/* Optional Rooftop Amber Hazard Beacon if maintenance required */}
+      {isHighMaintenance && (
+        <mesh position={[-0.82, 1.34, 0]}>
+          <cylinderGeometry args={[0.06, 0.08, 0.12, 8]} />
+          <meshStandardMaterial color={HAZARD} emissive={HAZARD} emissiveIntensity={2} />
+        </mesh>
+      )}
 
       {/* ── Chassis / frame ────────────────────────────────────────────── */}
       <mesh position={[0, 0.1, 0.3]} castShadow receiveShadow>
@@ -149,45 +185,134 @@ function Ground() {
 }
 
 // ─── Exported canvas wrapper ──────────────────────────────────────────────────
-export function TruckScene() {
+export interface TruckSceneProps {
+  truck?: Truck
+  className?: string
+  showOverlay?: boolean
+}
+
+export function TruckScene({ truck, className = "h-52 w-full", showOverlay = false }: TruckSceneProps) {
+  const [autoRotate, setAutoRotate] = useState(true)
+  const controlsRef = useRef<any>(null)
+
+  function resetCamera() {
+    if (controlsRef.current) {
+      controlsRef.current.reset()
+    }
+  }
+
+  const modelLabel = truck?.model || "Standard Logistics Hauler"
+  const isRefrig = Boolean(truck?.has_refrigeration)
+  const isMaintenance = Boolean(truck && (!truck.is_valid || (truck.truck_maintenance ?? 0) >= 3))
+
   return (
-    <div className="h-52 w-full cursor-grab active:cursor-grabbing" aria-label="Interactive 3D truck">
-      <Canvas
-        shadows
-        camera={{ position: [-3, 2.2, 4], fov: 40 }}
-        gl={{ antialias: true }}
-        style={{ background: "transparent" }}
-      >
-        <ambientLight intensity={0.6} />
-        <directionalLight
-          position={[4, 6, 3]}
-          intensity={2.5}
-          castShadow
-          shadow-mapSize={[1024, 1024]}
-          shadow-camera-near={0.5}
-          shadow-camera-far={20}
-          shadow-camera-left={-5}
-          shadow-camera-right={5}
-          shadow-camera-top={5}
-          shadow-camera-bottom={-5}
-        />
-        <pointLight position={[-4, 2, -2]} intensity={0.6} color="#d97706" />
+    <div className="relative rounded-xl border border-border/80 bg-gradient-to-b from-card to-muted/20 overflow-hidden shadow-sm">
+      {/* Header Overlay Controls if showOverlay is true */}
+      {showOverlay && (
+        <div className="absolute top-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+          <div className="flex items-center gap-2 pointer-events-auto bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-border/60 shadow-xs">
+            <TruckIcon className="size-4 text-primary" />
+            <span className="text-xs font-semibold text-foreground tracking-tight">{modelLabel}</span>
+            <Badge variant="outline" className="text-[10px] ml-1 bg-primary/10 text-primary border-primary/20">
+              3D Vehicle Twin
+            </Badge>
+            {isRefrig && (
+              <Badge variant="secondary" className="text-[10px] gap-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20">
+                <Snowflake className="size-2.5" />
+                Cold Cargo
+              </Badge>
+            )}
+            {isMaintenance && (
+              <Badge variant="destructive" className="text-[10px] gap-1">
+                <AlertTriangle className="size-2.5" />
+                Maintenance
+              </Badge>
+            )}
+          </div>
 
-        <Environment preset="city" />
+          <div className="flex items-center gap-1.5 pointer-events-auto bg-background/80 backdrop-blur-md p-1 rounded-lg border border-border/60 shadow-xs">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0"
+              onClick={() => setAutoRotate(!autoRotate)}
+              title={autoRotate ? "Pause rotation" : "Auto rotate"}
+              aria-label={autoRotate ? "Pause auto rotation" : "Enable auto rotation"}
+            >
+              {autoRotate ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0"
+              onClick={resetCamera}
+              title="Reset 3D view"
+              aria-label="Reset 3D camera view"
+            >
+              <RotateCcw className="size-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
 
-        <Truck />
-        <Ground />
+      {/* 3D Canvas */}
+      <div className={className} aria-label="Interactive 3D truck">
+        <Canvas
+          shadows
+          camera={{ position: [-3, 2.2, 4], fov: 40 }}
+          gl={{ antialias: true }}
+          style={{ background: "transparent" }}
+        >
+          <ambientLight intensity={0.6} />
+          <directionalLight
+            position={[4, 6, 3]}
+            intensity={2.5}
+            castShadow
+            shadow-mapSize={[1024, 1024]}
+            shadow-camera-near={0.5}
+            shadow-camera-far={20}
+            shadow-camera-left={-5}
+            shadow-camera-right={5}
+            shadow-camera-top={5}
+            shadow-camera-bottom={-5}
+          />
+          <pointLight position={[-4, 2, -2]} intensity={0.6} color="#d97706" />
 
-        <OrbitControls
-          enablePan={false}
-          minDistance={3}
-          maxDistance={9}
-          minPolarAngle={Math.PI / 8}
-          maxPolarAngle={Math.PI / 2.1}
-          autoRotate
-          autoRotateSpeed={0.6}
-        />
-      </Canvas>
+          <Environment preset="city" />
+
+          <Suspense fallback={null}>
+            <TruckModel truck={truck} />
+          </Suspense>
+          <Ground />
+
+          <OrbitControls
+            ref={controlsRef}
+            enablePan={false}
+            minDistance={3}
+            maxDistance={9}
+            minPolarAngle={Math.PI / 8}
+            maxPolarAngle={Math.PI / 2.1}
+            autoRotate={autoRotate}
+            autoRotateSpeed={0.6}
+          />
+        </Canvas>
+      </div>
+
+      {/* Footer info if showOverlay is true */}
+      {showOverlay && (
+        <div className="border-t border-border/50 bg-background/60 backdrop-blur-xs px-3.5 py-2 flex flex-wrap items-center justify-between text-xs text-muted-foreground gap-2">
+          <div className="flex items-center gap-3">
+            <span>Payload: <strong className="text-foreground font-medium">{truck?.weight_max ? `${(truck.weight_max / 1000).toFixed(1)}t` : "25t"}</strong></span>
+            <span>•</span>
+            <span>Volume: <strong className="text-foreground font-medium">{truck?.volume_max ?? 90} m³</strong></span>
+            <span>•</span>
+            <span>Speed: <strong className="text-foreground font-medium">{truck?.speed ?? 80} km/h</strong></span>
+          </div>
+          <span className="text-[11px] text-muted-foreground/80 italic">Drag to orbit • Scroll to zoom</span>
+        </div>
+      )}
     </div>
   )
 }

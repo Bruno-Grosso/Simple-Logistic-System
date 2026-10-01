@@ -31,6 +31,7 @@ export async function converterEndereco(endereco: string): Promise<CoordenadasRe
         "User-Agent": "MeuConversorDeCoordenadasTS",
         "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
       },
+      signal: AbortSignal.timeout(800),
     });
 
     const dados: NominatimResult[] = await resposta.json();
@@ -69,6 +70,7 @@ export async function converterCoordenadas(
         "User-Agent": "MeuConversorDeCoordenadasTS",
         "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
       },
+      signal: AbortSignal.timeout(800),
     });
 
     const dados: NominatimResult = await resposta.json();

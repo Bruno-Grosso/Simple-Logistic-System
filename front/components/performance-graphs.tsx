@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import {
   TrendingUp,
   Calendar,
@@ -19,32 +20,70 @@ import type { MonthlyPerformanceData } from "@/types"
 
 interface PerformanceGraphsProps {
   warehouseId?: string
+  period?: string
   monthlyPerformance?: MonthlyPerformanceData[]
 }
 
-export function PerformanceGraphs({ warehouseId, monthlyPerformance: initialMonthlyPerformance }: PerformanceGraphsProps) {
+export function PerformanceGraphs({ warehouseId, period, monthlyPerformance: initialMonthlyPerformance }: PerformanceGraphsProps) {
+  const router = useRouter()
   const [fetchedData, setFetchedData] = React.useState<MonthlyPerformanceData[]>(initialMonthlyPerformance || [])
   const [activeRange, setActiveRange] = React.useState<"12M" | "6M_H1" | "6M_H2">("12M")
   const [selectedMonthIndex, setSelectedMonthIndex] = React.useState<number | null>(11)
   const [showPoiOnly, setShowPoiOnly] = React.useState(false)
   const [hasMounted, setHasMounted] = React.useState(false)
 
+  // Sync activeRange & selectedMonthIndex when period prop changes from URL or database
+  React.useEffect(() => {
+    if (period) {
+      const p = period.toLowerCase()
+      if (p === "6m_h1" || p === "h1") {
+        setActiveRange("6M_H1")
+      } else if (p === "6m_h2" || p === "h2") {
+        setActiveRange("6M_H2")
+      } else if (p === "12m" || p === "all") {
+        setActiveRange("12M")
+      } else {
+        const foundIdx = fetchedData.findIndex(
+          (d) =>
+            d.month.toLowerCase() === p ||
+            d.fullMonth.toLowerCase().includes(p) ||
+            p.includes(d.month.toLowerCase())
+        )
+        if (foundIdx !== -1) {
+          setSelectedMonthIndex(foundIdx)
+        }
+      }
+    } else {
+      setActiveRange("12M")
+    }
+  }, [period, fetchedData])
+
   React.useEffect(() => {
     if (initialMonthlyPerformance && initialMonthlyPerformance.length > 0) {
       setFetchedData(initialMonthlyPerformance)
     } else {
-      api.reports.getMonthlyPerformance().then((res) => {
+      api.reports.getMonthlyPerformance(warehouseId).then((res) => {
         if (res && res.length > 0) setFetchedData(res)
       })
     }
-  }, [initialMonthlyPerformance])
+  }, [initialMonthlyPerformance, warehouseId])
 
   React.useEffect(() => {
     const frame = window.requestAnimationFrame(() => setHasMounted(true))
     return () => window.cancelAnimationFrame(frame)
   }, [])
 
-  // Filter data based on selected range & warehouse multiplier if applicable
+  function updateUrlPeriod(newPeriod: string) {
+    const params = new URLSearchParams(window.location.search)
+    if (newPeriod) {
+      params.set("period", newPeriod)
+    } else {
+      params.delete("period")
+    }
+    router.push(`/reports?${params.toString()}`)
+  }
+
+  // Filter data based on selected range from database records
   const data = React.useMemo(() => {
     let source = fetchedData.length > 0 ? [...fetchedData] : []
     if (source.length === 0) return []
@@ -55,28 +94,8 @@ export function PerformanceGraphs({ warehouseId, monthlyPerformance: initialMont
       source = source.slice(6, 12)
     }
 
-    // If warehouse is selected, scale metrics to represent warehouse share
-    if (warehouseId) {
-      const scaleMap: Record<string, number> = {
-        "WH-001": 0.5,
-        "WH-002": 0.25,
-        "WH-003": 0.25,
-      }
-      const factor = scaleMap[warehouseId] ?? 0.33
-      return source.map((item) => ({
-        ...item,
-        revenue: Math.round(item.revenue * factor),
-        costs: Math.round(item.costs * factor),
-        profit: Math.round(item.profit * factor),
-        fuelCost: Math.round(item.fuelCost * factor),
-        laborCost: Math.round(item.laborCost * factor),
-        maintenanceCost: Math.round(item.maintenanceCost * factor),
-        ordersCount: Math.round(item.ordersCount * factor),
-      }))
-    }
-
     return source
-  }, [activeRange, fetchedData, warehouseId])
+  }, [activeRange, fetchedData])
 
   if (!hasMounted) {
     return (
@@ -119,8 +138,9 @@ export function PerformanceGraphs({ warehouseId, monthlyPerformance: initialMont
   const maxVal = Math.max(...data.map((d) => Math.max(d.profit, d.costs, d.revenue))) * 1.1
   const minVal = 0
 
-  const getX = (index: number) => padding.left + (index / (data.length - 1)) * graphWidth
-  const getY = (val: number) => padding.top + graphHeight - ((val - minVal) / (maxVal - minVal)) * graphHeight
+  const getX = (index: number) => padding.left + (data.length > 1 ? (index / (data.length - 1)) * graphWidth : graphWidth / 2)
+  const yRange = maxVal - minVal
+  const getY = (val: number) => padding.top + graphHeight - (yRange > 0 ? ((val - minVal) / yRange) * graphHeight : 0)
 
   // Generate SVG Path for Profit line (Green) & Costs line (Red)
   const profitPoints = data.map((d, i) => ({ x: getX(i), y: getY(d.profit) }))
@@ -163,8 +183,9 @@ export function PerformanceGraphs({ warehouseId, monthlyPerformance: initialMont
               onClick={() => {
                 setActiveRange("12M")
                 setSelectedMonthIndex(null)
+                updateUrlPeriod("")
               }}
-              className={`px-3 py-1.5 rounded-md font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-md font-medium transition-all cursor-pointer ${
                 activeRange === "12M" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -174,8 +195,9 @@ export function PerformanceGraphs({ warehouseId, monthlyPerformance: initialMont
               onClick={() => {
                 setActiveRange("6M_H1")
                 setSelectedMonthIndex(null)
+                updateUrlPeriod("6M_H1")
               }}
-              className={`px-3 py-1.5 rounded-md font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-md font-medium transition-all cursor-pointer ${
                 activeRange === "6M_H1" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -185,8 +207,9 @@ export function PerformanceGraphs({ warehouseId, monthlyPerformance: initialMont
               onClick={() => {
                 setActiveRange("6M_H2")
                 setSelectedMonthIndex(null)
+                updateUrlPeriod("6M_H2")
               }}
-              className={`px-3 py-1.5 rounded-md font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-md font-medium transition-all cursor-pointer ${
                 activeRange === "6M_H2" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -459,6 +482,20 @@ export function PerformanceGraphs({ warehouseId, monthlyPerformance: initialMont
                     <span>{selectedData.poi}</span>
                   </p>
                 )}
+                <button
+                  onClick={() => {
+                    const monthMap: Record<string, string> = {
+                      Jan: "2026-01", Feb: "2026-02", Mar: "2026-03", Apr: "2026-04",
+                      May: "2026-05", Jun: "2026-06", Jul: "2026-07", Aug: "2026-08",
+                      Sep: "2026-09", Oct: "2026-10", Nov: "2026-11", Dec: "2026-12",
+                    }
+                    const mKey = monthMap[selectedData.month] || selectedData.month
+                    updateUrlPeriod(mKey)
+                  }}
+                  className="mt-1 text-[11px] text-primary hover:underline font-medium flex items-center gap-1 cursor-pointer"
+                >
+                  Filter entire report for {selectedData.fullMonth} →
+                </button>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full md:w-auto text-xs bg-muted/40 p-3 rounded-lg border border-border">

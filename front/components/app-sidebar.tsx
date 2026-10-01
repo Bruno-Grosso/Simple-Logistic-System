@@ -13,7 +13,6 @@ import {
   BarChart3,
   UserCircle,
 } from "lucide-react"
-import { useEffect, useState } from "react"
 import {
   Sidebar,
   SidebarHeader,
@@ -23,7 +22,8 @@ import {
 } from "@/components/ui/sidebar"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
-import { api } from "@/lib/api"
+import { SidebarThemeToggle } from "@/components/theme-toggle"
+import type { User } from "@/types"
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -38,30 +38,27 @@ const navItems = [
   { title: "Profile", url: "/profile", icon: UserCircle },
 ]
 
-export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
-  const [currentUser, setCurrentUser] = useState<{ name: string; role: string; email?: string } | undefined>(undefined)
-  const [hasMounted, setHasMounted] = useState(false)
+const roleNavItems: Record<string, string[]> = {
+  admin: navItems.map((item) => item.url),
+  dispatcher: ["/dashboard", "/orders", "/fleet", "/reports", "/profile"],
+  inventory_manager: ["/dashboard", "/deposits", "/products", "/stock", "/suppliers", "/profile"],
+  maintenance_technician: ["/dashboard", "/fleet", "/profile"],
+  truck_driver: ["/dashboard", "/orders", "/fleet", "/profile"],
+  warehouse_worker: ["/dashboard", "/orders", "/deposits", "/stock", "/profile"],
+  client: ["/dashboard", "/orders", "/profile"],
+  worker: ["/dashboard", "/orders", "/deposits", "/stock", "/profile"],
+  manager: ["/dashboard", "/orders", "/fleet", "/deposits", "/products", "/stock", "/suppliers", "/reports", "/profile"],
+}
 
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setHasMounted(true))
-    return () => window.cancelAnimationFrame(frame)
-  }, [])
-
-  useEffect(() => {
-    let isMounted = true
-    api.users.getById("USR-001").then((user) => {
-      if (isMounted && user) {
-        setCurrentUser({
-          name: user.name,
-          role: user.rawRole || user.role,
-          email: user.email,
-        })
-      }
-    }).catch(() => {})
-    return () => { isMounted = false }
-  }, [])
-
-  if (!hasMounted) return null
+export function AppSidebar({ user, ...props }: ComponentProps<typeof Sidebar> & { user: User }) {
+  const currentUser = {
+    name: user.name,
+    role: user.rawRole || user.role,
+    email: user.email,
+  }
+  const visibleNavItems = navItems.filter((item) =>
+    (roleNavItems[user.rawRole || user.role] || roleNavItems.client).includes(item.url),
+  )
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -77,9 +74,10 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
         </div>
       </SidebarHeader>
       <SidebarContent className="px-2 py-2">
-        <NavMain items={navItems} />
+        <NavMain items={visibleNavItems} />
       </SidebarContent>
-      <SidebarFooter className="border-t border-sidebar-border">
+      <SidebarFooter className="border-t border-sidebar-border gap-1 p-2">
+        <SidebarThemeToggle />
         <NavUser user={currentUser} />
       </SidebarFooter>
       <SidebarRail />

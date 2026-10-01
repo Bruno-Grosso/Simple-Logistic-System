@@ -54,7 +54,6 @@ export function LoginForm() {
             name="password"
             type={showPass ? "text" : "password"}
             required
-            minLength={8}
             autoComplete="current-password"
             placeholder="••••••••"
             className={cn("h-10 pr-11")}

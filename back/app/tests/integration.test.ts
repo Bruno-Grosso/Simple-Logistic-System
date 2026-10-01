@@ -50,7 +50,7 @@ describe("Backend Integration Tests - HTTP Endpoints & Router Layer", () => {
         body: JSON.stringify({
           id: testId,
           name: "Integration Test Client",
-          email: "testclient@logisys.com",
+          email: `testclient-${Date.now()}@logisys.com`,
           password: "password123",
           address: "Rua Teste 100, Petrópolis - RJ",
           role: "client",

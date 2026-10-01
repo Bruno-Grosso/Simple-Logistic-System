@@ -67,3 +67,70 @@ test("Inventory: GET /suppliers/INVALID returns 404", async () => {
   const text = await res.text();
   expect(text).toBe("Supplier not found");
 });
+
+test("Inventory: POST /products creates a new product and validates persistence", async () => {
+  const productId = `PRD-TEST-${Date.now().toString().slice(-4)}`;
+  const res = await testFetch("/products", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: productId,
+      name: "Organic Coffee Beans",
+      price: 49.9,
+      is_cold: 0,
+      is_fragile: 0,
+      expire_date: "2027-12-31",
+      volume: 0.05,
+      weight: 1.0,
+      size: { length: 0.2, width: 0.15, height: 0.1 },
+    }),
+  });
+  expect(res.status).toBe(201);
+  const data = (await res.json()) as any;
+  expect(data.success).toBe(true);
+  expect(data.product.id).toBe(productId);
+  expect(data.product.name).toBe("Organic Coffee Beans");
+
+  // Verify retrieval
+  const getRes = await testFetch(`/products/${productId}`);
+  expect(getRes.status).toBe(200);
+  const fetched = (await getRes.json()) as any[];
+  expect(fetched[0].name).toBe("Organic Coffee Beans");
+});
+
+test("Inventory: PUT /warehouses/:id/stock and DELETE /warehouses/:id/stock/:productId manages stock", async () => {
+  const warehouseId = "WH-001";
+  const productId = "PROD-001";
+
+  // Upsert stock
+  const putRes = await testFetch(`/warehouses/${warehouseId}/stock`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      product_id: productId,
+      quantity: 150,
+    }),
+  });
+  expect(putRes.status).toBe(200);
+  const putData = (await putRes.json()) as any;
+  expect(putData.success).toBe(true);
+  expect(putData.stock.quantity).toBe(150);
+
+  // Verify stock query
+  const stockRes = await testFetch(`/warehouses/${warehouseId}/stock`);
+  expect(stockRes.status).toBe(200);
+  const stockList = (await stockRes.json()) as any[];
+  const entry = stockList.find((s) => s.product_id === productId);
+  expect(entry).toBeDefined();
+  expect(entry.quantity).toBe(150);
+
+  // Reset back to original 50
+  await testFetch(`/warehouses/${warehouseId}/stock`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      product_id: productId,
+      quantity: 50,
+    }),
+  });
+});

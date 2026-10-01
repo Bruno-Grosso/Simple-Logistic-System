@@ -15,9 +15,10 @@ describe("User Profile & Backend Identity Integration UI Tests", () => {
     cy.contains("Active Backend Sessions").should("be.visible")
   })
 
-  it("should allow switching mock profile view using the select dropdown", () => {
-    cy.get("select").select("USR-002 - Bob Worker (warehouse_worker)", { force: true })
-    cy.contains("Bob Worker").should("be.visible")
-    cy.contains("USR-002").should("be.visible")
+  it("should allow opening and interacting with the profile edit dialog", () => {
+    cy.get('[data-slot="dialog-trigger"]').click()
+    cy.contains("Edit User Profile").should("be.visible")
+    cy.get('input[id="name"]').should("have.value", "Alice Admin")
+    cy.contains("button", "Cancel").click()
   })
 })
