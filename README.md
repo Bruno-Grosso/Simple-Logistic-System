@@ -1,4 +1,4 @@
-# Simple-Logistic-System
+# Logistics System
 This aims to be an implementation of a logistics system, built as a project for the "Princípios de Engenharia de Software" provided by UERJ-IPRJ.  
 
 ## Back-end
